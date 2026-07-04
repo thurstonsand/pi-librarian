@@ -1,0 +1,52 @@
+import os from "node:os";
+import path from "node:path";
+import { describe, expect, it } from "vitest";
+import { getDefaultCacheDir, resolveLibrarianSettings } from "../extensions/librarian/settings.ts";
+
+describe("resolveLibrarianSettings", () => {
+  it("returns defaults for empty settings", () => {
+    const settings = resolveLibrarianSettings({});
+    expect(settings.model).toBeUndefined();
+    expect(settings.thinkingLevel).toBeUndefined();
+    expect(settings.extensions).toEqual([]);
+    expect(settings.disabledTools).toEqual([]);
+    expect(settings.cacheDir).toBe(getDefaultCacheDir());
+    expect(settings.cacheDir).toBe(path.join(os.tmpdir(), "pi-librarian"));
+  });
+
+  it("parses provider/model references", () => {
+    const settings = resolveLibrarianSettings({ model: "anthropic/claude-sonnet-5" });
+    expect(settings.model?.provider).toBe("anthropic");
+    expect(settings.model?.modelId).toBe("claude-sonnet-5");
+  });
+
+  it("parses model ids containing slashes", () => {
+    const settings = resolveLibrarianSettings({ model: "openrouter/meta/llama-4" });
+    expect(settings.model?.provider).toBe("openrouter");
+    expect(settings.model?.modelId).toBe("meta/llama-4");
+  });
+
+  it("parses thinking level", () => {
+    const settings = resolveLibrarianSettings({ thinkingLevel: "high" });
+    expect(settings.thinkingLevel).toBe("high");
+  });
+
+  it("rejects malformed model references", () => {
+    expect(resolveLibrarianSettings({ model: "no-slash" }).model).toBeUndefined();
+    expect(resolveLibrarianSettings({ model: "/leading" }).model).toBeUndefined();
+    expect(resolveLibrarianSettings({ model: "trailing/" }).model).toBeUndefined();
+  });
+
+  it("expands home-relative extension paths and drops blanks", () => {
+    const settings = resolveLibrarianSettings({
+      extensions: ["~/exts/web-tools", "  ", "/abs/path"],
+    });
+    expect(settings.extensions).toEqual([path.join(os.homedir(), "exts/web-tools"), "/abs/path"]);
+  });
+
+  it("expands home-relative cacheDir and rejects relative paths", () => {
+    const settings = resolveLibrarianSettings({ cacheDir: "~/tmp/librarian" });
+    expect(settings.cacheDir).toBe(path.join(os.homedir(), "tmp/librarian"));
+    expect(() => resolveLibrarianSettings({ cacheDir: "relative/path" })).toThrow(/absolute path/);
+  });
+});

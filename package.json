@@ -1,0 +1,64 @@
+{
+  "name": "@thurstonsand/pi-librarian",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "GitHub research subagent for pi: deep-dive specific repos, discover across the ecosystem",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thurstonsand/pi-librarian.git"
+  },
+  "homepage": "https://github.com/thurstonsand/pi-librarian#readme",
+  "bugs": {
+    "url": "https://github.com/thurstonsand/pi-librarian/issues"
+  },
+  "keywords": [
+    "pi-package"
+  ],
+  "engines": {
+    "node": ">=24 <26"
+  },
+  "files": [
+    "extensions"
+  ],
+  "pi": {
+    "extensions": [
+      "./extensions/librarian.ts"
+    ]
+  },
+  "scripts": {
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "check": "biome check . && tsc --noEmit && vitest run",
+    "prepare": "husky || true"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.14",
+    "@earendil-works/pi-agent-core": "^0.80.2",
+    "@earendil-works/pi-ai": "^0.80.2",
+    "@earendil-works/pi-coding-agent": "^0.80.2",
+    "@earendil-works/pi-tui": "^0.80.2",
+    "@types/node": "^25.6.2",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.3",
+    "typebox": "^1.1.38",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.5"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-agent-core": ">=0.80.2",
+    "@earendil-works/pi-ai": ">=0.80.2",
+    "@earendil-works/pi-coding-agent": ">=0.80.2",
+    "@earendil-works/pi-tui": ">=0.80.2",
+    "typebox": ">=1.1.24"
+  },
+  "lint-staged": {
+    "*.{js,cjs,mjs,jsx,ts,tsx,json,jsonc}": "biome check --write --no-errors-on-unmatched"
+  },
+  "dependencies": {
+    "@octokit/request-error": "^7.1.0",
+    "@octokit/rest": "^22.0.1"
+  }
+}
