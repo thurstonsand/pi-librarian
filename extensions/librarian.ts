@@ -36,6 +36,12 @@ const LibrarianParams = Type.Object({
       maxItems: 20,
     }),
   ),
+  continue_from: Type.Optional(
+    Type.String({
+      description:
+        "Run id from an earlier librarian result. Pass this for follow-up questions for that prior run.",
+    }),
+  ),
 });
 
 export default function librarianExtension(pi: ExtensionAPI): void {
@@ -110,6 +116,7 @@ export default function librarianExtension(pi: ExtensionAPI): void {
         query: params.query,
         repos: params.repos ?? [],
         owners: params.owners ?? [],
+        continueFrom: params.continue_from,
         model: resolution.model,
         thinkingLevel: resolution.thinkingLevel,
         settings,
@@ -118,7 +125,12 @@ export default function librarianExtension(pi: ExtensionAPI): void {
         onUpdate: onUpdate
           ? (details) => {
               onUpdate({
-                content: [{ type: "text", text: `Researching: ${shorten(params.query, 80)}` }],
+                content: [
+                  {
+                    type: "text",
+                    text: `Researching: ${shorten(params.query, 80)}`,
+                  },
+                ],
                 details,
               });
             }

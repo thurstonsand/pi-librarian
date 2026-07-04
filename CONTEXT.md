@@ -9,6 +9,9 @@ The research agent spawned by the `librarian` tool; runs in a nested, in-memory 
 One invocation of the librarian: query in, findings out, with a recorded tool-call trace.
 _Avoid_: session (reserved for pi sessions)
 
+**Run id**:
+The pi session uuid of a librarian run, so that it may be continued for follow up questions.
+
 **Findings**:
 The structured output of a librarian run, produced by `provide_results`: summary, locations, optional description.
 
@@ -26,3 +29,4 @@ _Avoid_: load, enable
 
 - A **Librarian run** ends with exactly one **Findings**, containing zero or more **Locations**.
 - **Attached tools** are the same **Repo tools** a **Librarian** uses, minus `provide_results`.
+- a **Librarian run** is persisted in its own session directory, identified by a **Run id**.

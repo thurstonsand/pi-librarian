@@ -121,6 +121,75 @@ read_github_file: package.json line 2 => "name": "@octokit/rest"
 search_github_code: 1 of 78 matches across 1 repos (github): src/index.ts
 ```
 
+## 6. Continuable librarian runs
+
+Executed in a reloaded interactive pi session against the local development extension.
+
+Fresh run:
+
+```text
+librarian({
+  query: "In thurstonsand/pi-librarian, where is the librarian tool registered and what function executes a run? Return a concise answer with citations.",
+  repos: ["thurstonsand/pi-librarian"]
+})
+```
+
+The run surfaced a durable id even after abort:
+
+```text
+Librarian run aborted.
+
+run: 019f2ec8-5976-71a8-bfc3-1aaec806356f
+```
+
+Continuation using the same run id reused the transcript. A follow-up asking only about prior
+context completed with zero research calls and cited the previous `checkout_repo` tool result:
+
+```text
+librarian({
+  query: "Use only the existing transcript context if sufficient. What repo did checkout_repo clone, and what local path did it return? Answer with provide_results immediately; do not call any other tools.",
+  continue_from: "019f2ec8-5976-71a8-bfc3-1aaec806356f"
+})
+```
+
+Result:
+
+```text
+`checkout_repo` cloned `thurstonsand/pi-librarian@main` at commit `48a9a84f3767`.
+It returned local path `/var/folders/.../T/pi-librarian/repos/thurstonsand/pi-librarian`.
+
+run: 019f2ec8-5976-71a8-bfc3-1aaec806356f
+```
+
+A second continuation finished the original task, performing only current-invocation research calls
+(`find`, `grep`, `read`, `bash`, then `provide_results`) while preserving the same run id:
+
+```text
+The `librarian` tool is registered in the extension entrypoint, `extensions/librarian.ts`, via
+`pi.registerTool({ name: "librarian", ... })`. Its `execute` handler resolves the model and delegates
+the actual run to `runLibrarian`, which is implemented in `extensions/librarian/run.ts`.
+
+Locations:
+- `thurstonsand/pi-librarian/extensions/librarian.ts:71-83`
+- `thurstonsand/pi-librarian/extensions/librarian.ts:109-125`
+- `thurstonsand/pi-librarian/extensions/librarian/run.ts:68-121`
+- `thurstonsand/pi-librarian/extensions/librarian/run.ts:145-161`
+- `thurstonsand/pi-librarian/extensions/librarian/run.ts:210-226`
+
+run: 019f2ec8-5976-71a8-bfc3-1aaec806356f
+```
+
+Transcript inspection confirmed the same session file accumulated all continuation turns:
+
+```text
+/var/folders/.../T/pi-librarian/sessions/2026-07-04T20-18-29-878Z_019f2ec8-5976-71a8-bfc3-1aaec806356f.jsonl
+```
+
+The first two attempts were manually aborted after long model latency before completion. The aborted
+transcript remained continuable, which matches the intended failure mode. One citation in the
+zero-research follow-up pointed at a synthetic `checkout_repo result` file; this is a prompt/model
+behavior issue, not a continuation failure.
+
 ## Quality gate
 
 `npm run check` (biome + tsc strict + vitest, 51 unit tests) green after the Octokit refactor.

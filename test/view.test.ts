@@ -133,6 +133,7 @@ describe("renderLibrarianResult", () => {
           description: "Details\nIt checks evidence before answering.",
         },
         checkouts: {},
+        runId: "run-123",
         startedAt: 0,
         endedAt: 10,
       },
@@ -167,7 +168,8 @@ describe("renderLibrarianResult", () => {
       .join("\n");
 
     expect(rendered).toContain("The librarian researches repositories.");
-    expect(rendered).toContain("\n\n1 tool call · 0.0s · test/model (high)");
+    expect(rendered).toContain("run run-123");
+    expect(rendered).toContain("1 tool call · 0.0s · test/model (high)");
     expect(rendered).not.toContain("\n  1 tool call");
     expect(rendered).not.toContain("It checks evidence before answering.");
   });

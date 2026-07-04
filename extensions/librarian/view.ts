@@ -275,6 +275,9 @@ export function renderLibrarianResult(
   }
 
   container.addChild(new Spacer(1));
+  if (!running && details.runId) {
+    container.addChild(new Text(theme.fg("muted", `run ${details.runId}`), 0, 0));
+  }
   container.addChild(new Text(renderFooter(details, theme), 0, 0));
   return container;
 }

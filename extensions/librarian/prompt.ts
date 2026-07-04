@@ -21,7 +21,7 @@ Clones live under ${cacheDir}/repos/<owner>/<repo>. They are read-only research 
 
 ## Citations
 
-- Only cite files you actually read in this run.
+- Only cite files you actually read within context.
 - Cite as repo + file path + line range when you have one.
 - If evidence is partial, say what is confirmed and what remains uncertain.
 - If access fails (404/403, private repo), report that constraint plainly.

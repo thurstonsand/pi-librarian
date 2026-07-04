@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import path from "node:path";
 import type { AgentToolResult, ThinkingLevel } from "@earendil-works/pi-agent-core";
 import type { Api, Model } from "@earendil-works/pi-ai";
 import type { AgentSession, AgentSessionEvent } from "@earendil-works/pi-coding-agent";
@@ -49,6 +50,7 @@ export interface LibrarianRunDetails {
   findings?: Findings;
   checkouts: Record<string, string>;
   error?: string;
+  runId?: string;
   startedAt: number;
   endedAt?: number;
 }
@@ -57,6 +59,7 @@ export interface LibrarianRunOptions {
   query: string;
   repos: string[];
   owners: string[];
+  continueFrom: string | undefined;
   model: Model<Api>;
   thinkingLevel: ThinkingLevel;
   settings: LibrarianSettings;
@@ -93,6 +96,7 @@ export async function runLibrarian(
     content: string,
     isError: boolean,
   ): AgentToolResult<LibrarianRunDetails> => {
+    const resultContent = details.runId ? `${content}\n\nrun: ${details.runId}` : content;
     details.status = status;
     details.endedAt = Date.now();
     if (isError) {
@@ -100,13 +104,27 @@ export async function runLibrarian(
     }
     emit(true);
     return {
-      content: [{ type: "text", text: content }],
+      content: [{ type: "text", text: resultContent }],
       details: { ...details, trace: [...details.trace] },
       ...(isError ? { isError: true } : {}),
     };
   };
 
   await fs.mkdir(options.settings.cacheDir, { recursive: true });
+
+  const sessionsDir = path.join(options.settings.cacheDir, "sessions");
+  let sessionManager: SessionManager;
+  if (options.continueFrom) {
+    const sessions = await SessionManager.listAll(sessionsDir);
+    const sessionFile = sessions.find((candidate) => candidate.id === options.continueFrom)?.path;
+    if (!sessionFile) {
+      return finish("error", `Librarian run not found: ${options.continueFrom}`, true);
+    }
+    sessionManager = SessionManager.open(sessionFile, sessionsDir, options.settings.cacheDir);
+  } else {
+    sessionManager = SessionManager.create(options.settings.cacheDir, sessionsDir);
+  }
+  details.runId = sessionManager.getSessionId();
 
   let findings: Findings | undefined;
   const repoTools = [
@@ -145,7 +163,7 @@ export async function runLibrarian(
     const created = await createAgentSession({
       cwd: options.settings.cacheDir,
       resourceLoader,
-      sessionManager: SessionManager.inMemory(options.settings.cacheDir),
+      sessionManager,
       model: options.model,
       thinkingLevel: options.thinkingLevel,
       customTools: repoTools,
@@ -214,7 +232,9 @@ export async function runLibrarian(
     let reminders = 0;
     while (!findings && !options.signal?.aborted && reminders < MAX_PROVIDE_RESULTS_REMINDERS) {
       reminders += 1;
-      await session.prompt(buildProvideResultsReminder(), { expandPromptTemplates: false });
+      await session.prompt(buildProvideResultsReminder(), {
+        expandPromptTemplates: false,
+      });
     }
 
     if (options.signal?.aborted) {

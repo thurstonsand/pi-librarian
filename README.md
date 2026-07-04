@@ -17,6 +17,7 @@ Private repos work through your existing `gh` auth for GitHub-backed tools.
 ## Usage
 
 - Ask pi a question involving other repos; it delegates to the `librarian` tool.
+- Ask follow-up questions to earlier librarian runs.
 - `/librarian` attaches the research tools directly to your session for manual lookups.
 
 ## Configuration
@@ -26,14 +27,22 @@ In pi's global `settings.json`:
 ```jsonc
 {
   "librarian": {
-    "model": "anthropic/claude-sonnet-5", // default: current session model
-    "thinkingLevel": "high", // default: current session thinking level
-    "extensions": ["~/.pi/agent/extensions/parallel-web-tools"], // extra tools for the librarian
-    "disabledTools": [], // inherited built-ins to drop (write/edit are always excluded)
-    "cacheDir": "/tmp/pi-librarian" // clone cache location
-  }
+    "model": "openai-codex/gpt-5.5",
+    "thinkingLevel": "off",
+    "extensions": ["~/.pi/agent/extensions/parallel-web-tools"],
+    "disabledTools": [],
+    "cacheDir": "/tmp/pi-librarian",
+  },
 }
 ```
+
+| Setting         | Recommended                                 | Default                                  |
+| --------------- | ------------------------------------------- | ---------------------------------------- |
+| `model`         | `openai-codex/gpt-5.5`                      | current session model                    |
+| `thinkingLevel` | `off`                                       | current session thinking level           |
+| `extensions`    | `[]` unless extra research tools are needed | `[]`                                     |
+| `disabledTools` | `[]`                                        | `[]`; `write`/`edit` are always excluded |
+| `cacheDir`      | `/tmp/pi-librarian`                         | `/tmp/pi-librarian`                      |
 
 ## Development
 
