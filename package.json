@@ -25,7 +25,8 @@
     "CONTEXT.md",
     "DEV.md",
     "AGENTS.md",
-    "docs"
+    "docs",
+    "images"
   ],
   "pi": {
     "extensions": [

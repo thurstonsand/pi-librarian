@@ -2,6 +2,10 @@
 
 A GitHub research subagent for the [pi coding agent](https://github.com/badlogic/pi-mono) inspired by [Amp](https://ampcode.com/): deep-dive questions about specific repos ("how does drizzle-orm implement prepared statements?") and discovery across the ecosystem ("compare the most popular TypeScript SQL ORMs").
 
+![calling the librarian tool](images/librarian-run.png)
+
+![librarian tool results](images/librarian-results.png)
+
 ## How it works
 
 The `librarian` tool spawns a nested research agent with purpose-built tools:
