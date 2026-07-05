@@ -17,6 +17,7 @@ import {
   formatTraceLine,
   renderLibrarianCall,
   renderLibrarianResult,
+  SPINNER_INTERVAL_MS,
   shorten,
 } from "./librarian/view.ts";
 
@@ -130,6 +131,16 @@ export default function librarianExtension(pi: ExtensionAPI): void {
     },
 
     renderResult(result, options, theme, context) {
+      // Live spinner/elapsed ticking, same pattern and cadence as pi's bash
+      // tool and Working... loader: re-render on an interval while streaming.
+      const state = context.state as { interval: NodeJS.Timeout | undefined };
+      if (options.isPartial && !state.interval) {
+        state.interval = setInterval(() => context.invalidate(), SPINNER_INTERVAL_MS);
+      }
+      if ((!options.isPartial || context.isError) && state.interval) {
+        clearInterval(state.interval);
+        state.interval = undefined;
+      }
       return renderLibrarianResult(result, options, theme, settings.cacheDir, context);
     },
   });

@@ -22,6 +22,7 @@ function settings(values: {
     tools: values.tools,
     extensions: values.extensions ?? [],
     cacheDir: values.cacheDir ?? os.tmpdir(),
+    debug: { persistRuns: false },
   };
 }
 

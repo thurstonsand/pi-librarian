@@ -82,6 +82,24 @@ Snippets:
       GrepError,
     );
   });
+
+  it("passes through text from MCP error results", () => {
+    expect(() =>
+      parseGrepMcpEvents(
+        sse({
+          result: {
+            isError: true,
+            content: [
+              {
+                type: "text",
+                text: "No results found for your query.\n\nIMPORTANT: Search literal code patterns.",
+              },
+            ],
+          },
+        }),
+      ),
+    ).toThrow(/IMPORTANT: Search literal code patterns/);
+  });
 });
 
 describe("searchCodeGrep", () => {
@@ -139,5 +157,89 @@ export function prepareQuery() {}
       repo: "example/repo",
       language: ["TypeScript"],
     });
+  });
+
+  it("retries 5xx responses once and returns a successful retry", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response("<html><title>500: Internal Server Error</title></html>", { status: 504 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          sse({
+            result: {
+              content: [
+                {
+                  type: "text",
+                  text: `Repository: example/repo
+Path: src/index.ts
+URL: https://github.com/example/repo/blob/main/src/index.ts
+License: Unknown
+`,
+                },
+              ],
+            },
+          }),
+          { status: 200 },
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await searchCodeGrep({ query: "requestRender" }, undefined);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result.matches[0]?.repo).toBe("example/repo");
+  });
+
+  it("reports retry exhaustion as a transient backend timeout", async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response("<html><title>500: Internal Server Error</title></html>", { status: 504 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(searchCodeGrep({ query: "requestRender" }, undefined)).rejects.toThrow(GrepError);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not retry 4xx responses and extracts HTML titles", async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response("<html><title>400: Bad Request</title><body>long body</body></html>", {
+          status: 400,
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(searchCodeGrep({ query: "requestRender" }, undefined)).rejects.toThrow(
+      "Grep MCP returned 400: 400: Bad Request",
+    );
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("does not retry caller aborts", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const controller = new AbortController();
+    controller.abort(new Error("caller aborted"));
+
+    await expect(searchCodeGrep({ query: "requestRender" }, controller.signal)).rejects.toThrow(
+      "caller aborted",
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("retries per-attempt timeouts", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new DOMException("timed out", "TimeoutError"))
+      .mockResolvedValueOnce(new Response(sse({ result: { content: [] } }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(searchCodeGrep({ query: "requestRender" }, undefined)).resolves.toEqual({
+      matches: [],
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

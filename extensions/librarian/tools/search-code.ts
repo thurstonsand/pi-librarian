@@ -14,12 +14,11 @@ export interface SearchCodeDetails {
 const SearchCodeParams = Type.Object({
   pattern: Type.String({
     description:
-      "Public code search pattern. Literal by default; set regex: true to treat it as a regular expression.",
+      "Public code search pattern. Use literal code patterns as they appear in files, not keywords: e.g. `useState(` rather than `react hook state`.",
   }),
   regex: Type.Optional(
     Type.Boolean({
-      description:
-        "Treat pattern as a regular expression. Grep supports multi-line regex with (?s).",
+      description: "Treat `pattern` as a regular expression instead of literals.",
     }),
   ),
   repo: Type.Optional(
@@ -62,6 +61,7 @@ export const searchCodeTool = defineTool<typeof SearchCodeParams, SearchCodeDeta
   description: "Cross-repo code search over public source code.",
   promptSnippet: "Search code across repos",
   promptGuidelines: [
+    "When `regex` is true, `pattern` can also use `(?s)` for multi-line patterns.",
     "Results are CANDIDATES to verify via checkout_repo/read_github_file — never cite them directly.",
     "This searches public GitHub code only. Use search_github_code when private repository access matters.",
   ],

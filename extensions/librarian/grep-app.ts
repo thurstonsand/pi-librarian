@@ -2,7 +2,10 @@ import { Type } from "typebox";
 import { safeParseTypeBoxValue } from "../shared/typebox.ts";
 
 const GREP_MCP_URL = "https://mcp.grep.app";
-const GREP_SEARCH_TIMEOUT_MS = 30_000;
+// Escalating per-attempt budgets: the upstream gateway kills stalled requests at ~15s, so
+// early attempts abort fast (p90 success is ~500ms) instead of waiting out the full timeout.
+const GREP_ATTEMPT_TIMEOUTS_MS = [3_000, 5_000, 7_000];
+const GREP_RETRY_DELAY_MS = 300;
 
 export class GrepError extends Error {
   constructor(message: string) {
@@ -159,7 +162,12 @@ export function parseGrepMcpEvents(body: string): GrepCodeSearchResult {
       continue;
     }
     if (result.isError) {
-      throw new GrepError("Grep MCP returned an error result.");
+      const message = (result.content ?? [])
+        .map((rawContent) => safeParseTypeBoxValue(MCP_TEXT_CONTENT_SCHEMA, rawContent)?.text)
+        .filter((text): text is string => text !== undefined)
+        .join("\n")
+        .trim();
+      throw new GrepError(message || "Grep MCP returned an error result.");
     }
 
     for (const rawContent of result.content ?? []) {
@@ -203,11 +211,45 @@ function buildGrepArguments(params: GrepCodeSearchParams): Record<string, unknow
   return args;
 }
 
-export async function searchCodeGrep(
+function extractHtmlTitle(body: string): string | undefined {
+  const match = /<title[^>]*>(.*?)<\/title>/is.exec(body);
+  return match?.[1]?.replace(/\s+/g, " ").trim();
+}
+
+function formatHttpError(status: number, body: string): string {
+  return `Grep MCP returned ${status}: ${extractHtmlTitle(body) ?? body.slice(0, 200)}`;
+}
+
+function formatTransientError(error: unknown): string {
+  const cause =
+    error instanceof GrepTransientHttpError ? `returned ${error.status}` : "request failed";
+  return `Grep MCP ${cause} after retry (transient backend error). Retry, or simplify the query.`;
+}
+
+function delay(milliseconds: number, signal: AbortSignal | undefined): Promise<void> {
+  if (signal?.aborted) {
+    return Promise.reject(signal.reason);
+  }
+
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(resolve, milliseconds);
+    signal?.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(timeout);
+        reject(signal.reason);
+      },
+      { once: true },
+    );
+  });
+}
+
+async function searchCodeGrepAttempt(
   params: GrepCodeSearchParams,
   signal: AbortSignal | undefined,
+  timeoutMs: number,
 ): Promise<GrepCodeSearchResult> {
-  const timeoutSignal = AbortSignal.timeout(GREP_SEARCH_TIMEOUT_MS);
+  const timeoutSignal = AbortSignal.timeout(timeoutMs);
   const requestSignal = signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal;
   const response = await fetch(GREP_MCP_URL, {
     method: "POST",
@@ -230,8 +272,49 @@ export async function searchCodeGrep(
 
   const body = await response.text();
   if (!response.ok) {
-    throw new GrepError(`Grep MCP returned ${response.status}: ${body.slice(0, 200)}`);
+    if (response.status >= 500) {
+      throw new GrepTransientHttpError(response.status, body);
+    }
+    throw new GrepError(formatHttpError(response.status, body));
   }
 
   return parseGrepMcpEvents(body);
+}
+
+// Do not extend GrepError: GrepError is the deterministic no-retry signal.
+class GrepTransientHttpError extends Error {
+  readonly status: number;
+
+  constructor(status: number, body: string) {
+    super(formatHttpError(status, body));
+    this.name = "GrepTransientHttpError";
+    this.status = status;
+  }
+}
+
+export async function searchCodeGrep(
+  params: GrepCodeSearchParams,
+  signal: AbortSignal | undefined,
+): Promise<GrepCodeSearchResult> {
+  if (signal?.aborted) {
+    throw signal.reason;
+  }
+
+  let transientError: unknown;
+  for (const [attempt, timeoutMs] of GREP_ATTEMPT_TIMEOUTS_MS.entries()) {
+    if (attempt > 0) {
+      await delay(GREP_RETRY_DELAY_MS, signal);
+    }
+
+    try {
+      return await searchCodeGrepAttempt(params, signal, timeoutMs);
+    } catch (error) {
+      if (error instanceof GrepError || signal?.aborted) {
+        throw error;
+      }
+      transientError = error;
+    }
+  }
+
+  throw new GrepError(formatTransientError(transientError));
 }

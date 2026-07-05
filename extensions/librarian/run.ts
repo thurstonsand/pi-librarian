@@ -52,6 +52,7 @@ export interface LibrarianRunDetails {
   checkouts: Record<string, string>;
   error?: string;
   runId?: string;
+  debugSessionPath?: string;
   startedAt: number;
   endedAt?: number;
 }
@@ -108,7 +109,11 @@ export async function runLibrarian(
   };
 
   const finalizeDetails = (status: LibrarianRunStatus, content: string): string => {
-    const resultContent = details.runId ? `${content}\n\nrun: ${details.runId}` : content;
+    const suffixes = [
+      ...(details.runId ? [`run: ${details.runId}`] : []),
+      ...(details.debugSessionPath ? [`debug_session: ${details.debugSessionPath}`] : []),
+    ];
+    const resultContent = suffixes.length > 0 ? `${content}\n\n${suffixes.join("\n")}` : content;
     details.status = status;
     details.endedAt = Date.now();
     if (status !== "done") {
@@ -137,6 +142,10 @@ export async function runLibrarian(
     ? await openContinuedSession(options.continueFrom, sessionsDir, options.settings.cacheDir, fail)
     : SessionManager.create(options.settings.cacheDir, sessionsDir);
   details.runId = sessionManager.getSessionId();
+  const debugSessionPath = sessionManager.getSessionFile();
+  if (options.settings.debug.persistRuns && debugSessionPath) {
+    details.debugSessionPath = debugSessionPath;
+  }
 
   let findings: Findings | undefined;
   const repoTools = [

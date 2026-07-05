@@ -1,6 +1,7 @@
 import type { AgentToolResult } from "@earendil-works/pi-agent-core";
-import type { Theme } from "@earendil-works/pi-coding-agent";
-import { describe, expect, it } from "vitest";
+import { initTheme, type Theme } from "@earendil-works/pi-coding-agent";
+import { Container, Text } from "@earendil-works/pi-tui";
+import { beforeAll, describe, expect, it } from "vitest";
 import type { LibrarianRunDetails, TraceCall } from "../extensions/librarian/run.ts";
 import {
   formatDuration,
@@ -11,6 +12,11 @@ import {
 } from "../extensions/librarian/view.ts";
 
 const CACHE = "/home/user/.cache/pi-librarian";
+
+// keyHint reads pi's theme singleton, which every real session initializes
+beforeAll(() => {
+  initTheme();
+});
 
 const theme = {
   fg: (_name: string, text: string) => text,
@@ -170,8 +176,30 @@ describe("renderLibrarianResult", () => {
     expect(rendered).toContain("The librarian researches repositories.");
     expect(rendered).toContain("run run-123");
     expect(rendered).toContain("1 tool call · 0.0s · test/model (high)");
+    expect(rendered).toContain("details hidden");
+    expect(rendered).toContain("to expand");
     expect(rendered).not.toContain("\n  1 tool call");
     expect(rendered).not.toContain("It checks evidence before answering.");
+  });
+
+  it("clears a reused result component before rendering", () => {
+    const staleContainer = new Container();
+    staleContainer.addChild(new Text("stale trace row", 0, 0));
+
+    const rendered = renderLibrarianResult(
+      completedResult(),
+      { expanded: false, isPartial: false },
+      theme,
+      CACHE,
+      {
+        lastComponent: staleContainer,
+      },
+    )
+      .render(120)
+      .join("\n");
+
+    expect(rendered).not.toContain("stale trace row");
+    expect(rendered).toContain("The librarian researches repositories.");
   });
 
   it("renders thrown tool errors without run details", () => {

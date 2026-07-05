@@ -1,21 +1,18 @@
 import path from "node:path";
 import type { AgentToolResult } from "@earendil-works/pi-agent-core";
 import type { Theme } from "@earendil-works/pi-coding-agent";
-import { getMarkdownTheme } from "@earendil-works/pi-coding-agent";
-import { Container, Markdown, Spacer, Text } from "@earendil-works/pi-tui";
+import { getMarkdownTheme, keyHint } from "@earendil-works/pi-coding-agent";
+import { type Component, Container, Markdown, Spacer, Text } from "@earendil-works/pi-tui";
 import type { LibrarianRunDetails, TraceCall } from "./run.ts";
 import { LIBRARIAN_TOOL_NAMES } from "./tools/names.ts";
 
 const COLLAPSED_TRACE_CALLS = 3;
+// Same frames and cadence as pi's Working... loader (pi-tui loader.ts defaults).
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-const SPINNER_INTERVAL_MS = 80;
+export const SPINNER_INTERVAL_MS = 80;
 
-interface LiveRenderContext {
-  invalidate(): void;
-  state: {
-    librarianSpinnerFrame?: number;
-    librarianSpinnerInterval?: ReturnType<typeof setInterval>;
-  };
+interface LibrarianRenderContext {
+  lastComponent: Component | undefined;
 }
 
 export function formatDuration(milliseconds: number): string {
@@ -153,18 +150,17 @@ export function formatTraceLine(call: TraceCall, cacheDir: string): TraceLine {
   }
 }
 
-function renderTraceCallText(
-  call: TraceCall,
-  cacheDir: string,
-  theme: Theme,
-  spinnerFrame: string,
-): string {
+function currentSpinnerFrame(): string {
+  return SPINNER_FRAMES[Math.floor(Date.now() / SPINNER_INTERVAL_MS) % SPINNER_FRAMES.length] ?? "";
+}
+
+function renderTraceCallText(call: TraceCall, cacheDir: string, theme: Theme): string {
   const { verb, subject } = formatTraceLine(call, cacheDir);
   const running = call.endedAt === undefined;
   const icon = call.isError
     ? theme.fg("error", "✗")
     : running
-      ? theme.fg("warning", spinnerFrame)
+      ? theme.fg("accent", currentSpinnerFrame())
       : theme.fg("success", "✓");
   const duration = formatDuration((call.endedAt ?? Date.now()) - call.startedAt);
   const summary = call.resultSummary
@@ -189,6 +185,25 @@ function renderFooter(details: LibrarianRunDetails, theme: Theme): string {
   );
 }
 
+function collapsedFindingsHiddenText(details: LibrarianRunDetails): string | undefined {
+  const findings = details.findings;
+  if (!findings) {
+    return undefined;
+  }
+
+  const hiddenParts: string[] = [];
+  if (findings.locations.length > 0) {
+    hiddenParts.push(
+      `${findings.locations.length} location${findings.locations.length === 1 ? "" : "s"}`,
+    );
+  }
+  if (findings.description?.trim()) {
+    hiddenParts.push("details");
+  }
+
+  return hiddenParts.length > 0 ? `${hiddenParts.join(" and ")} hidden` : undefined;
+}
+
 function isLibrarianRunDetails(value: unknown): value is LibrarianRunDetails {
   return (
     value !== null &&
@@ -205,45 +220,21 @@ function renderTrace(
   expanded: boolean,
   cacheDir: string,
   theme: Theme,
-  spinnerFrame: string,
 ): string[] {
   const lines: string[] = [];
   const calls = expanded ? details.trace : details.trace.slice(-COLLAPSED_TRACE_CALLS);
   const hiddenCount = details.trace.length - calls.length;
   if (hiddenCount > 0) {
     lines.push(
-      theme.fg(
-        "muted",
-        `  … ${hiddenCount} earlier call${hiddenCount === 1 ? "" : "s"} (Ctrl+O to expand)`,
-      ),
+      theme.fg("muted", `  … ${hiddenCount} earlier call${hiddenCount === 1 ? "" : "s"} (`) +
+        keyHint("app.tools.expand", "to expand") +
+        theme.fg("muted", ")"),
     );
   }
   for (const call of calls) {
-    lines.push(renderTraceCallText(call, cacheDir, theme, spinnerFrame));
+    lines.push(renderTraceCallText(call, cacheDir, theme));
   }
   return lines;
-}
-
-function updateLiveRender(context: LiveRenderContext | undefined, running: boolean): string {
-  if (!context) {
-    return (
-      SPINNER_FRAMES[Math.floor(Date.now() / SPINNER_INTERVAL_MS) % SPINNER_FRAMES.length] ?? ""
-    );
-  }
-
-  context.state.librarianSpinnerFrame ??= 0;
-  if (running && !context.state.librarianSpinnerInterval) {
-    context.state.librarianSpinnerInterval = setInterval(() => {
-      context.state.librarianSpinnerFrame =
-        ((context.state.librarianSpinnerFrame ?? 0) + 1) % SPINNER_FRAMES.length;
-      context.invalidate();
-    }, SPINNER_INTERVAL_MS);
-  } else if (!running && context.state.librarianSpinnerInterval) {
-    clearInterval(context.state.librarianSpinnerInterval);
-    delete context.state.librarianSpinnerInterval;
-  }
-
-  return SPINNER_FRAMES[context.state.librarianSpinnerFrame] ?? "";
 }
 
 export function renderLibrarianResult(
@@ -251,9 +242,11 @@ export function renderLibrarianResult(
   options: { expanded: boolean; isPartial: boolean },
   theme: Theme,
   cacheDir: string,
-  context?: LiveRenderContext,
+  context?: LibrarianRenderContext,
 ): Container {
-  const container = new Container();
+  const container =
+    context?.lastComponent instanceof Container ? context.lastComponent : new Container();
+  container.clear();
   const details = result.details;
 
   if (!isLibrarianRunDetails(details)) {
@@ -261,22 +254,34 @@ export function renderLibrarianResult(
     container.addChild(
       new Text(firstText && "text" in firstText ? firstText.text : "(no output)", 0, 0),
     );
+    container.invalidate();
     return container;
   }
 
   const running = options.isPartial || details.status === "running";
-  const spinnerFrame = updateLiveRender(context, running);
   container.addChild(new Text(renderQuestion(details, options.expanded, theme), 0, 0));
   container.addChild(new Spacer(1));
 
   if (running || !details.findings) {
-    for (const line of renderTrace(details, options.expanded, cacheDir, theme, spinnerFrame)) {
+    for (const line of renderTrace(details, options.expanded, cacheDir, theme)) {
       container.addChild(new Text(line, 0, 0));
     }
   }
 
   if (!running) {
     if (details.findings) {
+      const hiddenText = options.expanded ? undefined : collapsedFindingsHiddenText(details);
+      if (hiddenText) {
+        container.addChild(
+          new Text(
+            theme.fg("muted", `(${hiddenText}, `) +
+              keyHint("app.tools.expand", "to expand") +
+              theme.fg("muted", ")"),
+            0,
+            0,
+          ),
+        );
+      }
       const markdown = buildFindingsMarkdown(details, options.expanded);
       container.addChild(new Markdown(markdown, 0, 0, getMarkdownTheme()));
     } else if (details.error) {
@@ -290,6 +295,7 @@ export function renderLibrarianResult(
     container.addChild(new Text(theme.fg("muted", `run ${details.runId}`), 0, 0));
   }
   container.addChild(new Text(renderFooter(details, theme), 0, 0));
+  container.invalidate();
   return container;
 }
 

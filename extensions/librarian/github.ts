@@ -45,18 +45,26 @@ export async function resolveGitHubToken(): Promise<string | undefined> {
   }
 }
 
+// Any console output corrupts pi's interactive TUI (its differential renderer
+// cannot recover from writes it did not make), so octokit must never log.
+// The top-level `log` alone is not enough: @octokit/request resolves its logger
+// from the per-request options (`request.log || console`) when emitting API
+// deprecation warnings, so the silent logger has to be passed at both levels.
+const SILENT_OCTOKIT_LOG = {
+  debug: () => {},
+  info: () => {},
+  warn: () => {},
+  error: () => {},
+};
+
 export function createGitHubClient(token: string | undefined): GitHubClient {
   return new GitHubClient(
     new Octokit({
       ...(token ? { auth: token } : {}),
       userAgent: "pi-librarian",
-      log: {
-        debug: () => {},
-        info: () => {},
-        warn: () => {},
-        error: () => {},
-      },
+      log: SILENT_OCTOKIT_LOG,
       request: {
+        log: SILENT_OCTOKIT_LOG,
         headers: {
           "x-github-api-version": "2022-11-28",
         },

@@ -20,6 +20,11 @@ const LIBRARIAN_FILE_SETTINGS_SCHEMA = Type.Object({
   extensions: Type.Optional(Type.Array(Type.String())),
   tools: Type.Optional(Type.Array(Type.String())),
   cacheDir: Type.Optional(Type.String()),
+  debug: Type.Optional(
+    Type.Object({
+      persistRuns: Type.Optional(Type.Boolean()),
+    }),
+  ),
 });
 
 const ROOT_SETTINGS_SCHEMA = Type.Object({
@@ -45,6 +50,9 @@ export interface LibrarianSettings {
   extensions: string[];
   tools: string[];
   cacheDir: string;
+  debug: {
+    persistRuns: boolean;
+  };
 }
 
 export function getDefaultCacheDir(): string {
@@ -117,6 +125,9 @@ export function resolveLibrarianSettings(fileSettings: LibrarianFileSettings): L
     extensions: normalizeExtensionPaths(fileSettings.extensions),
     tools: normalizeToolNames(fileSettings.tools),
     cacheDir: normalizeCacheDir(fileSettings.cacheDir),
+    debug: {
+      persistRuns: fileSettings.debug?.persistRuns ?? false,
+    },
   };
 }
 

@@ -10,6 +10,7 @@ describe("resolveLibrarianSettings", () => {
     expect(settings.thinkingLevel).toBeUndefined();
     expect(settings.extensions).toEqual([]);
     expect(settings.tools).toEqual([]);
+    expect(settings.debug.persistRuns).toBe(false);
     expect(settings.cacheDir).toBe(getDefaultCacheDir());
     expect(settings.cacheDir).toBe(path.join(os.tmpdir(), "pi-librarian"));
   });
@@ -49,6 +50,11 @@ describe("resolveLibrarianSettings", () => {
       tools: [" search_web ", "", "fetch_web", "search_web"],
     });
     expect(settings.tools).toEqual(["search_web", "fetch_web"]);
+  });
+
+  it("reads debug run persistence", () => {
+    const settings = resolveLibrarianSettings({ debug: { persistRuns: true } });
+    expect(settings.debug.persistRuns).toBe(true);
   });
 
   it("expands home-relative cacheDir and rejects relative paths", () => {

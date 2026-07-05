@@ -43,17 +43,19 @@ In pi's global `settings.json`:
     "tools": ["search_web", "fetch_web"],
     "extensions": ["~/.pi/agent/extensions/parallel-web-tools"],
     "cacheDir": "/tmp/pi-librarian",
+    "debug": { "persistRuns": false },
   },
 }
 ```
 
-| Setting         | Recommended                                   | Default                        |
-| --------------- | --------------------------------------------- | ------------------------------ |
-| `model`         | `openai-codex/gpt-5.5`                        | current session model          |
-| `thinkingLevel` | `off`                                         | current session thinking level |
-| `tools`         | names of extra tools to activate, when needed | `[]`                           |
-| `extensions`    | escape hatch paths for tools not loaded in pi | `[]`                           |
-| `cacheDir`      | `/tmp/pi-librarian`                           | `/tmp/pi-librarian`            |
+| Setting             | Recommended                                     | Default                        |
+| ------------------- | ----------------------------------------------- | ------------------------------ |
+| `model`             | `openai-codex/gpt-5.5`                          | current session model          |
+| `thinkingLevel`     | `off`                                           | current session thinking level |
+| `tools`             | names of extra tools to activate, when needed   | `[]`                           |
+| `extensions`        | escape hatch paths for tools not loaded in pi   | `[]`                           |
+| `cacheDir`          | `/tmp/pi-librarian`                             | `/tmp/pi-librarian`            |
+| `debug.persistRuns` | persist nested session file paths for debugging | `false`                        |
 
 `librarian.tools` is the activation gate for extra tools. `librarian.extensions` only adds extension paths to the search space when a named tool is not already loaded in the main pi session; listing an extension path does not activate every tool in that bundle. Librarian runs exclude `write` and `edit`.
 
