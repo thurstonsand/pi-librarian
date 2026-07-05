@@ -148,6 +148,17 @@ async function pathExists(target: string): Promise<boolean> {
   }
 }
 
+async function currentRemoteKey(
+  dest: string,
+  signal: AbortSignal | undefined,
+): Promise<string | undefined> {
+  try {
+    return parseRepoReference(await git(["remote", "get-url", "origin"], dest, signal)).key;
+  } catch {
+    return undefined;
+  }
+}
+
 async function clone(
   reference: RepoReference,
   dest: string,
@@ -207,7 +218,13 @@ export async function checkoutRepo(
   const repo = parseRepoReference(repoInput);
   const dest = repoCachePath(cacheDir, repo.key);
 
-  const reusedClone = await pathExists(path.join(dest, ".git"));
+  const reusedClone =
+    (await pathExists(path.join(dest, ".git"))) &&
+    (await currentRemoteKey(dest, signal)) === repo.key;
+  if (!reusedClone) {
+    await fs.rm(dest, { recursive: true, force: true });
+  }
+
   if (reusedClone) {
     await fetchIfStale(dest, signal);
   } else {
@@ -223,6 +240,7 @@ export async function checkoutRepo(
       // Refs already fetched (e.g. a sha reachable from an earlier fetch) check out directly.
       await git(["checkout", "--force", "--detach", ref], dest, signal);
     }
+    await git(["reset", "--hard", "HEAD"], dest, signal);
     checkedOutRef = ref;
   } else {
     const branch = await defaultBranch(dest, signal);
@@ -230,6 +248,8 @@ export async function checkoutRepo(
     await git(["reset", "--hard", `origin/${branch}`], dest, signal);
     checkedOutRef = branch;
   }
+
+  await git(["clean", "-fdx"], dest, signal);
 
   const headSha = await git(["rev-parse", "HEAD"], dest, signal);
   const files = await git(["ls-files"], dest, signal);

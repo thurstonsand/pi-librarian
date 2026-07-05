@@ -28,7 +28,14 @@ function repoFullName(repo: GitHubRepoSlug): string {
   return `${repo.owner}/${repo.repo}`;
 }
 
-export type GitHubClientProvider = () => Promise<GitHubClient>;
+export interface GitHubClientApi {
+  searchRepositories(params: SearchRepositoriesParams): Promise<RepoSearchResult>;
+  searchCode(params: SearchGitHubCodeParams): Promise<GitHubCodeSearchResult>;
+  readContents(params: ReadContentsParams): Promise<FileContents | DirectoryContents>;
+  getRepo(repo: GitHubRepoSlug): Promise<RepoMeta>;
+}
+
+export type GitHubClientProvider = () => Promise<GitHubClientApi>;
 
 export async function resolveGitHubToken(): Promise<string | undefined> {
   const envToken = process.env.GITHUB_TOKEN?.trim() || process.env.GH_TOKEN?.trim();
@@ -249,7 +256,7 @@ function buildGitHubCodeQuery(params: SearchGitHubCodeParams): string {
   return parts.join(" ");
 }
 
-export class GitHubClient {
+export class GitHubClient implements GitHubClientApi {
   constructor(private readonly octokit: Octokit) {}
 
   async searchRepositories(params: SearchRepositoriesParams): Promise<RepoSearchResult> {

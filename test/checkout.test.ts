@@ -1,6 +1,13 @@
+import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { CheckoutError, parseRepoName, repoCachePath } from "../extensions/librarian/checkout.ts";
+
+afterEach(() => {
+  vi.doUnmock("node:child_process");
+  vi.resetModules();
+});
 
 describe("parseRepoName", () => {
   it("accepts owner/repo", () => {
@@ -47,6 +54,148 @@ describe("repoCachePath", () => {
     expect(repoCachePath("/cache", "a/b")).toBe(path.join("/cache", "repos", "a", "b"));
     expect(repoCachePath("/cache", "gitlab.com/a/b/c/d")).toBe(
       path.join("/cache", "repos", "gitlab.com", "a", "b", "c", "d"),
+    );
+  });
+});
+
+describe("checkoutRepo", () => {
+  async function withMockedGit(
+    stdoutFor: (args: string[]) => string | undefined,
+    errorFor: (args: string[]) => Error | undefined = () => undefined,
+  ) {
+    const calls: string[][] = [];
+    vi.doMock("node:child_process", () => ({
+      execFile: vi.fn(
+        (
+          _command: string,
+          args: string[],
+          _options: unknown,
+          callback: (error: Error | null, result: { stdout: string; stderr: string }) => void,
+        ) => {
+          calls.push(args);
+          callback(errorFor(args) ?? null, { stdout: stdoutFor(args) ?? "", stderr: "" });
+        },
+      ),
+    }));
+
+    const { checkoutRepo } = await import("../extensions/librarian/checkout.ts");
+    const cacheDir = await fs.mkdtemp(path.join(os.tmpdir(), "pi-librarian-checkout-test-"));
+    return { calls, checkoutRepo, cacheDir };
+  }
+
+  it("hard-resets and cleans reused default-branch checkouts", async () => {
+    const { calls, checkoutRepo, cacheDir } = await withMockedGit((args) => {
+      if (args.join(" ") === "remote get-url origin") {
+        return "https://github.com/a/b.git";
+      }
+      if (args.join(" ") === "symbolic-ref refs/remotes/origin/HEAD") {
+        return "refs/remotes/origin/main";
+      }
+      if (args.join(" ") === "rev-parse HEAD") {
+        return "abc123";
+      }
+      if (args.join(" ") === "ls-files") {
+        return "README.md\nsrc/index.ts";
+      }
+      return "";
+    });
+    await fs.mkdir(path.join(cacheDir, "repos", "a", "b", ".git"), { recursive: true });
+
+    const result = await checkoutRepo("a/b", undefined, cacheDir, undefined);
+
+    expect(result.reusedClone).toBe(true);
+    expect(calls).toContainEqual(["checkout", "--force", "main"]);
+    expect(calls).toContainEqual(["reset", "--hard", "origin/main"]);
+    expect(calls).toContainEqual(["clean", "-fdx"]);
+  });
+
+  it("hard-resets and cleans explicit ref checkouts", async () => {
+    const { calls, checkoutRepo, cacheDir } = await withMockedGit((args) => {
+      if (args.join(" ") === "remote get-url origin") {
+        return "https://github.com/a/b.git";
+      }
+      if (args.join(" ") === "rev-parse HEAD") {
+        return "abc123";
+      }
+      return "";
+    });
+    await fs.mkdir(path.join(cacheDir, "repos", "a", "b", ".git"), { recursive: true });
+
+    await checkoutRepo("a/b", "v1.0.0", cacheDir, undefined);
+
+    expect(calls).toContainEqual(["fetch", "origin", "v1.0.0"]);
+    expect(calls).toContainEqual(["checkout", "--force", "--detach", "FETCH_HEAD"]);
+    expect(calls).toContainEqual(["reset", "--hard", "HEAD"]);
+    expect(calls).toContainEqual(["clean", "-fdx"]);
+  });
+
+  it("replaces malformed cache paths", async () => {
+    const { calls, checkoutRepo, cacheDir } = await withMockedGit((args) => {
+      if (args.join(" ") === "symbolic-ref refs/remotes/origin/HEAD") {
+        return "refs/remotes/origin/main";
+      }
+      if (args.join(" ") === "rev-parse HEAD") {
+        return "abc123";
+      }
+      return "";
+    });
+    const dest = path.join(cacheDir, "repos", "a", "b");
+    await fs.mkdir(dest, { recursive: true });
+    await fs.writeFile(path.join(dest, "debris.txt"), "debris");
+
+    const result = await checkoutRepo("a/b", undefined, cacheDir, undefined);
+
+    expect(result.reusedClone).toBe(false);
+    expect(calls).toContainEqual([
+      "clone",
+      "--filter=blob:none",
+      "https://github.com/a/b.git",
+      result.path,
+    ]);
+  });
+
+  it("discards cached checkouts whose origin points at a different repo", async () => {
+    const { calls, checkoutRepo, cacheDir } = await withMockedGit((args) => {
+      if (args.join(" ") === "remote get-url origin") {
+        return "https://github.com/other/repo.git";
+      }
+      if (args.join(" ") === "symbolic-ref refs/remotes/origin/HEAD") {
+        return "refs/remotes/origin/main";
+      }
+      if (args.join(" ") === "rev-parse HEAD") {
+        return "abc123";
+      }
+      return "";
+    });
+    await fs.mkdir(path.join(cacheDir, "repos", "a", "b", ".git"), { recursive: true });
+
+    const result = await checkoutRepo("a/b", undefined, cacheDir, undefined);
+
+    expect(result.reusedClone).toBe(false);
+    expect(calls).toContainEqual([
+      "clone",
+      "--filter=blob:none",
+      "https://github.com/a/b.git",
+      result.path,
+    ]);
+  });
+
+  it("reports fetch failures instead of using stale refs", async () => {
+    const fetchError = new Error("fetch failed") as Error & { stderr: string };
+    fetchError.stderr = "fatal: could not fetch";
+    const { checkoutRepo, cacheDir } = await withMockedGit(
+      (args) => {
+        if (args.join(" ") === "remote get-url origin") {
+          return "https://github.com/a/b.git";
+        }
+        return "";
+      },
+      (args) => (args.join(" ") === "fetch origin --prune" ? fetchError : undefined),
+    );
+    await fs.mkdir(path.join(cacheDir, "repos", "a", "b", ".git"), { recursive: true });
+
+    await expect(checkoutRepo("a/b", undefined, cacheDir, undefined)).rejects.toThrow(
+      "git fetch failed: fatal: could not fetch",
     );
   });
 });

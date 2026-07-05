@@ -1,9 +1,12 @@
-import { defineTool } from "@earendil-works/pi-coding-agent";
+import {
+  DEFAULT_MAX_BYTES,
+  defineTool,
+  formatSize,
+  truncateHead,
+} from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { GitHubApiError, type GitHubClientProvider } from "../github.ts";
 import { LIBRARIAN_TOOL_NAMES } from "./names.ts";
-
-const MAX_LINES_WITHOUT_RANGE = 1200;
 
 export interface ReadGitHubFileDetails {
   kind: "read_github_file";
@@ -17,15 +20,24 @@ export interface ReadGitHubFileDetails {
 const ReadGitHubFileParams = Type.Object({
   owner: Type.String({ description: "Repository owner or organization." }),
   repo: Type.String({ description: "Repository name." }),
-  path: Type.String({ description: "File or directory path within the repository." }),
+  path: Type.String({
+    description: "File or directory path within the repository.",
+  }),
   ref: Type.Optional(
-    Type.String({ description: "Branch, tag, or commit sha. Default: the default branch." }),
+    Type.String({
+      description: "Branch, tag, or commit sha. Default: the default branch.",
+    }),
   ),
-  range: Type.Optional(
-    Type.Array(Type.Number({ minimum: 1 }), {
-      description: "[startLine, endLine] (1-based, inclusive) for large files.",
-      minItems: 2,
-      maxItems: 2,
+  offset: Type.Optional(
+    Type.Number({
+      minimum: 1,
+      description: "Line number to start reading from (1-indexed).",
+    }),
+  ),
+  limit: Type.Optional(
+    Type.Number({
+      minimum: 1,
+      description: "Maximum number of lines to read.",
     }),
   ),
 });
@@ -34,19 +46,22 @@ export function createReadGitHubFileTool(githubClient: GitHubClientProvider) {
   return defineTool<typeof ReadGitHubFileParams, ReadGitHubFileDetails>({
     name: LIBRARIAN_TOOL_NAMES.readGitHubFile,
     label: "Read GitHub file",
-    description:
-      "Read a single file (or list a directory) from a GitHub repo via the API, without cloning.",
+    description: `Read a single file (or list a directory) from a GitHub repo via the API, without cloning.`,
     promptSnippet: "Read Github file",
     promptGuidelines: [
       "For quick peeks — package.json, a README, one source file.",
       "For multi-file exploration prefer checkout_repo.",
+      "Use offset/limit for larger files.",
     ],
     parameters: ReadGitHubFileParams,
 
     async execute(_toolCallId, params) {
-      const range = params.range ? (params.range as [number, number]) : undefined;
-      if (range && range[1] < range[0]) {
-        throw new Error("range end must be greater than or equal to range start.");
+      const offset = params.offset ?? 1;
+      if (offset < 1) {
+        throw new Error("offset must be greater than or equal to 1.");
+      }
+      if (params.limit !== undefined && params.limit < 1) {
+        throw new Error("limit must be greater than or equal to 1.");
       }
 
       try {
@@ -75,32 +90,52 @@ export function createReadGitHubFileTool(githubClient: GitHubClientProvider) {
         }
 
         const allLines = contents.text.split("\n");
-        let start = 1;
-        let end = allLines.length;
-        let clipNote = "";
-
-        if (range) {
-          start = Math.min(range[0], allLines.length);
-          end = Math.min(range[1], allLines.length);
-        } else if (allLines.length > MAX_LINES_WITHOUT_RANGE) {
-          end = MAX_LINES_WITHOUT_RANGE;
-          clipNote = `\n... clipped at line ${MAX_LINES_WITHOUT_RANGE} of ${allLines.length}; pass range to read further.`;
+        const startLine = offset - 1;
+        if (startLine >= allLines.length) {
+          throw new Error(
+            `Offset ${offset} is beyond end of file (${allLines.length} lines total)`,
+          );
         }
 
-        const width = String(end).length;
-        const numbered = allLines
-          .slice(start - 1, end)
-          .map((line, index) => `${String(start + index).padStart(width)}\t${line}`)
-          .join("\n");
+        const selectedLines =
+          params.limit === undefined
+            ? allLines.slice(startLine)
+            : allLines.slice(startLine, Math.min(startLine + params.limit, allLines.length));
+        const selectedContent = selectedLines.join("\n");
+        const truncated = truncateHead(selectedContent);
+        let text: string;
+        let lineCount = truncated.outputLines;
+
+        if (truncated.firstLineExceedsLimit) {
+          const firstLineSize = formatSize(Buffer.byteLength(allLines[startLine] ?? "", "utf-8"));
+          text = `[Line ${offset} is ${firstLineSize}, exceeds ${formatSize(DEFAULT_MAX_BYTES)} limit.]`;
+        } else if (truncated.truncated) {
+          const endLine = offset + truncated.outputLines - 1;
+          const nextOffset = endLine + 1;
+          const limitNote =
+            truncated.truncatedBy === "lines" ? "" : ` (${formatSize(DEFAULT_MAX_BYTES)} limit)`;
+          text = `${truncated.content}\n\n[Showing lines ${offset}-${endLine} of ${allLines.length}${limitNote}. Use offset=${nextOffset} to continue.]`;
+        } else if (
+          params.limit !== undefined &&
+          startLine + selectedLines.length < allLines.length
+        ) {
+          const remaining = allLines.length - (startLine + selectedLines.length);
+          const nextOffset = startLine + selectedLines.length + 1;
+          text = `${truncated.content}\n\n[${remaining} more lines in file. Use offset=${nextOffset} to continue.]`;
+          lineCount = selectedLines.length;
+        } else {
+          text = truncated.content;
+          lineCount = selectedLines.length;
+        }
 
         return {
-          content: [{ type: "text", text: `${numbered}${clipNote}` }],
+          content: [{ type: "text", text }],
           details: {
             kind: "read_github_file",
             owner: params.owner,
             repo: params.repo,
             path: params.path,
-            lineCount: end - start + 1,
+            lineCount,
             isDirectory: false,
           },
         };
