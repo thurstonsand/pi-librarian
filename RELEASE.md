@@ -2,6 +2,26 @@
 
 # Release notes
 
+## 0.2.0
+
+Adds continuable librarian runs and opt-in for extra tools.
+
+### Added
+
+- Added continuation support for prior librarian runs by run id.
+- Added `librarian.tools` for opting extra tools into librarian runs by name.
+- Added startup warnings for unresolved extra tool names and failed escape-hatch extension loads.
+
+### Changed
+
+- Changed `librarian.extensions` into an escape hatch for resolving named tools not loaded by the main pi agent.
+- Stripped extension hooks from extra tools loaded into nested librarian runs.
+- Removed `librarian.disabledTools`; baseline librarian tools are fixed, while extra tools are additive by name.
+
+### Fixed
+
+- Fixed tool error handling so pi marks librarian tool failures as errored executions.
+
 ## 0.1.1
 
 Adds automated release and dependency maintenance infrastructure.
