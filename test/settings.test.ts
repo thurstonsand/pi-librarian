@@ -9,7 +9,7 @@ describe("resolveLibrarianSettings", () => {
     expect(settings.model).toBeUndefined();
     expect(settings.thinkingLevel).toBeUndefined();
     expect(settings.extensions).toEqual([]);
-    expect(settings.disabledTools).toEqual([]);
+    expect(settings.tools).toEqual([]);
     expect(settings.cacheDir).toBe(getDefaultCacheDir());
     expect(settings.cacheDir).toBe(path.join(os.tmpdir(), "pi-librarian"));
   });
@@ -42,6 +42,13 @@ describe("resolveLibrarianSettings", () => {
       extensions: ["~/exts/web-tools", "  ", "/abs/path"],
     });
     expect(settings.extensions).toEqual([path.join(os.homedir(), "exts/web-tools"), "/abs/path"]);
+  });
+
+  it("normalizes extra tool names", () => {
+    const settings = resolveLibrarianSettings({
+      tools: [" search_web ", "", "fetch_web", "search_web"],
+    });
+    expect(settings.tools).toEqual(["search_web", "fetch_web"]);
   });
 
   it("expands home-relative cacheDir and rejects relative paths", () => {

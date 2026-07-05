@@ -64,24 +64,9 @@ export function createCheckoutRepoTool(cacheDir: string) {
             : error instanceof Error
               ? error.message
               : String(error);
-        return {
-          content: [
-            {
-              type: "text",
-              text: `${message}\nIf the repo name is uncertain, resolve it with search_repos first.`,
-            },
-          ],
-          details: {
-            kind: "checkout_repo",
-            repo: params.repo,
-            path: "",
-            headSha: "",
-            ref: params.ref ?? "",
-            fileCount: 0,
-            reusedClone: false,
-          },
-          isError: true,
-        };
+        throw new Error(
+          `${message}\nIf the repo name is uncertain, resolve it with search_repos first.`,
+        );
       }
     },
   });

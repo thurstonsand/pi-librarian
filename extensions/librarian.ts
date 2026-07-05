@@ -2,6 +2,7 @@ import type { ExtensionAPI, SessionStartEvent } from "@earendil-works/pi-coding-
 import { Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 import { applyAttachState, readAttachState, setAttachState } from "./librarian/attach.ts";
+import { collectExtraToolWarnings, resolveExtraTools } from "./librarian/extra-tools.ts";
 import { createGitHubClientProvider } from "./librarian/github.ts";
 import { resolveLibrarianModel } from "./librarian/model.ts";
 import { type LibrarianRunDetails, runLibrarian, type TraceCall } from "./librarian/run.ts";
@@ -90,27 +91,12 @@ export default function librarianExtension(pi: ExtensionAPI): void {
       const thinkingLevel = settings.thinkingLevel ?? pi.getThinkingLevel();
       const resolution = resolveLibrarianModel(ctx, settings.model, thinkingLevel);
       if (!resolution) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: "No model available for the librarian. Configure librarian.model or select a session model.",
-            },
-          ],
-          details: {
-            status: "error",
-            query: params.query,
-            modelLabel: "(none)",
-            thinkingLevel,
-            trace: [],
-            checkouts: {},
-            startedAt: Date.now(),
-            endedAt: Date.now(),
-            error: "No model available.",
-          } satisfies LibrarianRunDetails,
-          isError: true,
-        };
+        throw new Error(
+          "No model available for the librarian. Configure librarian.model or select a session model.",
+        );
       }
+
+      const extraTools = resolveExtraTools(pi.getAllTools(), settings);
 
       return runLibrarian({
         query: params.query,
@@ -120,6 +106,7 @@ export default function librarianExtension(pi: ExtensionAPI): void {
         model: resolution.model,
         thinkingLevel: resolution.thinkingLevel,
         settings,
+        extraTools,
         githubClient,
         signal,
         onUpdate: onUpdate
@@ -189,5 +176,10 @@ export default function librarianExtension(pi: ExtensionAPI): void {
 
   pi.on("session_start", async (_event: SessionStartEvent, ctx) => {
     applyAttachState(pi, readAttachState(ctx));
+
+    const warnings = await collectExtraToolWarnings(pi.getAllTools(), settings);
+    for (const warning of warnings) {
+      ctx.ui.notify(warning.message, "warning");
+    }
   });
 }

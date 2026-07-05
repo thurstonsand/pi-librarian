@@ -18,7 +18,7 @@ const LIBRARIAN_FILE_SETTINGS_SCHEMA = Type.Object({
   model: Type.Optional(Type.String()),
   thinkingLevel: Type.Optional(THINKING_LEVEL_SCHEMA),
   extensions: Type.Optional(Type.Array(Type.String())),
-  disabledTools: Type.Optional(Type.Array(Type.String())),
+  tools: Type.Optional(Type.Array(Type.String())),
   cacheDir: Type.Optional(Type.String()),
 });
 
@@ -43,7 +43,7 @@ export interface LibrarianSettings {
   model: ModelReference | undefined;
   thinkingLevel: ThinkingLevel | undefined;
   extensions: string[];
-  disabledTools: string[];
+  tools: string[];
   cacheDir: string;
 }
 
@@ -102,12 +102,20 @@ function normalizeExtensionPaths(values: string[] | undefined): string[] {
     .map(expandHome);
 }
 
+function normalizeToolNames(values: string[] | undefined): string[] {
+  if (!values) {
+    return [];
+  }
+
+  return [...new Set(values.map((value) => value.trim()).filter((value) => value.length > 0))];
+}
+
 export function resolveLibrarianSettings(fileSettings: LibrarianFileSettings): LibrarianSettings {
   return {
     model: parseModelReference(fileSettings.model),
     thinkingLevel: fileSettings.thinkingLevel,
     extensions: normalizeExtensionPaths(fileSettings.extensions),
-    disabledTools: fileSettings.disabledTools ?? [],
+    tools: normalizeToolNames(fileSettings.tools),
     cacheDir: normalizeCacheDir(fileSettings.cacheDir),
   };
 }

@@ -3,21 +3,19 @@ import path from "node:path";
 import type { AgentToolResult, ThinkingLevel } from "@earendil-works/pi-agent-core";
 import type { Api, Model } from "@earendil-works/pi-ai";
 import type { AgentSession, AgentSessionEvent } from "@earendil-works/pi-coding-agent";
-import {
-  createAgentSession,
-  DefaultResourceLoader,
-  getAgentDir,
-  SessionManager,
-} from "@earendil-works/pi-coding-agent";
+import { createAgentSession, SessionManager } from "@earendil-works/pi-coding-agent";
+import { type ExtraToolsResolution, LIBRARIAN_BASELINE_TOOL_NAMES } from "./extra-tools.ts";
 import type { GitHubClientProvider } from "./github.ts";
 import {
   buildLibrarianSystemPrompt,
   buildLibrarianUserPrompt,
   buildProvideResultsReminder,
 } from "./prompt.ts";
+import { createLibrarianResourceLoader } from "./resource-loader.ts";
 import { renderFindingsMarkdown } from "./results.ts";
 import type { LibrarianSettings } from "./settings.ts";
 import { createCheckoutRepoTool } from "./tools/checkout-repo.ts";
+import { LIBRARIAN_RUN_TOOL_NAMES } from "./tools/names.ts";
 import type { Findings } from "./tools/provide-results.ts";
 import { createProvideResultsTool } from "./tools/provide-results.ts";
 import { createReadGitHubFileTool } from "./tools/read-github-file.ts";
@@ -27,9 +25,12 @@ import { createSearchReposTool } from "./tools/search-repos.ts";
 import { asRepoToolDetails, summarizeToolResult } from "./trace.ts";
 
 const MAX_PROVIDE_RESULTS_REMINDERS = 3;
-const HARDCODED_EXCLUDED_TOOLS = ["write", "edit"];
+const DEFAULT_EXCLUDED_TOOLS = ["write", "edit"];
+
+class LibrarianRunError extends Error {}
 
 export type LibrarianRunStatus = "running" | "done" | "error" | "aborted";
+type FailedLibrarianRunStatus = "error" | "aborted";
 
 export interface TraceCall {
   id: string;
@@ -63,9 +64,24 @@ export interface LibrarianRunOptions {
   model: Model<Api>;
   thinkingLevel: ThinkingLevel;
   settings: LibrarianSettings;
+  extraTools: ExtraToolsResolution;
   githubClient: GitHubClientProvider;
   signal: AbortSignal | undefined;
   onUpdate: ((details: LibrarianRunDetails) => void) | undefined;
+}
+
+async function openContinuedSession(
+  runId: string,
+  sessionsDir: string,
+  cacheDir: string,
+  fail: (status: FailedLibrarianRunStatus, content: string) => never,
+): Promise<SessionManager> {
+  const sessions = await SessionManager.listAll(sessionsDir);
+  const sessionFile = sessions.find((candidate) => candidate.id === runId)?.path;
+  if (!sessionFile) {
+    fail("error", `Librarian run not found: ${runId}`);
+  }
+  return SessionManager.open(sessionFile, sessionsDir, cacheDir);
 }
 
 export async function runLibrarian(
@@ -91,39 +107,35 @@ export async function runLibrarian(
     options.onUpdate?.({ ...details, trace: [...details.trace] });
   };
 
-  const finish = (
-    status: LibrarianRunStatus,
-    content: string,
-    isError: boolean,
-  ): AgentToolResult<LibrarianRunDetails> => {
+  const finalizeDetails = (status: LibrarianRunStatus, content: string): string => {
     const resultContent = details.runId ? `${content}\n\nrun: ${details.runId}` : content;
     details.status = status;
     details.endedAt = Date.now();
-    if (isError) {
+    if (status !== "done") {
       details.error = content.split("\n")[0] ?? content;
     }
     emit(true);
-    return {
-      content: [{ type: "text", text: resultContent }],
-      details: { ...details, trace: [...details.trace] },
-      ...(isError ? { isError: true } : {}),
-    };
+    return resultContent;
+  };
+
+  const finish = (
+    status: LibrarianRunStatus,
+    content: string,
+  ): AgentToolResult<LibrarianRunDetails> => ({
+    content: [{ type: "text", text: finalizeDetails(status, content) }],
+    details: { ...details, trace: [...details.trace] },
+  });
+
+  const fail = (status: FailedLibrarianRunStatus, content: string): never => {
+    throw new LibrarianRunError(finalizeDetails(status, content));
   };
 
   await fs.mkdir(options.settings.cacheDir, { recursive: true });
 
   const sessionsDir = path.join(options.settings.cacheDir, "sessions");
-  let sessionManager: SessionManager;
-  if (options.continueFrom) {
-    const sessions = await SessionManager.listAll(sessionsDir);
-    const sessionFile = sessions.find((candidate) => candidate.id === options.continueFrom)?.path;
-    if (!sessionFile) {
-      return finish("error", `Librarian run not found: ${options.continueFrom}`, true);
-    }
-    sessionManager = SessionManager.open(sessionFile, sessionsDir, options.settings.cacheDir);
-  } else {
-    sessionManager = SessionManager.create(options.settings.cacheDir, sessionsDir);
-  }
+  const sessionManager = options.continueFrom
+    ? await openContinuedSession(options.continueFrom, sessionsDir, options.settings.cacheDir, fail)
+    : SessionManager.create(options.settings.cacheDir, sessionsDir);
   details.runId = sessionManager.getSessionId();
 
   let findings: Findings | undefined;
@@ -138,20 +150,26 @@ export async function runLibrarian(
     }),
   ];
 
-  const resourceLoader = new DefaultResourceLoader({
-    cwd: options.settings.cacheDir,
-    agentDir: getAgentDir(),
-    noExtensions: true,
-    ...(options.settings.extensions.length > 0
-      ? { additionalExtensionPaths: options.settings.extensions }
-      : {}),
-    noSkills: true,
-    noPromptTemplates: true,
-    noThemes: true,
+  const resourceLoader = createLibrarianResourceLoader({
+    cacheDir: options.settings.cacheDir,
+    extensionPaths: options.extraTools.extensionPaths,
     systemPromptOverride: () => buildLibrarianSystemPrompt(options.settings.cacheDir),
-    skillsOverride: () => ({ skills: [], diagnostics: [] }),
   });
   await resourceLoader.reload();
+
+  const extensionLoadErrors = resourceLoader.getExtensions().errors;
+  for (const [index, error] of extensionLoadErrors.entries()) {
+    const now = Date.now();
+    details.trace.push({
+      id: `extension-load-${index}`,
+      name: "load_extension",
+      args: { path: error.path },
+      startedAt: now,
+      endedAt: now,
+      isError: true,
+      resultSummary: error.error,
+    });
+  }
 
   emit(true);
 
@@ -167,16 +185,17 @@ export async function runLibrarian(
       model: options.model,
       thinkingLevel: options.thinkingLevel,
       customTools: repoTools,
-      excludeTools: [...HARDCODED_EXCLUDED_TOOLS, ...options.settings.disabledTools],
+      excludeTools: DEFAULT_EXCLUDED_TOOLS.filter(
+        (toolName) => !options.extraTools.toolNames.includes(toolName),
+      ),
     });
     session = created.session;
 
-    const excluded = new Set([...HARDCODED_EXCLUDED_TOOLS, ...options.settings.disabledTools]);
-    const allToolNames = session
-      .getAllTools()
-      .map((tool) => tool.name)
-      .filter((name) => !excluded.has(name));
-    session.setActiveToolsByName(allToolNames);
+    session.setActiveToolsByName([
+      ...LIBRARIAN_BASELINE_TOOL_NAMES,
+      ...LIBRARIAN_RUN_TOOL_NAMES,
+      ...options.extraTools.toolNames,
+    ]);
 
     unsubscribe = session.subscribe((event: AgentSessionEvent) => {
       switch (event.type) {
@@ -216,7 +235,7 @@ export async function runLibrarian(
     });
 
     if (options.signal?.aborted) {
-      return finish("aborted", "Librarian run aborted before it started.", true);
+      fail("aborted", "Librarian run aborted before it started.");
     }
 
     const activeSession = session;
@@ -238,26 +257,28 @@ export async function runLibrarian(
     }
 
     if (options.signal?.aborted) {
-      return finish("aborted", "Librarian run aborted.", true);
+      fail("aborted", "Librarian run aborted.");
     }
 
     if (findings) {
       details.findings = findings;
-      return finish("done", renderFindingsMarkdown(findings, details.checkouts), false);
+      return finish("done", renderFindingsMarkdown(findings, details.checkouts));
     }
 
     const lastText = session.getLastAssistantText() ?? "";
-    return finish(
+    fail(
       "error",
       `Librarian did not report structured findings after ${MAX_PROVIDE_RESULTS_REMINDERS} reminders.${lastText ? `\n\nRaw final message:\n${lastText}` : ""}`,
-      true,
     );
   } catch (error) {
+    if (error instanceof LibrarianRunError) {
+      throw error;
+    }
     if (options.signal?.aborted) {
-      return finish("aborted", "Librarian run aborted.", true);
+      fail("aborted", "Librarian run aborted.");
     }
     const message = error instanceof Error ? error.message : String(error);
-    return finish("error", `Librarian run failed: ${message}`, true);
+    fail("error", `Librarian run failed: ${message}`);
   } finally {
     if (onAbort) {
       options.signal?.removeEventListener("abort", onAbort);
@@ -265,4 +286,6 @@ export async function runLibrarian(
     unsubscribe?.();
     session?.dispose();
   }
+
+  throw new Error("Unreachable librarian run state.");
 }

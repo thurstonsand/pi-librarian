@@ -15,7 +15,7 @@ And this doesn't even touch on the advantages of giving the agent an efficient t
 ## Core principles
 
 - Build on pi-native concepts, types, and extension APIs where available; read pi source when helpful
-- The librarian is read-only: no write/edit tools, clones live only in the checkout cache
+- The librarian does not include write/edit tools; clones live only in the checkout cache
 - Prioritize ergonomics of the exposed interaction surface over internal implementation
 
 See @DEV.md for code style and development commands.

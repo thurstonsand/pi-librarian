@@ -192,4 +192,57 @@ behavior issue, not a continuation failure.
 
 ## Quality gate
 
-`npm run check` (biome + tsc strict + vitest, 51 unit tests) green after the Octokit refactor.
+`npm run check` (biome + tsc strict + vitest, 63 unit tests) green after the extra-tools implementation.
+
+## 7. Librarian extra tools by name
+
+Configuration under test:
+
+```jsonc
+{
+  "librarian": {
+    "tools": ["search_web", "fetch_web", "not_a_real_librarian_tool"]
+  }
+}
+```
+
+Coverage:
+
+- `search_web` / `fetch_web` resolve by name to their providing extension path when present in the main pi tool registry.
+- Escape-hatch extensions can be dry-loaded to prove unresolved names before warning.
+- An incorrect name such as `not_a_real_librarian_tool` produces a startup warning instead of failing librarian runs.
+- Runs activate only the fixed baseline, librarian repo tools, and names from `librarian.tools`; extension hooks are stripped.
+
+Evidence:
+
+```text
+$ npm run check
+
+Checked 39 files in 8ms. No fixes applied.
+
+ RUN  v4.1.9 /Users/thurstonsand/Develop/pi-librarian
+
+ Test Files  12 passed (12)
+      Tests  63 passed (63)
+```
+
+The `test/extra-tools.test.ts` dry-load smoke registers `search_web` and `fetch_web` tools from an escape-hatch extension and verifies both names are discovered with hooks stripped. The same test suite verifies typo warning selection with `missing_tool` and load-error warning selection with a broken extension.
+
+Live smoke command shape:
+
+```bash
+PI_CODING_AGENT_DIR="$tmp" pi -p --mode json --no-session \
+  -e ./extensions/librarian.ts \
+  -e ~/.pi/agent/extensions/parallel-web-tools \
+  'Call the librarian tool. Query: Use the search_web tool to find the GitHub repository page for thurstonsand/pi-librarian, then call provide_results with a concise summary and any web location you found. Do not clone repositories.'
+```
+
+The successful run `019f2f9a-7d22-7b39-8234-610e2066f199` activated the real Parallel web tools inside the nested librarian run and traced:
+
+```text
+search_web   Find the GitHub repository page for thurstonsand/pi-librarian
+fetch_web    https://github.com/thurstonsand/pi-librarian
+provide_results 1 location
+```
+
+A previous attempt failed before any nested tool call because `read_github_file.range` used a tuple schema that Anthropic rejected as invalid draft 2020-12 JSON Schema. That is covered by `test/read-github-file.test.ts`; the schema now uses a fixed-length array (`minItems: 2`, `maxItems: 2`) instead of TypeBox tuple `items: [...]` / `additionalItems`.

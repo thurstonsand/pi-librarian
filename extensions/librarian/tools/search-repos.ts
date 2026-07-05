@@ -85,16 +85,7 @@ export function createSearchReposTool(githubClient: GitHubClientProvider) {
             : error instanceof Error
               ? error.message
               : String(error);
-        return {
-          content: [{ type: "text", text: message }],
-          details: {
-            kind: "search_repos",
-            query: params.query,
-            resultCount: 0,
-            totalCount: 0,
-          },
-          isError: true,
-        };
+        throw new Error(message);
       }
     },
   });

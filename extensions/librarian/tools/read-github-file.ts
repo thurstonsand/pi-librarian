@@ -22,8 +22,10 @@ const ReadGitHubFileParams = Type.Object({
     Type.String({ description: "Branch, tag, or commit sha. Default: the default branch." }),
   ),
   range: Type.Optional(
-    Type.Tuple([Type.Number({ minimum: 1 }), Type.Number({ minimum: 1 })], {
+    Type.Array(Type.Number({ minimum: 1 }), {
       description: "[startLine, endLine] (1-based, inclusive) for large files.",
+      minItems: 2,
+      maxItems: 2,
     }),
   ),
 });
@@ -42,6 +44,11 @@ export function createReadGitHubFileTool(githubClient: GitHubClientProvider) {
     parameters: ReadGitHubFileParams,
 
     async execute(_toolCallId, params) {
+      const range = params.range ? (params.range as [number, number]) : undefined;
+      if (range && range[1] < range[0]) {
+        throw new Error("range end must be greater than or equal to range start.");
+      }
+
       try {
         const github = await githubClient();
         const contents = await github.readContents({
@@ -72,9 +79,9 @@ export function createReadGitHubFileTool(githubClient: GitHubClientProvider) {
         let end = allLines.length;
         let clipNote = "";
 
-        if (params.range) {
-          start = Math.min(params.range[0], allLines.length);
-          end = Math.min(params.range[1], allLines.length);
+        if (range) {
+          start = Math.min(range[0], allLines.length);
+          end = Math.min(range[1], allLines.length);
         } else if (allLines.length > MAX_LINES_WITHOUT_RANGE) {
           end = MAX_LINES_WITHOUT_RANGE;
           clipNote = `\n... clipped at line ${MAX_LINES_WITHOUT_RANGE} of ${allLines.length}; pass range to read further.`;
@@ -104,18 +111,7 @@ export function createReadGitHubFileTool(githubClient: GitHubClientProvider) {
             : error instanceof Error
               ? error.message
               : String(error);
-        return {
-          content: [{ type: "text", text: message }],
-          details: {
-            kind: "read_github_file",
-            owner: params.owner,
-            repo: params.repo,
-            path: params.path,
-            lineCount: 0,
-            isDirectory: false,
-          },
-          isError: true,
-        };
+        throw new Error(message);
       }
     },
   });

@@ -189,6 +189,17 @@ function renderFooter(details: LibrarianRunDetails, theme: Theme): string {
   );
 }
 
+function isLibrarianRunDetails(value: unknown): value is LibrarianRunDetails {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    typeof (value as { status?: unknown }).status === "string" &&
+    typeof (value as { query?: unknown }).query === "string" &&
+    typeof (value as { modelLabel?: unknown }).modelLabel === "string" &&
+    Array.isArray((value as { trace?: unknown }).trace)
+  );
+}
+
 function renderTrace(
   details: LibrarianRunDetails,
   expanded: boolean,
@@ -245,7 +256,7 @@ export function renderLibrarianResult(
   const container = new Container();
   const details = result.details;
 
-  if (!details) {
+  if (!isLibrarianRunDetails(details)) {
     const firstText = result.content.find((part) => part.type === "text");
     container.addChild(
       new Text(firstText && "text" in firstText ? firstText.text : "(no output)", 0, 0),

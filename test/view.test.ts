@@ -173,6 +173,22 @@ describe("renderLibrarianResult", () => {
     expect(rendered).not.toContain("\n  1 tool call");
     expect(rendered).not.toContain("It checks evidence before answering.");
   });
+
+  it("renders thrown tool errors without run details", () => {
+    const rendered = renderLibrarianResult(
+      {
+        content: [{ type: "text", text: "Librarian run failed: boom" }],
+        details: {},
+      } as AgentToolResult<LibrarianRunDetails>,
+      { expanded: false, isPartial: false },
+      theme,
+      CACHE,
+    )
+      .render(120)
+      .join("\n");
+
+    expect(rendered).toContain("Librarian run failed: boom");
+  });
 });
 
 describe("shorten", () => {
