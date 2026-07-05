@@ -2,6 +2,15 @@
 
 # Release notes
 
+## 0.3.0
+
+Hardens librarian research tools and aligns GitHub file reads with pi's native `read` tool.
+
+### Changed
+
+- Changed `read_github_file` to use `offset` and `limit` instead of `range`, matching pi's native `read` tool semantics.
+- Hardened `checkout_repo` cache reuse so mismatched or malformed cached paths are discarded, while reused checkouts are reset and cleaned before research.
+
 ## 0.2.1
 
 Fixes TUI rendering corruption.
