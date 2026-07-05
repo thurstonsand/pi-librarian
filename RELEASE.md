@@ -2,6 +2,19 @@
 
 # Release notes
 
+## 0.2.1
+
+Fixes TUI rendering corruption.
+
+### Added
+
+- Added `librarian.debug.persistRuns` to keep nested run session files around for debugging.
+
+### Fixed
+
+- Fixed librarian trace rendering leaving stale "N earlier calls" duplicates in the TUI, caused by unsilenced `@octokit/request` deprecation warnings writing to the console.
+- Fixed `search_code` retries riding out a fixed 30s-per-attempt budget; retries now use an escalating timeout schedule so a stalled request recovers in seconds instead of up to a minute.
+
 ## 0.2.0
 
 Adds continuable librarian runs and opt-in for extra tools.
