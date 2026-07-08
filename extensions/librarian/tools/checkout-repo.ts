@@ -29,10 +29,10 @@ export function createCheckoutRepoTool(cacheDir: string) {
     name: LIBRARIAN_TOOL_NAMES.checkoutRepo,
     label: "Checkout repo",
     description: "Clone a repo (blob-less partial clone, cached locally).",
-    promptSnippet: "Clone a repo",
+    promptSnippet: "Clone a repo locally",
     promptGuidelines: [
-      "Use when you want to deep dive on a specific repo. Follow up using grep/read/find/ls on the returned path, and `git -C <path> log/blame/diff` for history.",
-      "Do not checkout repos directly using `git`. Always use this tool instead.",
+      "Use checkout_repo to deep dive on a specific repo, then grep/read/find/ls on the returned path and `git -C <path> log/blame/diff` for history.",
+      "Do not clone repos directly with `git`; always use checkout_repo.",
     ],
     parameters: CheckoutRepoParams,
 

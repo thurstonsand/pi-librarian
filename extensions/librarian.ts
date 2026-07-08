@@ -61,7 +61,6 @@ export default function librarianExtension(pi: ExtensionAPI): void {
   for (const tool of attachableTools) {
     pi.registerTool({
       ...tool,
-      description: `${tool.description} (Librarian tool, attached via /librarian: use for quick single lookups; delegate multi-step research to the librarian tool.)`,
       renderCall(args, theme) {
         const { verb, subject } = formatTraceLine(
           { name: tool.name, args, id: "", startedAt: 0 } satisfies TraceCall,
@@ -81,10 +80,9 @@ export default function librarianExtension(pi: ExtensionAPI): void {
     label: "Librarian",
     description:
       "Understand complex, multi-repo codebases, exploring cross-repo relationships, analyzing architectural patterns, finding implementations across codebases, understanding code evolution/commit history, diving deep on specific code bases, getting comprehensive feature explanations, and exploring end-to-end system design across within or across repositories.",
-    promptSnippet:
-      "librarian: research GitHub repos (implementation questions, ecosystem comparisons, usage examples) and return cited findings",
+    promptSnippet: "Research GitHub repos and codebases, returning cited findings",
     promptGuidelines: [
-      "If a single file or reference must be located, you may use other means (search for downloaded dependencies, web search, etc), but for deeper queries that will take multiple steps to resolve, prefer the librarian.",
+      "Use librarian for deep, multi-step research across repos; for a single file or reference, prefer cheaper means (downloaded dependencies, web search or fetch).",
     ],
     parameters: LibrarianParams,
 

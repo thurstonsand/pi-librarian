@@ -46,10 +46,9 @@ export function createProvideResultsTool(onFindings: (findings: Findings) => voi
     name: LIBRARIAN_TOOL_NAMES.provideResults,
     label: "Provide results",
     description: "Report your findings in structured form.",
-    promptSnippet: "Provide results",
+    promptSnippet: "Report findings",
     promptGuidelines: [
-      "Tool must be called before the turn ends.",
-      "After calling this tool, the turn will end.",
+      "provide_results ends the turn; call it once, after you've gathered your findings.",
     ],
     parameters: FindingsSchema,
 

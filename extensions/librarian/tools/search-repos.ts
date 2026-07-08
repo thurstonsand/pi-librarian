@@ -34,8 +34,8 @@ export function createSearchReposTool(githubClient: GitHubClientProvider) {
     name: LIBRARIAN_TOOL_NAMES.searchRepos,
     label: "Search repos metadata",
     description: "Discover GitHub repositories.",
-    promptSnippet: "Search repos metadata",
-    promptGuidelines: ["Use for questions like 'what are the popular X libraries'."],
+    promptSnippet: "Search GitHub repos by metadata",
+    promptGuidelines: ['Use search_repos for questions like "what are the popular X libraries".'],
     parameters: SearchReposParams,
 
     async execute(_toolCallId, params) {

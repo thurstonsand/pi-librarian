@@ -18,7 +18,8 @@ const SearchCodeParams = Type.Object({
   }),
   regex: Type.Optional(
     Type.Boolean({
-      description: "Treat `pattern` as a regular expression instead of literals.",
+      description:
+        "Treat `pattern` as a regular expression instead of literals. Supports `(?s)` for multi-line patterns.",
     }),
   ),
   repo: Type.Optional(
@@ -59,11 +60,10 @@ export const searchCodeTool = defineTool<typeof SearchCodeParams, SearchCodeDeta
   name: LIBRARIAN_TOOL_NAMES.searchCode,
   label: "Search code across repos",
   description: "Cross-repo code search over public source code.",
-  promptSnippet: "Search code across repos",
+  promptSnippet: "Search public code across repos",
   promptGuidelines: [
-    "When `regex` is true, `pattern` can also use `(?s)` for multi-line patterns.",
-    "Results are CANDIDATES to verify via checkout_repo/read_github_file — never cite them directly.",
-    "This searches public GitHub code only. Use search_github_code when private repository access matters.",
+    "search_code results are candidates to verify via checkout_repo/read_github_file — never cite them directly.",
+    "search_code covers public GitHub code only; use search_github_code when private repository access is required.",
   ],
   parameters: SearchCodeParams,
 

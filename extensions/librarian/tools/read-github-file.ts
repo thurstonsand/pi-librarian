@@ -47,11 +47,11 @@ export function createReadGitHubFileTool(githubClient: GitHubClientProvider) {
     name: LIBRARIAN_TOOL_NAMES.readGitHubFile,
     label: "Read GitHub file",
     description: `Read a single file (or list a directory) from a GitHub repo via the API, without cloning.`,
-    promptSnippet: "Read Github file",
+    promptSnippet: "Read a file/directory from GitHub",
     promptGuidelines: [
-      "For quick peeks — package.json, a README, one source file.",
-      "For multi-file exploration prefer checkout_repo.",
-      "Use offset/limit for larger files.",
+      "Use read_github_file for quick peeks — package.json, a README, one source file.",
+      "For multi-file exploration, prefer checkout_repo over read_github_file.",
+      "Use read_github_file's offset/limit for larger files.",
     ],
     parameters: ReadGitHubFileParams,
 

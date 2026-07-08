@@ -89,10 +89,9 @@ export function createSearchGitHubCodeTool(githubClient: GitHubClientProvider) {
     label: "Search GitHub code",
     description:
       "GitHub REST code search over public code and private repositories your configured GitHub auth can access.",
-    promptSnippet: "Search GitHub code",
+    promptSnippet: "Search GitHub code (incl. private repos)",
     promptGuidelines: [
-      "Results are CANDIDATES to verify via checkout_repo/read_github_file — never cite them directly.",
-      "GitHub REST code search is literal/tokenized and does not support regex; use search_code for public regex/global code search.",
+      "search_github_code is literal/tokenized and does not support regex; use search_code for public regex/global search.",
     ],
     parameters: SearchGitHubCodeParams,
 
