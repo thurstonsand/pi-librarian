@@ -2,6 +2,12 @@
 
 # Release notes
 
+## 0.3.1
+
+### Changed
+
+- Sharpened the research tools' prompt snippets, guidelines, and descriptions so the librarian names each tool explicitly and reads its guidance as directive instructions.
+
 ## 0.3.0
 
 Hardens librarian research tools and aligns GitHub file reads with pi's native `read` tool.
