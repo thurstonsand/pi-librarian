@@ -21,19 +21,33 @@ describe("resolveLibrarianSettings", () => {
     expect(settings.model?.modelId).toBe("claude-sonnet-5");
   });
 
+  it("parses bare model patterns", () => {
+    const settings = resolveLibrarianSettings({ model: "opus" });
+    expect(settings.model?.provider).toBeUndefined();
+    expect(settings.model?.modelId).toBe("opus");
+    expect(settings.model?.toString()).toBe("opus");
+  });
+
   it("parses model ids containing slashes", () => {
     const settings = resolveLibrarianSettings({ model: "openrouter/meta/llama-4" });
     expect(settings.model?.provider).toBe("openrouter");
     expect(settings.model?.modelId).toBe("meta/llama-4");
   });
 
-  it("parses thinking level", () => {
-    const settings = resolveLibrarianSettings({ thinkingLevel: "high" });
-    expect(settings.thinkingLevel).toBe("high");
+  it.each([
+    "off",
+    "minimal",
+    "low",
+    "medium",
+    "high",
+    "xhigh",
+    "max",
+  ] as const)("parses the %s thinking level", (thinkingLevel) => {
+    const settings = resolveLibrarianSettings({ thinkingLevel });
+    expect(settings.thinkingLevel).toBe(thinkingLevel);
   });
 
   it("rejects malformed model references", () => {
-    expect(resolveLibrarianSettings({ model: "no-slash" }).model).toBeUndefined();
     expect(resolveLibrarianSettings({ model: "/leading" }).model).toBeUndefined();
     expect(resolveLibrarianSettings({ model: "trailing/" }).model).toBeUndefined();
   });

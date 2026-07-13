@@ -1,7 +1,14 @@
 import type { ExtensionAPI, SessionStartEvent } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
-import { applyAttachState, readAttachState, setAttachState } from "./librarian/attach.ts";
+import {
+  ATTACH_ENTRY_TYPE,
+  type AttachEntryData,
+  applyAttachState,
+  readAttachState,
+  renderAttachEntry,
+  setAttachState,
+} from "./librarian/attach.ts";
 import { collectExtraToolWarnings, resolveExtraTools } from "./librarian/extra-tools.ts";
 import { createGitHubClientProvider } from "./librarian/github.ts";
 import { resolveLibrarianModel } from "./librarian/model.ts";
@@ -50,6 +57,10 @@ export default function librarianExtension(pi: ExtensionAPI): void {
   const settings = loadSettings();
   const githubClient = createGitHubClientProvider();
 
+  pi.registerEntryRenderer<AttachEntryData>(ATTACH_ENTRY_TYPE, (entry, { expanded }, theme) =>
+    renderAttachEntry(entry.data, expanded, theme),
+  );
+
   const attachableTools = [
     createSearchReposTool(githubClient),
     searchCodeTool,
@@ -93,6 +104,9 @@ export default function librarianExtension(pi: ExtensionAPI): void {
         throw new Error(
           "No model available for the librarian. Configure librarian.model or select a session model.",
         );
+      }
+      if (resolution.warning) {
+        ctx.ui.notify(resolution.warning, "warning");
       }
 
       const extraTools = resolveExtraTools(pi.getAllTools(), settings);
@@ -167,19 +181,13 @@ export default function librarianExtension(pi: ExtensionAPI): void {
         argument === "on" ? true : argument === "off" ? false : !currentlyAttached;
       if (nextAttached === currentlyAttached) {
         ctx.ui.notify(
-          nextAttached ? "Librarian tools already attached." : "Librarian tools not attached.",
+          nextAttached ? "Librarian tools already attached." : "Librarian tools already detached.",
           "info",
         );
         return;
       }
 
       setAttachState(pi, nextAttached);
-      ctx.ui.notify(
-        nextAttached
-          ? `Attached librarian tools: ${ATTACHABLE_TOOL_NAMES.join(", ")}`
-          : "Detached librarian tools.",
-        "info",
-      );
     },
   });
 

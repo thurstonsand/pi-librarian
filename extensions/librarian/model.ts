@@ -1,6 +1,6 @@
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import type { Api, Model } from "@earendil-works/pi-ai";
-import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { type ExtensionContext, resolveCliModel } from "@earendil-works/pi-coding-agent";
 import type { ModelReference } from "./settings.ts";
 
 export type LibrarianModelSource = "configured" | "current";
@@ -9,31 +9,21 @@ export interface LibrarianModelResolution {
   model: Model<Api>;
   thinkingLevel: ThinkingLevel;
   source: LibrarianModelSource;
+  warning?: string;
 }
 
-function isAlias(modelId: string): boolean {
-  return modelId.endsWith("-latest") || !/-\d{8}$/.test(modelId);
-}
-
-function bestModelMatch(models: Model<Api>[], pattern: string): Model<Api> | undefined {
-  const normalizedPattern = pattern.toLowerCase();
-  const exactMatches = models.filter((model) => model.id.toLowerCase() === normalizedPattern);
-  if (exactMatches.length === 1) {
-    return exactMatches[0];
+function configuredModelFailure(
+  configuredModel: ModelReference,
+  error: string | undefined,
+  warning: string | undefined,
+): string {
+  if (error) {
+    return error;
   }
-
-  const partialMatches = models.filter(
-    (model) =>
-      model.id.toLowerCase().includes(normalizedPattern) ||
-      model.name?.toLowerCase().includes(normalizedPattern),
-  );
-  if (partialMatches.length === 0) {
-    return undefined;
+  if (warning) {
+    return warning;
   }
-
-  const aliases = partialMatches.filter((model) => isAlias(model.id));
-  const candidates = aliases.length > 0 ? aliases : partialMatches;
-  return candidates.toSorted((a, b) => b.id.localeCompare(a.id))[0];
+  return `Could not resolve configured model "${configuredModel}".`;
 }
 
 export function resolveLibrarianModel(
@@ -41,19 +31,41 @@ export function resolveLibrarianModel(
   configuredModel: ModelReference | undefined,
   thinkingLevel: ThinkingLevel,
 ): LibrarianModelResolution | undefined {
+  let failure: string | undefined;
+
   if (configuredModel) {
-    const providerModels = ctx.modelRegistry
-      .getAvailable()
-      .filter((model) => model.provider === configuredModel.provider);
-    const match = bestModelMatch(providerModels, configuredModel.modelId);
-    if (match) {
-      return { model: match, thinkingLevel, source: "configured" };
+    const resolved = resolveCliModel({
+      ...(configuredModel.provider ? { cliProvider: configuredModel.provider } : {}),
+      cliModel: configuredModel.modelId,
+      modelRegistry: ctx.modelRegistry,
+    });
+    if (resolved.model) {
+      const resolution: LibrarianModelResolution = {
+        model: resolved.model,
+        thinkingLevel,
+        source: "configured",
+      };
+      if (resolved.warning) {
+        resolution.warning = resolved.warning;
+      }
+      return resolution;
     }
+
+    failure = configuredModelFailure(configuredModel, resolved.error, resolved.warning);
   }
 
   if (!ctx.model) {
     return undefined;
   }
 
-  return { model: ctx.model, thinkingLevel, source: "current" };
+  if (!configuredModel) {
+    return { model: ctx.model, thinkingLevel, source: "current" };
+  }
+
+  return {
+    model: ctx.model,
+    thinkingLevel,
+    source: "current",
+    warning: `Configured librarian model "${configuredModel}" is unavailable: ${failure} Using current model "${ctx.model.provider}/${ctx.model.id}".`,
+  };
 }

@@ -5,13 +5,24 @@ import { SettingsManager } from "@earendil-works/pi-coding-agent";
 import { type Static, Type } from "typebox";
 import { parseTypeBoxValue } from "../shared/typebox.ts";
 
+const THINKING_LEVELS = [
+  "off",
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+] as const satisfies readonly ThinkingLevel[];
+
 const THINKING_LEVEL_SCHEMA = Type.Union([
-  Type.Literal("off"),
-  Type.Literal("minimal"),
-  Type.Literal("low"),
-  Type.Literal("medium"),
-  Type.Literal("high"),
-  Type.Literal("xhigh"),
+  Type.Literal(THINKING_LEVELS[0]),
+  Type.Literal(THINKING_LEVELS[1]),
+  Type.Literal(THINKING_LEVELS[2]),
+  Type.Literal(THINKING_LEVELS[3]),
+  Type.Literal(THINKING_LEVELS[4]),
+  Type.Literal(THINKING_LEVELS[5]),
+  Type.Literal(THINKING_LEVELS[6]),
 ]);
 
 const LIBRARIAN_FILE_SETTINGS_SCHEMA = Type.Object({
@@ -35,12 +46,12 @@ type LibrarianFileSettings = Static<typeof LIBRARIAN_FILE_SETTINGS_SCHEMA>;
 
 export class ModelReference {
   constructor(
-    readonly provider: string,
+    readonly provider: string | undefined,
     readonly modelId: string,
   ) {}
 
   toString(): string {
-    return `${this.provider}/${this.modelId}`;
+    return this.provider ? `${this.provider}/${this.modelId}` : this.modelId;
   }
 }
 
@@ -92,7 +103,10 @@ function parseModelReference(value: string | undefined): ModelReference | undefi
   }
 
   const slashIndex = trimmed.indexOf("/");
-  if (slashIndex <= 0 || slashIndex === trimmed.length - 1) {
+  if (slashIndex === -1) {
+    return new ModelReference(undefined, trimmed);
+  }
+  if (slashIndex === 0 || slashIndex === trimmed.length - 1) {
     return undefined;
   }
 
