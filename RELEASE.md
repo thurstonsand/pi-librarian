@@ -2,6 +2,19 @@
 
 # Release notes
 
+## 0.4.0
+
+### Added
+
+- Added compact, expandable transcript entries for `/librarian` attach and detach changes, including the exact repo tools affected.
+- Added support for Pi's `max` thinking level.
+
+### Changed
+
+- Changed `librarian.model` to use Pi's native model-pattern resolution.
+- Raised the minimum supported Pi version to 0.80.6.
+- Changed persisted attach entries to require tool snapshots. Older attach entries are now ignored.
+
 ## 0.3.1
 
 ### Changed
