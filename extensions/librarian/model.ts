@@ -1,6 +1,6 @@
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import type { Api, Model } from "@earendil-works/pi-ai";
-import { type ExtensionContext, resolveCliModel } from "@earendil-works/pi-coding-agent";
+import { type ModelRuntime, resolveCliModel } from "@earendil-works/pi-coding-agent";
 import type { ModelReference } from "./settings.ts";
 
 export type LibrarianModelSource = "configured" | "current";
@@ -27,7 +27,8 @@ function configuredModelFailure(
 }
 
 export function resolveLibrarianModel(
-  ctx: ExtensionContext,
+  modelRuntime: ModelRuntime,
+  currentModel: Model<Api> | undefined,
   configuredModel: ModelReference | undefined,
   thinkingLevel: ThinkingLevel,
 ): LibrarianModelResolution | undefined {
@@ -37,7 +38,7 @@ export function resolveLibrarianModel(
     const resolved = resolveCliModel({
       ...(configuredModel.provider ? { cliProvider: configuredModel.provider } : {}),
       cliModel: configuredModel.modelId,
-      modelRegistry: ctx.modelRegistry,
+      modelRuntime,
     });
     if (resolved.model) {
       const resolution: LibrarianModelResolution = {
@@ -54,18 +55,18 @@ export function resolveLibrarianModel(
     failure = configuredModelFailure(configuredModel, resolved.error, resolved.warning);
   }
 
-  if (!ctx.model) {
+  if (!currentModel) {
     return undefined;
   }
 
   if (!configuredModel) {
-    return { model: ctx.model, thinkingLevel, source: "current" };
+    return { model: currentModel, thinkingLevel, source: "current" };
   }
 
   return {
-    model: ctx.model,
+    model: currentModel,
     thinkingLevel,
     source: "current",
-    warning: `Configured librarian model "${configuredModel}" is unavailable: ${failure} Using current model "${ctx.model.provider}/${ctx.model.id}".`,
+    warning: `Configured librarian model "${configuredModel}" is unavailable: ${failure} Using current model "${currentModel.provider}/${currentModel.id}".`,
   };
 }

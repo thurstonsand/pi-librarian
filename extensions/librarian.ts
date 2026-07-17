@@ -12,6 +12,7 @@ import {
 import { collectExtraToolWarnings, resolveExtraTools } from "./librarian/extra-tools.ts";
 import { createGitHubClientProvider } from "./librarian/github.ts";
 import { resolveLibrarianModel } from "./librarian/model.ts";
+import { createLibrarianModelRuntime } from "./librarian/model-runtime.ts";
 import { type LibrarianRunDetails, runLibrarian, type TraceCall } from "./librarian/run.ts";
 import { loadSettings } from "./librarian/settings.ts";
 import { createCheckoutRepoTool } from "./librarian/tools/checkout-repo.ts";
@@ -98,8 +99,14 @@ export default function librarianExtension(pi: ExtensionAPI): void {
     parameters: LibrarianParams,
 
     async execute(_toolCallId, params, signal, onUpdate, ctx) {
+      const modelRuntime = await createLibrarianModelRuntime(ctx.modelRegistry);
       const thinkingLevel = settings.thinkingLevel ?? pi.getThinkingLevel();
-      const resolution = resolveLibrarianModel(ctx, settings.model, thinkingLevel);
+      const resolution = resolveLibrarianModel(
+        modelRuntime,
+        ctx.model,
+        settings.model,
+        thinkingLevel,
+      );
       if (!resolution) {
         throw new Error(
           "No model available for the librarian. Configure librarian.model or select a session model.",
@@ -116,6 +123,7 @@ export default function librarianExtension(pi: ExtensionAPI): void {
         repos: params.repos ?? [],
         owners: params.owners ?? [],
         continueFrom: params.continue_from,
+        modelRuntime,
         model: resolution.model,
         thinkingLevel: resolution.thinkingLevel,
         settings,

@@ -2,7 +2,11 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import type { AgentToolResult, ThinkingLevel } from "@earendil-works/pi-agent-core";
 import type { Api, Model } from "@earendil-works/pi-ai";
-import type { AgentSession, AgentSessionEvent } from "@earendil-works/pi-coding-agent";
+import type {
+  AgentSession,
+  AgentSessionEvent,
+  ModelRuntime,
+} from "@earendil-works/pi-coding-agent";
 import { createAgentSession, SessionManager } from "@earendil-works/pi-coding-agent";
 import { type ExtraToolsResolution, LIBRARIAN_BASELINE_TOOL_NAMES } from "./extra-tools.ts";
 import type { GitHubClientProvider } from "./github.ts";
@@ -62,6 +66,7 @@ export interface LibrarianRunOptions {
   repos: string[];
   owners: string[];
   continueFrom: string | undefined;
+  modelRuntime: ModelRuntime;
   model: Model<Api>;
   thinkingLevel: ThinkingLevel;
   settings: LibrarianSettings;
@@ -191,6 +196,7 @@ export async function runLibrarian(
       cwd: options.settings.cacheDir,
       resourceLoader,
       sessionManager,
+      modelRuntime: options.modelRuntime,
       model: options.model,
       thinkingLevel: options.thinkingLevel,
       customTools: repoTools,
