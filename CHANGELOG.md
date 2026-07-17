@@ -1,6 +1,16 @@
 <!-- markdownlint-disable MD024 -->
 
-# Release notes
+# Changelog
+
+## 0.5.0
+
+### Changed
+
+- Raised the minimum supported Pi version to 0.80.10.
+
+### Fixed
+
+- Fixed the nested librarian session dropping extension-registered providers by propagating the model runtime into the run.
 
 ## 0.4.0
 
