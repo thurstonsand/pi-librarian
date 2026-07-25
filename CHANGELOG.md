@@ -2,6 +2,16 @@
 
 # Changelog
 
+## 0.5.1
+
+### Changed
+
+- Raised the minimum supported Pi version to 0.82.0.
+
+### Fixed
+
+- Fixed the nested librarian session dropping natively registered extension providers.
+
 ## 0.5.0
 
 ### Changed
