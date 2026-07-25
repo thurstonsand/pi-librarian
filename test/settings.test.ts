@@ -34,18 +34,13 @@ describe("resolveLibrarianSettings", () => {
     expect(settings.model?.modelId).toBe("meta/llama-4");
   });
 
-  it.each([
-    "off",
-    "minimal",
-    "low",
-    "medium",
-    "high",
-    "xhigh",
-    "max",
-  ] as const)("parses the %s thinking level", (thinkingLevel) => {
-    const settings = resolveLibrarianSettings({ thinkingLevel });
-    expect(settings.thinkingLevel).toBe(thinkingLevel);
-  });
+  it.each(["off", "minimal", "low", "medium", "high", "xhigh", "max"] as const)(
+    "parses the %s thinking level",
+    (thinkingLevel) => {
+      const settings = resolveLibrarianSettings({ thinkingLevel });
+      expect(settings.thinkingLevel).toBe(thinkingLevel);
+    },
+  );
 
   it("rejects malformed model references", () => {
     expect(resolveLibrarianSettings({ model: "/leading" }).model).toBeUndefined();

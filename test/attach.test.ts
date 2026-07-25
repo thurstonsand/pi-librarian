@@ -131,10 +131,10 @@ describe("renderAttachEntry", () => {
     expect(render({ attached: true }, true)).toEqual(["Librarian attach state unavailable"]);
   });
 
-  it.each([
-    { attached: "yes" },
-    { attached: true, tools: [42] },
-  ])("renders malformed entries without throwing", (data) => {
-    expect(render(data, true)).toEqual(["Librarian attach state unavailable"]);
-  });
+  it.each([{ attached: "yes" }, { attached: true, tools: [42] }])(
+    "renders malformed entries without throwing",
+    (data) => {
+      expect(render(data, true)).toEqual(["Librarian attach state unavailable"]);
+    },
+  );
 });
