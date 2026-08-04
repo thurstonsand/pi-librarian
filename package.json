@@ -65,10 +65,17 @@
     "*.{js,cjs,mjs,jsx,ts,tsx,json,jsonc}": "biome check --write --no-errors-on-unmatched"
   },
   "dependencies": {
-    "@octokit/request-error": "^7.1.0",
+    "@octokit/request-error": "7.1.1",
     "@octokit/rest": "^22.0.1"
   },
   "publishConfig": {
     "access": "public"
+  },
+  "overrides": {
+    "@octokit/core": "7.0.7",
+    "@octokit/endpoint": "11.0.4",
+    "@octokit/graphql": "9.0.4",
+    "@octokit/request": "10.0.13",
+    "json-with-bigint": "3.5.11"
   }
 }
