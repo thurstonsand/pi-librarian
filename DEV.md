@@ -15,7 +15,7 @@ mise run typecheck
 mise run test
 
 # Single test by name pattern
-mise run test -- -t "parses sourcegraph stream matches"
+mise run test -- -t "accepts SSH repository URLs"
 
 # Single test file
 mise run test -- test/search-code.test.ts
@@ -28,15 +28,15 @@ No build/compile step — the pi framework loads extensions directly from TypeSc
 - Use TypeBox to ensure runtime type safety
 - Do not change production types to make tests easier; mock the real type instead.
 - Never be afraid to break backwards compatibility if it serves to better solve the current goal
-- Avoid `Pick`, `Omit`, `Partial`, `ReturnType`, indexed-access type derivations like `Foo["bar"]`, other kinds of utility-type derivations unless they are clearly justified.
+- Avoid `Pick`, `Omit`, `Partial`, `Exclude`, `ReturnType`, indexed-access type derivations like `Foo["bar"]`, other kinds of utility-type derivations unless they are clearly justified.
 - use `.ts` extensions for repo-local imports
 
 ## Project structure
 
 - **Entrypoint**: `extensions/librarian.ts` — registers the `librarian` tool and `/librarian` command.
-- **Research tools**: `extensions/librarian/tools/` — `search_repos`, `search_code`, `checkout_repo`, `read_github_file`, `provide_results`.
-- **Clients**: `extensions/librarian/github.ts` (REST + gh auth), `extensions/librarian/sourcegraph.ts` (stream search API).
-- **Checkout cache**: `extensions/librarian/checkout.ts` — blob-less partial clones under `~/.cache/pi-librarian/repos/`.
+- **Research tools**: `extensions/librarian/tools/` — `search_repos`, `search_code`, `search_github_code`, `checkout_repo`, `read_github_file`, `provide_results`.
+- **Clients**: `extensions/librarian/github.ts` (REST + gh auth), `extensions/librarian/grep-app.ts` (public code search).
+- **Checkout cache**: `extensions/librarian/checkout.ts` — blob-less partial clones under `/tmp/pi-librarian/repos/` by default.
 - **Runtime**: `extensions/librarian/run.ts` — nested agent session, `provide_results` enforcement.
 - **Presentation**: `extensions/librarian/view.ts` — tool-call trace and findings rendering.
 - **Attach**: `extensions/librarian/attach.ts` — `/librarian` toggle with session-entry persistence.

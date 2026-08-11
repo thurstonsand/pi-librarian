@@ -10,7 +10,7 @@ A GitHub research subagent for the [pi coding agent](https://github.com/badlogic
 
 The `librarian` tool spawns a research subagent with purpose-built tools:
 
-- **`checkout_repo`** — clone into a local cache, where it can be read locally, and `git log -S`/`blame`/`diff` covers history.
+- **`checkout_repo`** — clone into a local cache, where it can be read locally, and `git log -S`/`blame`/`diff` covers history. Takes a repository path plus a `source` naming one of your configured sources, or a full HTTPS/SSH clone URL on its own.
 - **`search_repos`** — GitHub repository discovery (stars, topics, other metadata).
 - **`search_code`** — cross-repo public code search via [Grep](https://grep.app/) (regex, global discovery, repo/language/path filters).
 - **`search_github_code`** — GitHub REST code search over public code and private repositories your configured GitHub auth can access.
@@ -21,7 +21,7 @@ The `librarian` tool spawns a research subagent with purpose-built tools:
 - Ask pi a question involving other repos; it asks the `librarian`.
 - Ask follow-up questions to earlier librarian runs.
 - `/librarian` attaches the research tools directly to your session for direct tool usage.
-- Recommended: install [pi-web-access](https://pi.dev/packages/pi-web-access) (or your web search of choice, tho this one is zero-config to get started) and add `web_search`, `fetch_content`, `get_search_content` to `librarian.tools` to expand past GitHub-only research.
+- Recommended: install [pi-web-access](https://pi.dev/packages/pi-web-access) (or your web search of choice, tho this one is zero-config to get started) and add `web_search`, `fetch_content`, `get_search_content` to `librarian.tools.extra` to expand past GitHub-only research.
 
 ## GitHub auth for private repos
 
@@ -30,7 +30,7 @@ Public GitHub reads work without configuration. To let the librarian search and 
 1. Set `GITHUB_TOKEN` or `GH_TOKEN` in the environment before starting pi.
 2. Or authenticate the GitHub CLI so `gh auth token` returns a token:
 
-The token is loaded once per pi session and used for github access in `search_repos`, `search_github_code`, `checkout_repo`, and `read_github_file`. For private repositories, use a token with read access to the target repos.
+The token is loaded once per pi session and used for GitHub access in `search_repos`, `search_github_code`, and `read_github_file`. For private repositories, use a token with read access to the target repos. `checkout_repo` uses git's built-in credential helpers instead.
 
 ## Configuration
 
@@ -41,7 +41,28 @@ In pi's global `settings.json`:
   "librarian": {
     "model": "openai-codex/gpt-5.5",
     "thinkingLevel": "off",
-    "tools": ["web_search", "fetch_content", "get_search_content"],
+    "tools": {
+      "extra": ["web_search", "fetch_content", "get_search_content"],
+      "disabled": [],
+    },
+    "sources": [
+      {
+        "name": "example-gl",
+        "url": "https://gitlab.example.com",
+        "kind": "gitlab",
+        "disabled": ["code-search"],
+      },
+      {
+        "name": "example-bb",
+        "url": "https://git.example.com",
+        "kind": "bitbucket-server",
+      },
+      {
+        "name": "example-sg",
+        "url": "https://search.example.com",
+        "kind": "sourcegraph",
+      },
+    ],
     "extensions": ["~/.pi/agent/extensions/parallel-web-tools"],
     "cacheDir": "/tmp/pi-librarian",
     "debug": { "persistRuns": false },
@@ -53,12 +74,16 @@ In pi's global `settings.json`:
 | ------------------- | ------------------------------------------------ | ------------------------------ |
 | `model`             | `openai-codex/gpt-5.5`                           | current session model          |
 | `thinkingLevel`     | `off`                                            | current session thinking level |
-| `tools`             | names of extra tools to provide the librarian    | `[]`                           |
+| `tools.extra`       | names of extra tools to provide the librarian    | `[]`                           |
+| `tools.disabled`    | names of tools to remove from librarian runs     | `[]`                           |
+| `sources`           | code hosts and search backends                   | `[]`                           |
 | `extensions`        | extra paths to load extensions for the librarian | `[]`                           |
 | `cacheDir`          | `/tmp/pi-librarian`                              | `/tmp/pi-librarian`            |
 | `debug.persistRuns` | persist nested session file paths for debugging  | `false`                        |
 
-`librarian.extensions` dynamically loads extra extensions just for the librarian. Add any tools from that extension to `librarian.tools` for the librarian to actually be able to use them. Librarian excludes `write` and `edit`.
+Each `librarian.sources` entry requires a unique `name`, an HTTPS `url`, and a `kind`: `github`, `gitlab`, `bitbucket-server`, or `sourcegraph`. The `kind` decides which roles a source can play — `clone`, `code-search`, `repo-search` — unless `disabled`. `github` and `gitlab.com` are built in and need no entry. Note that `librarian.tools.disabled` is a different lever: it removes a tool from the run entirely, where a source's `disabled` removes one source from one role.
+
+`librarian.extensions` dynamically loads extra extensions just for the librarian. Add any tools from that extension to `librarian.tools.extra` for the librarian to actually be able to use them. Librarian excludes `write` and `edit`.
 
 ## Development
 

@@ -42,14 +42,17 @@ describe("formatToolDuration", () => {
 });
 
 describe("relativizeCachePath", () => {
-  it("strips the cache root and owner segment", () => {
+  it("strips the cache root, host and owner segments", () => {
     expect(
-      relativizeCachePath(`${CACHE}/repos/drizzle-team/drizzle-orm/src/session.ts`, CACHE),
+      relativizeCachePath(
+        `${CACHE}/repos/github.com/drizzle-team/drizzle-orm/src/session.ts`,
+        CACHE,
+      ),
     ).toBe("drizzle-orm/src/session.ts");
   });
 
   it("leaves non-cache paths alone", () => {
-    expect(relativizeCachePath("/etc/hosts", CACHE)).toBe("/etc/hosts");
+    expect(relativizeCachePath("/etc/sources", CACHE)).toBe("/etc/sources");
   });
 });
 
@@ -57,7 +60,7 @@ describe("formatTraceLine", () => {
   it("renders read with relativized path and range", () => {
     const line = formatTraceLine(
       call("read", {
-        path: `${CACHE}/repos/drizzle-team/drizzle-orm/src/session.ts`,
+        path: `${CACHE}/repos/github.com/drizzle-team/drizzle-orm/src/session.ts`,
         offset: 80,
         limit: 61,
       }),
@@ -73,7 +76,7 @@ describe("formatTraceLine", () => {
 
   it("renders grep with quoted pattern and scope", () => {
     const line = formatTraceLine(
-      call("grep", { pattern: "prepareQuery", path: `${CACHE}/repos/a/b/src` }),
+      call("grep", { pattern: "prepareQuery", path: `${CACHE}/repos/github.com/a/b/src` }),
       CACHE,
     );
     expect(line).toEqual({ verb: "grep", subject: '"prepareQuery" b/src' });
@@ -96,9 +99,12 @@ describe("formatTraceLine", () => {
     expect(line).toEqual({ verb: "search.gh", subject: "code foo in a/b,org/*" });
   });
 
-  it("renders checkout_repo with ref", () => {
-    const line = formatTraceLine(call("checkout_repo", { repo: "a/b", ref: "v2" }), CACHE);
-    expect(line).toEqual({ verb: "checkout", subject: "a/b@v2" });
+  it("renders checkout_repo with source and ref", () => {
+    const line = formatTraceLine(
+      call("checkout_repo", { repo: "a/b", source: "github", ref: "v2" }),
+      CACHE,
+    );
+    expect(line).toEqual({ verb: "checkout", subject: "github:a/b@v2" });
   });
 
   it("renders read_github_file as repo/path", () => {

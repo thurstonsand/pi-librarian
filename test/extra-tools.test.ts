@@ -13,13 +13,22 @@ import type { LibrarianSettings } from "../extensions/librarian/settings.ts";
 
 function settings(values: {
   tools: string[];
+  disabled?: string[];
   extensions?: string[];
   cacheDir?: string;
 }): LibrarianSettings {
   return {
     model: undefined,
     thinkingLevel: undefined,
-    tools: values.tools,
+    tools: { extra: values.tools, disabled: values.disabled ?? [] },
+    sources: [
+      {
+        name: "github",
+        url: "https://github.com",
+        kind: "github",
+        roles: ["clone", "code-search", "repo-search"],
+      },
+    ],
     extensions: values.extensions ?? [],
     cacheDir: values.cacheDir ?? os.tmpdir(),
     debug: { persistRuns: false },

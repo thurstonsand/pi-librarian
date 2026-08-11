@@ -36,12 +36,12 @@ function resolveExtraToolsForValidation(
   const warnings: ExtraToolWarning[] = [];
   const unresolvedToolNames: string[] = [];
 
-  for (const toolName of settings.tools) {
+  for (const toolName of settings.tools.extra) {
     if (LIBRARIAN_SELF_TOOL_NAMES.has(toolName)) {
       warnings.push({
         toolName,
         reason: "self",
-        message: `librarian.tools includes ${toolName}, but librarian's own tools cannot be opted into librarian runs. Remove it from librarian.tools.`,
+        message: `librarian.tools.extra includes ${toolName}, but librarian's own tools cannot be opted into librarian runs. Remove it from librarian.tools.extra.`,
       });
       continue;
     }
@@ -53,7 +53,7 @@ function resolveExtraToolsForValidation(
       warnings.push({
         toolName,
         reason: "unresolved",
-        message: `librarian.tools includes ${toolName}, but no loaded pi tool has that name.`,
+        message: `librarian.tools.extra includes ${toolName}, but no loaded pi tool has that name.`,
       });
       continue;
     }
@@ -122,8 +122,8 @@ export async function collectExtraToolWarnings(
       reason: "unresolved" as const,
       message:
         loaderWarnings.length > 0
-          ? `librarian.tools includes ${toolName}, but it was not found in the main session or successfully loaded escape-hatch tools. Fix librarian.extensions load errors or the tool name.`
-          : `librarian.tools includes ${toolName}, but no loaded pi tool or escape-hatch extension tool has that name.`,
+          ? `librarian.tools.extra includes ${toolName}, but it was not found in the main session or successfully loaded escape-hatch tools. Fix librarian.extensions load errors or the tool name.`
+          : `librarian.tools.extra includes ${toolName}, but no loaded pi tool or escape-hatch extension tool has that name.`,
     }));
 
   return [...nonUnresolvedWarnings, ...loaderWarnings, ...unresolvedWarnings];

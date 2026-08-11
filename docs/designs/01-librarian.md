@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted. **Superseded in part** on repository references and cache identity — see `docs/wayfinding/beyond-github/tickets/05-reaching-a-repo-reference-forms-and-clone-resolution.md`. A bare `owner/repo` no longer resolves to GitHub implicitly; `checkout_repo` takes a `source` naming a declared host, and every clone is keyed by host. This document records the decision as it was taken, not current behaviour.
 
 ## Decision Summary
 

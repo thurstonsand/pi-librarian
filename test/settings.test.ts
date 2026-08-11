@@ -1,7 +1,7 @@
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { getDefaultCacheDir, resolveLibrarianSettings } from "../extensions/librarian/settings.ts";
+import { DEFAULT_CACHE_DIR, resolveLibrarianSettings } from "../extensions/librarian/settings.ts";
 
 describe("resolveLibrarianSettings", () => {
   it("returns defaults for empty settings", () => {
@@ -9,10 +9,24 @@ describe("resolveLibrarianSettings", () => {
     expect(settings.model).toBeUndefined();
     expect(settings.thinkingLevel).toBeUndefined();
     expect(settings.extensions).toEqual([]);
-    expect(settings.tools).toEqual([]);
+    expect(settings.tools).toEqual({ extra: [], disabled: [] });
+    expect(settings.sources).toEqual([
+      {
+        name: "github",
+        url: "https://github.com",
+        kind: "github",
+        roles: ["clone", "code-search", "repo-search"],
+      },
+      {
+        name: "gitlab.com",
+        url: "https://gitlab.com",
+        kind: "gitlab",
+        roles: ["clone", "code-search", "repo-search"],
+      },
+    ]);
     expect(settings.debug.persistRuns).toBe(false);
-    expect(settings.cacheDir).toBe(getDefaultCacheDir());
-    expect(settings.cacheDir).toBe(path.join(os.tmpdir(), "pi-librarian"));
+    expect(settings.cacheDir).toBe(DEFAULT_CACHE_DIR);
+    expect(settings.cacheDir).toBe("/tmp/pi-librarian");
   });
 
   it("parses provider/model references", () => {
@@ -54,11 +68,87 @@ describe("resolveLibrarianSettings", () => {
     expect(settings.extensions).toEqual([path.join(os.homedir(), "exts/web-tools"), "/abs/path"]);
   });
 
-  it("normalizes extra tool names", () => {
+  it("normalizes extra and disabled tool names", () => {
     const settings = resolveLibrarianSettings({
-      tools: [" search_web ", "", "fetch_web", "search_web"],
+      tools: {
+        extra: [" search_web ", "", "fetch_web", "search_web"],
+        disabled: ["write", " write "],
+      },
     });
-    expect(settings.tools).toEqual(["search_web", "fetch_web"]);
+    expect(settings.tools).toEqual({
+      extra: ["search_web", "fetch_web"],
+      disabled: ["write"],
+    });
+  });
+
+  it("normalizes host declarations", () => {
+    const settings = resolveLibrarianSettings({
+      sources: [
+        {
+          name: "example-bb",
+          url: "https://Git.Example.com:8443/",
+          kind: "bitbucket-server",
+          disabled: ["code-search"],
+        },
+      ],
+    });
+
+    expect(settings.sources).toEqual([
+      {
+        name: "github",
+        url: "https://github.com",
+        kind: "github",
+        roles: ["clone", "code-search", "repo-search"],
+      },
+      {
+        name: "gitlab.com",
+        url: "https://gitlab.com",
+        kind: "gitlab",
+        roles: ["clone", "code-search", "repo-search"],
+      },
+      {
+        name: "example-bb",
+        url: "https://git.example.com:8443",
+        kind: "bitbucket-server",
+        roles: ["clone", "repo-search"],
+      },
+    ]);
+  });
+
+  it("rejects duplicate or reserved source names and sources", () => {
+    expect(() =>
+      resolveLibrarianSettings({
+        sources: [{ name: "github", url: "https://git.example.com", kind: "gitlab" }],
+      }),
+    ).toThrow(/reserved source name/);
+    expect(() =>
+      resolveLibrarianSettings({
+        sources: [
+          { name: "one", url: "https://git.example.com:8443", kind: "gitlab" },
+          { name: "two", url: "https://git.example.com", kind: "bitbucket-server" },
+        ],
+      }),
+    ).toThrow(/duplicate or reserved host/);
+  });
+
+  it("rejects inert declarations and non-origin host URLs", () => {
+    expect(() =>
+      resolveLibrarianSettings({
+        sources: [
+          {
+            name: "search",
+            url: "https://search.example.com",
+            kind: "sourcegraph",
+            disabled: ["repo-search", "code-search"],
+          },
+        ],
+      }),
+    ).toThrow(/disables every role/);
+    expect(() =>
+      resolveLibrarianSettings({
+        sources: [{ name: "bad", url: "https://git.example.com/path", kind: "gitlab" }],
+      }),
+    ).toThrow(/HTTPS origin/);
   });
 
   it("reads debug run persistence", () => {

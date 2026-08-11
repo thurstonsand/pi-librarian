@@ -48,8 +48,8 @@ export function relativizeCachePath(rawPath: string, cacheDir: string): string {
 
   const underRepos = rawPath.slice(reposRoot.length);
   const segments = underRepos.split(path.sep);
-  // repos/<owner>/<repo>/<file...> — drop the owner so the trace reads repo/file.
-  return segments.length > 1 ? segments.slice(1).join(path.sep) : underRepos;
+  // repos/<host>/<owner>/<repo>/<file...> — drop host and owner so the trace reads repo/file.
+  return segments.length > 2 ? segments.slice(2).join(path.sep) : underRepos;
 }
 
 function firstString(record: Record<string, unknown>, keys: string[]): string | undefined {
@@ -140,8 +140,9 @@ export function formatTraceLine(call: TraceCall, cacheDir: string): TraceLine {
     }
     case LIBRARIAN_TOOL_NAMES.checkoutRepo: {
       const repo = typeof args.repo === "string" ? args.repo : "";
+      const source = typeof args.source === "string" ? `${args.source}:` : "";
       const ref = typeof args.ref === "string" ? `@${args.ref}` : "";
-      return { verb: "checkout", subject: `${repo}${ref}` };
+      return { verb: "checkout", subject: `${source}${repo}${ref}` };
     }
     case LIBRARIAN_TOOL_NAMES.readGitHubFile: {
       const owner = typeof args.owner === "string" ? args.owner : "";

@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { buildLibrarianUserPrompt } from "../extensions/librarian/prompt.ts";
+import {
+  buildLibrarianSystemPrompt,
+  buildLibrarianUserPrompt,
+} from "../extensions/librarian/prompt.ts";
+
+describe("buildLibrarianSystemPrompt", () => {
+  it("points at the cache layout without restating tool arguments", () => {
+    const prompt = buildLibrarianSystemPrompt("/tmp/pi-librarian");
+
+    expect(prompt).toContain("/tmp/pi-librarian/repos/<host>/<path>");
+    expect(prompt).not.toContain("source");
+  });
+});
 
 describe("buildLibrarianUserPrompt", () => {
   it("explains that repository and owner scopes are grounding, not hard limits", () => {

@@ -41,6 +41,7 @@ describe("runLibrarian", () => {
     const modelRuntime = {} as ModelRuntime;
     const model = { provider: "anthropic", id: "claude-sonnet" } as Model<Api>;
 
+    const setActiveToolsByName = vi.fn();
     createAgentSession.mockImplementation(async (options: TestSessionOptions) => {
       const provideResults = options.customTools.find((tool) => tool.name === "provide_results");
       if (!provideResults) {
@@ -48,7 +49,7 @@ describe("runLibrarian", () => {
       }
       return {
         session: {
-          setActiveToolsByName: vi.fn(),
+          setActiveToolsByName,
           subscribe: vi.fn(() => vi.fn()),
           prompt: vi.fn(async () => {
             await provideResults.execute("provide-results", {
@@ -75,11 +76,19 @@ describe("runLibrarian", () => {
         model: undefined,
         thinkingLevel: undefined,
         extensions: [],
-        tools: [],
+        tools: { extra: ["search_web"], disabled: ["bash", "search_code", "search_web"] },
+        sources: [
+          {
+            name: "github",
+            url: "https://github.com",
+            kind: "github",
+            roles: ["clone", "code-search", "repo-search"],
+          },
+        ],
         cacheDir,
         debug: { persistRuns: false },
       },
-      extraTools: { extensionPaths: [], toolNames: [] },
+      extraTools: { extensionPaths: [], toolNames: ["search_web"] },
       githubClient: async () => {
         throw new Error("GitHub client should not be used");
       },
@@ -89,6 +98,11 @@ describe("runLibrarian", () => {
 
     expect(createAgentSession).toHaveBeenCalledOnce();
     expect(createAgentSession.mock.calls[0]?.[0].modelRuntime).toBe(modelRuntime);
+    const activeTools = setActiveToolsByName.mock.calls[0]?.[0] as string[];
+    expect(activeTools).not.toContain("bash");
+    expect(activeTools).not.toContain("search_code");
+    expect(activeTools).not.toContain("search_web");
+    expect(activeTools).toContain("checkout_repo");
     expect(result.content[0]).toEqual({
       type: "text",
       text: expect.stringContaining("Runtime propagated."),

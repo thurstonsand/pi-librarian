@@ -158,7 +158,7 @@ export async function runLibrarian(
     createSearchReposTool(options.githubClient),
     searchCodeTool,
     createSearchGitHubCodeTool(options.githubClient),
-    createCheckoutRepoTool(options.settings.cacheDir),
+    createCheckoutRepoTool(options.settings.cacheDir, options.settings.sources),
     createReadGitHubFileTool(options.githubClient),
     createProvideResultsTool((payload) => {
       findings = payload;
@@ -207,11 +207,14 @@ export async function runLibrarian(
     });
     session = created.session;
 
-    session.setActiveToolsByName([
-      ...LIBRARIAN_BASELINE_TOOL_NAMES,
-      ...LIBRARIAN_RUN_TOOL_NAMES,
-      ...options.extraTools.toolNames,
-    ]);
+    const disabledTools = new Set(options.settings.tools.disabled);
+    session.setActiveToolsByName(
+      [
+        ...LIBRARIAN_BASELINE_TOOL_NAMES,
+        ...LIBRARIAN_RUN_TOOL_NAMES,
+        ...options.extraTools.toolNames,
+      ].filter((toolName) => !disabledTools.has(toolName)),
+    );
 
     unsubscribe = session.subscribe((event: AgentSessionEvent) => {
       switch (event.type) {

@@ -17,7 +17,7 @@ Work with common sense: start with the most informative call, expand only when n
 
 ## Workspace
 
-Clones live under ${cacheDir}/repos/<owner>/<repo>. They are read-only research material: never modify, commit, or push. Keep bash usage to inspection (git log/blame/diff, wc, jq); file content questions go through grep/read.
+Clones live under ${cacheDir}/repos/<host>/<path>. They are read-only research material: never modify, commit, or push. Keep bash usage to inspection (git log/blame/diff, wc, jq); file content questions go through grep/read.
 
 ## Citations
 

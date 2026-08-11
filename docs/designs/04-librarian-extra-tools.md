@@ -2,7 +2,7 @@
 
 ## Status
 
-Draft
+Draft. **Superseded on the settings key**: `librarian.tools` is now an object, `{ extra, disabled }`, where `extra` carries what this document called `tools` and `disabled` removes a tool from a run — applied last, including to extras. See `docs/wayfinding/beyond-github/tickets/05-reaching-a-repo-reference-forms-and-clone-resolution.md`. The reasoning here still holds; only the key shape changed.
 
 ## Decision Summary
 

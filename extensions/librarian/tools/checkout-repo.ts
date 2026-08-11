@@ -1,6 +1,8 @@
+import { StringEnum } from "@earendil-works/pi-ai";
 import { defineTool } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
-import { CheckoutError, checkoutRepo } from "../checkout.ts";
+import { CheckoutError, checkoutRepo, cloneSources } from "../checkout.ts";
+import type { LibrarianSource } from "../settings.ts";
 import { LIBRARIAN_TOOL_NAMES } from "./names.ts";
 
 export interface CheckoutRepoDetails {
@@ -13,18 +15,28 @@ export interface CheckoutRepoDetails {
   reusedClone: boolean;
 }
 
-const CheckoutRepoParams = Type.Object({
-  repo: Type.String({
-    description: "Repository as owner/repo (for Github) or an HTTPS/SSH repository URL.",
-  }),
-  ref: Type.Optional(
-    Type.String({
-      description: "Branch, tag, or commit sha. Default: the default branch.",
+export function createCheckoutRepoTool(cacheDir: string, sources: LibrarianSource[]) {
+  const clonable = cloneSources(sources);
+  const sourceNames = clonable.map((source) => source.name);
+  const sourceList = clonable
+    .map((source) => `${source.name} (${new URL(source.url).host})`)
+    .join(", ");
+  const CheckoutRepoParams = Type.Object({
+    repo: Type.String({
+      description: "Relative repository path or a full HTTPS/SSH clone URL.",
     }),
-  ),
-});
+    source: Type.Optional(
+      StringEnum(sourceNames, {
+        description: `Source for the code: ${sourceList}. Omit if using a full HTTPS/SSH clone URL.`,
+      }),
+    ),
+    ref: Type.Optional(
+      Type.String({
+        description: "Branch, tag, or commit sha. Default: the default branch.",
+      }),
+    ),
+  });
 
-export function createCheckoutRepoTool(cacheDir: string) {
   return defineTool<typeof CheckoutRepoParams, CheckoutRepoDetails>({
     name: LIBRARIAN_TOOL_NAMES.checkoutRepo,
     label: "Checkout repo",
@@ -40,7 +52,14 @@ export function createCheckoutRepoTool(cacheDir: string) {
 
     async execute(_toolCallId, params, signal) {
       try {
-        const result = await checkoutRepo(params.repo, params.ref, cacheDir, signal);
+        const result = await checkoutRepo(
+          params.repo,
+          sources,
+          params.source,
+          params.ref,
+          cacheDir,
+          signal,
+        );
         const text = [
           `Checked out ${result.repo}@${result.ref} (${result.headSha.slice(0, 12)})`,
           `Local path: ${result.path}`,

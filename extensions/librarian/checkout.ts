@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
+import type { CloneSource, LibrarianSource, SourceKind } from "./settings.ts";
 
 const execFileAsync = promisify(execFile);
 
@@ -23,7 +24,7 @@ export interface CheckoutResult {
   reusedClone: boolean;
 }
 
-interface RepoReference {
+export interface RepoReference {
   key: string;
   cloneUrls: string[];
 }
@@ -32,89 +33,180 @@ export function repoCachePath(cacheDir: string, repo: string): string {
   return path.join(cacheDir, "repos", ...repo.split("/"));
 }
 
-function isGitHubHost(host: string): boolean {
-  return host === "github.com" || host === "www.github.com";
-}
-
-function normalizeRepoPath(rawPath: string): string | undefined {
+function normalizeRepoPath(rawPath: string, input: string): string {
   const repoPath = rawPath.replace(/^\/+/, "").replace(/\.git$/, "");
   const parts = repoPath.split("/");
-  if (parts.length < 2 || parts.some((part) => !/^[\w.-]+$/.test(part))) {
-    return undefined;
+  if (parts.some((part) => !/^[\w.-]+$/.test(part))) {
+    throw invalidRepo(input);
   }
   return parts.join("/");
 }
 
-function cloneKey(host: string, repoPath: string): string {
-  return isGitHubHost(host) ? repoPath : `${host}/${repoPath}`;
+// Bitbucket Server serves HTTPS clones under /scm/; the repository itself, and its SSH URL, carry
+// no such prefix, so identity must exclude it or one repo gets two cache keys.
+function stripScmPrefix(repoPath: string): string {
+  return /^scm\//i.test(repoPath) ? repoPath.slice("scm/".length) : repoPath;
 }
 
-function parseRepoReference(input: string): RepoReference {
-  const trimmed = input.trim().replace(/\/+$/, "");
-  const githubPath = normalizeRepoPath(trimmed);
-  if (githubPath && githubPath.split("/").length === 2) {
-    return {
-      key: githubPath,
-      cloneUrls: [`https://github.com/${githubPath}.git`, `git@github.com:${githubPath}.git`],
-    };
-  }
+function declaredKind(sources: LibrarianSource[], hostname: string): SourceKind | undefined {
+  return sources.find((source) => new URL(source.url).hostname.toLowerCase() === hostname)?.kind;
+}
 
-  const scpMatch = /^(?<user>[\w.-]+)@(?<host>[\w.-]+):(?<path>[\w./-]+?)(?:\.git)?$/.exec(trimmed);
-  if (scpMatch?.groups) {
-    const user = scpMatch.groups.user;
-    const host = scpMatch.groups.host;
-    const repoPath = scpMatch.groups.path ? normalizeRepoPath(scpMatch.groups.path) : undefined;
-    if (user && host && repoPath && (!isGitHubHost(host) || repoPath.split("/").length === 2)) {
-      return {
-        key: cloneKey(host, repoPath),
-        cloneUrls: [`${user}@${host}:${repoPath}.git`],
-      };
-    }
-  }
+function invalidRepo(input: string): CheckoutError {
+  return new CheckoutError(
+    `Invalid repository "${input}". Pass a host-relative repository path with source, or an HTTPS/SSH repository URL without source.`,
+  );
+}
 
+// Identity is host plus repository path, and it is the cache path, so it must name a repository
+// exactly once. A port is transport — keeping it would give one repository two entries. Case is
+// presentation — git sources treat paths case-insensitively, and on a case-insensitive filesystem two
+// spellings fight over one directory.
+function repoIdentity(host: string, repoPath: string): string {
+  return `${host.replace(/:\d+$/, "")}/${repoPath}`.toLowerCase();
+}
+
+function parseUrlReference(
+  trimmed: string,
+  input: string,
+  sources: LibrarianSource[],
+): RepoReference {
   let url: URL;
   try {
     url = new URL(trimmed.replace(/\.git$/, ""));
   } catch {
-    throw new CheckoutError(
-      `Invalid repository "${input}". Use owner/repo or an HTTPS/SSH repository URL.`,
-    );
+    throw invalidRepo(input);
   }
 
   if (url.protocol !== "https:" && url.protocol !== "ssh:") {
-    throw new CheckoutError(
-      `Invalid repository "${input}". Use owner/repo or an HTTPS/SSH repository URL.`,
-    );
+    throw invalidRepo(input);
   }
 
-  const repoPath = normalizeRepoPath(url.pathname);
-  if (!repoPath || (isGitHubHost(url.hostname) && repoPath.split("/").length !== 2)) {
-    throw new CheckoutError(
-      `Invalid repository "${input}". Use owner/repo or an HTTPS/SSH repository URL.`,
-    );
+  const urlRepoPath = normalizeRepoPath(url.pathname, input);
+  const host = url.host.toLowerCase();
+  const stripsScm =
+    url.protocol === "https:" &&
+    declaredKind(sources, url.hostname.toLowerCase()) === "bitbucket-server";
+  const repoPath = stripsScm ? stripScmPrefix(urlRepoPath) : urlRepoPath;
+  const user = url.username || "git";
+  const cloneUrl =
+    url.protocol === "https:"
+      ? `https://${host}/${urlRepoPath}.git`
+      : `ssh://${user}@${host}/${urlRepoPath}.git`;
+  return { key: repoIdentity(host, repoPath), cloneUrls: [cloneUrl] };
+}
+
+function parseScpReference(trimmed: string, input: string): RepoReference | undefined {
+  const match = /^(?<user>[\w.-]+)@(?<host>[\w.-]+):(?<path>[\w./-]+?)(?:\.git)?$/.exec(trimmed);
+  if (!match?.groups) {
+    return undefined;
   }
 
-  const key = cloneKey(url.hostname, repoPath);
-  if (url.protocol === "ssh:") {
-    const user = url.username || "git";
-    return { key, cloneUrls: [`ssh://${user}@${url.hostname}/${repoPath}.git`] };
+  const user = match.groups.user;
+  const rawHost = match.groups.host;
+  const rawPath = match.groups.path;
+  if (!user || !rawHost || !rawPath) {
+    throw invalidRepo(input);
   }
 
-  if (isGitHubHost(url.hostname)) {
-    return {
-      key,
-      cloneUrls: [`https://github.com/${repoPath}.git`, `git@github.com:${repoPath}.git`],
-    };
-  }
-
+  const host = rawHost.toLowerCase();
+  const repoPath = normalizeRepoPath(rawPath, input);
   return {
-    key,
-    cloneUrls: [`https://${url.hostname}/${repoPath}.git`, `git@${url.hostname}:${repoPath}.git`],
+    key: repoIdentity(host, repoPath),
+    cloneUrls: [`${user}@${host}:${repoPath}.git`],
   };
 }
 
-export function parseRepoName(input: string): string {
-  return parseRepoReference(input).key;
+function parseCloneUrlReference(
+  trimmed: string,
+  input: string,
+  sources: LibrarianSource[],
+): RepoReference | undefined {
+  return /^[a-z][\w+.-]*:\/\//i.test(trimmed)
+    ? parseUrlReference(trimmed, input, sources)
+    : parseScpReference(trimmed, input);
+}
+
+export function cloneSources(sources: LibrarianSource[]): CloneSource[] {
+  return sources.filter((source): source is CloneSource => source.roles.includes("clone"));
+}
+
+function resolveCloneSource(sources: LibrarianSource[], sourceName: string): CloneSource {
+  const candidates = cloneSources(sources);
+  const source = candidates.find((source) => source.name === sourceName);
+  if (source) {
+    return source;
+  }
+
+  const usable = `Pass an HTTPS/SSH clone URL, or use one of: ${candidates.map((source) => source.name).join(", ")}.`;
+  const declared = sources.find((source) => source.name === sourceName);
+  if (declared) {
+    const reason =
+      declared.kind === "sourcegraph" ? "kind sourcegraph" : "cloning disabled in settings";
+    throw new CheckoutError(`Source "${sourceName}" cannot clone (${reason}). ${usable}`);
+  }
+  throw new CheckoutError(`Unknown source "${sourceName}". ${usable}`);
+}
+
+function deriveReference(trimmed: string, input: string, source: CloneSource): RepoReference {
+  let repoPath = normalizeRepoPath(trimmed.replace(/^\/+/, ""), input);
+  let prefix: string;
+  switch (source.kind) {
+    case "github":
+      if (repoPath.split("/").length !== 2) {
+        throw new CheckoutError(
+          `Invalid repository "${input}" for source "${source.name}". GitHub requires exactly owner/repo.`,
+        );
+      }
+      prefix = "";
+      break;
+    case "gitlab":
+      prefix = "";
+      break;
+    case "bitbucket-server":
+      repoPath = stripScmPrefix(repoPath);
+      prefix = "scm/";
+      break;
+  }
+
+  const baseUrl = new URL(source.url);
+  const host = baseUrl.host.toLowerCase();
+  return {
+    key: repoIdentity(host, repoPath),
+    cloneUrls: [`${baseUrl.protocol}//${host}/${prefix}${repoPath}.git`],
+  };
+}
+
+export function parseRepoReference(
+  input: string,
+  sources: LibrarianSource[],
+  sourceName?: string,
+): RepoReference {
+  const trimmed = input.trim().replace(/\/+$/, "");
+  const cloneUrlReference = parseCloneUrlReference(trimmed, input, sources);
+
+  if (cloneUrlReference) {
+    if (sourceName) {
+      throw new CheckoutError(
+        `Repository "${input}" is already a clone URL. Remove source "${sourceName}".`,
+      );
+    }
+    return cloneUrlReference;
+  }
+
+  if (!sourceName) {
+    throw new CheckoutError(
+      `Repository "${input}" is a shorthand path. Pass source to select its code host, or pass an HTTPS/SSH clone URL.`,
+    );
+  }
+
+  return deriveReference(trimmed, input, resolveCloneSource(sources, sourceName));
+}
+
+// A credential helper can answer for a host and git then echoes the credential inside the URL it
+// prints on failure. Never let that reach the model.
+function redactCredentials(text: string): string {
+  return text.replace(/(\w+:\/\/)[^/\s@]*:[^/\s@]*@/g, "$1<redacted>@");
 }
 
 async function git(
@@ -135,7 +227,7 @@ async function git(
     const stderr =
       error && typeof error === "object" && "stderr" in error ? String(error.stderr) : "";
     const message = stderr.trim() || (error instanceof Error ? error.message : String(error));
-    throw new CheckoutError(`git ${args[0]} failed: ${message.slice(0, 500)}`);
+    throw new CheckoutError(`git ${args[0]} failed: ${redactCredentials(message).slice(0, 500)}`);
   }
 }
 
@@ -150,10 +242,12 @@ async function pathExists(target: string): Promise<boolean> {
 
 async function currentRemoteKey(
   dest: string,
+  sources: LibrarianSource[],
   signal: AbortSignal | undefined,
 ): Promise<string | undefined> {
   try {
-    return parseRepoReference(await git(["remote", "get-url", "origin"], dest, signal)).key;
+    const remoteUrl = await git(["remote", "get-url", "origin"], dest, signal);
+    return parseCloneUrlReference(remoteUrl, remoteUrl, sources)?.key;
   } catch {
     return undefined;
   }
@@ -166,20 +260,20 @@ async function clone(
 ): Promise<void> {
   await fs.mkdir(path.dirname(dest), { recursive: true });
 
-  let lastError: unknown;
+  const failures: string[] = [];
   for (const url of reference.cloneUrls) {
     try {
       await git(["clone", "--filter=blob:none", url, dest], undefined, signal);
       return;
     } catch (error) {
-      lastError = error;
+      failures.push(`${url}: ${error instanceof Error ? error.message : String(error)}`);
       await fs.rm(dest, { recursive: true, force: true });
     }
   }
 
-  throw lastError instanceof Error
-    ? lastError
-    : new CheckoutError(`Failed to clone ${reference.key}.`);
+  throw new CheckoutError(
+    `Could not clone ${reference.key}. Tried ${failures.length} URL(s):\n${failures.join("\n")}\nPass the exact clone URL if this host uses a different layout, or check that credentials for it are configured.`,
+  );
 }
 
 async function fetchIfStale(dest: string, signal: AbortSignal | undefined): Promise<void> {
@@ -198,12 +292,25 @@ async function fetchIfStale(dest: string, signal: AbortSignal | undefined): Prom
   await git(["fetch", "origin", "--prune"], dest, signal);
 }
 
-async function defaultBranch(dest: string, signal: AbortSignal | undefined): Promise<string> {
+async function defaultBranch(
+  repo: string,
+  dest: string,
+  signal: AbortSignal | undefined,
+): Promise<string> {
   try {
     const ref = await git(["symbolic-ref", "refs/remotes/origin/HEAD"], dest, signal);
     return ref.replace("refs/remotes/origin/", "");
   } catch {
-    await git(["remote", "set-head", "origin", "--auto"], dest, signal);
+    try {
+      await git(["remote", "set-head", "origin", "--auto"], dest, signal);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("Cannot determine remote HEAD")) {
+        throw new CheckoutError(
+          `Cloned ${repo}, but it has no remote HEAD and may be empty. Pass a ref after the repository has a commit.`,
+        );
+      }
+      throw error;
+    }
     const ref = await git(["symbolic-ref", "refs/remotes/origin/HEAD"], dest, signal);
     return ref.replace("refs/remotes/origin/", "");
   }
@@ -211,16 +318,18 @@ async function defaultBranch(dest: string, signal: AbortSignal | undefined): Pro
 
 export async function checkoutRepo(
   repoInput: string,
+  sources: LibrarianSource[],
+  sourceName: string | undefined,
   ref: string | undefined,
   cacheDir: string,
   signal: AbortSignal | undefined,
 ): Promise<CheckoutResult> {
-  const repo = parseRepoReference(repoInput);
+  const repo = parseRepoReference(repoInput, sources, sourceName);
   const dest = repoCachePath(cacheDir, repo.key);
 
   const reusedClone =
     (await pathExists(path.join(dest, ".git"))) &&
-    (await currentRemoteKey(dest, signal)) === repo.key;
+    (await currentRemoteKey(dest, sources, signal)) === repo.key;
   if (!reusedClone) {
     await fs.rm(dest, { recursive: true, force: true });
   }
@@ -243,7 +352,7 @@ export async function checkoutRepo(
     await git(["reset", "--hard", "HEAD"], dest, signal);
     checkedOutRef = ref;
   } else {
-    const branch = await defaultBranch(dest, signal);
+    const branch = await defaultBranch(repo.key, dest, signal);
     await git(["checkout", "--force", branch], dest, signal);
     await git(["reset", "--hard", `origin/${branch}`], dest, signal);
     checkedOutRef = branch;

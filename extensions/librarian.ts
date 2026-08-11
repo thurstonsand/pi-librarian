@@ -70,7 +70,7 @@ export default function librarianExtension(pi: ExtensionAPI): void {
     createSearchReposTool(githubClient),
     searchCodeTool,
     createSearchGitHubCodeTool(githubClient),
-    createCheckoutRepoTool(settings.cacheDir),
+    createCheckoutRepoTool(settings.cacheDir, settings.sources),
     createReadGitHubFileTool(githubClient),
   ];
 
