@@ -1,0 +1,73 @@
+min_version = "2026.7.4"
+
+[settings]
+experimental = true
+
+[hooks]
+enter = "mise bootstrap --yes --quiet"
+
+[tools]
+node = "24"
+
+[env]
+_.path = ["{{config_root}}/node_modules/.bin"]
+
+[tasks.bootstrap]
+description = "Install project dependencies and git hooks"
+run = [
+    "npm ci --quiet --no-fund --no-audit",
+    # pi must always resolve to the global install, never this repo's copy
+    "rm -f node_modules/.bin/pi",
+]
+sources = ["mise.toml", "package.json", "package-lock.json"]
+outputs = ["node_modules/.package-lock.json"]
+quiet = true
+
+[tasks.lint]
+description = "Lint"
+depends = ["lint:*"]
+
+[tasks."lint:biome"]
+description = "Lint TypeScript and JSON"
+run = "biome check ."
+
+[tasks."lint:actions"]
+description = "Lint GitHub Actions workflows"
+run = "actionlint"
+tools.actionlint = "1.7.12"
+
+[tasks."lint:renovate"]
+description = "Validate Renovate configuration"
+run = "renovate-config-validator renovate.json"
+tools.node = "24"
+tools."npm:renovate" = { version = "44.5.3", allow_builds = [
+  "re2",
+], trust_policy_excludes = [
+  "@yarnpkg/libzip@3.2.2",
+] }
+
+[tasks.format]
+description = "Format"
+run = "biome format --write ."
+
+[tasks.typecheck]
+description = "Type-check TypeScript"
+run = "tsc --noEmit"
+
+[tasks.test]
+description = "Run tests"
+run = "vitest run"
+
+[tasks.check]
+description = "Run full verification"
+depends = ["lint", "typecheck", "test"]
+
+[tasks.renovate]
+description = "Run Renovate"
+run = "renovate"
+tools.node = "24"
+tools."npm:renovate" = { version = "44.5.3", allow_builds = [
+  "re2",
+], trust_policy_excludes = [
+  "@yarnpkg/libzip@3.2.2",
+] }

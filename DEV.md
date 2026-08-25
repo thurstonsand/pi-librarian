@@ -3,20 +3,22 @@
 ## Commands
 
 ```bash
+mise trust && mise bootstrap
+
 # Full quality gate — run before committing
-npm run check
+mise run check
 
 # Individual steps
-npm run lint
-npm run format
-npm run typecheck
-npm test
+mise run lint
+mise run format
+mise run typecheck
+mise run test
 
 # Single test by name pattern
-npm test -- -t "parses sourcegraph stream matches"
+mise run test -- -t "parses sourcegraph stream matches"
 
 # Single test file
-npm test -- test/search-code.test.ts
+mise run test -- test/search-code.test.ts
 ```
 
 No build/compile step — the pi framework loads extensions directly from TypeScript source.
