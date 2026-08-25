@@ -40,7 +40,7 @@ tools.actionlint = "1.7.12"
 description = "Validate Renovate configuration"
 run = "renovate-config-validator renovate.json"
 tools.node = "24"
-tools."npm:renovate" = { version = "44.5.3", allow_builds = [
+tools."npm:renovate" = { version = "44.39.1", allow_builds = [
   "re2",
 ], trust_policy_excludes = [
   "@yarnpkg/libzip@3.2.2",
@@ -66,7 +66,7 @@ depends = ["lint", "typecheck", "test"]
 description = "Run Renovate"
 run = "renovate"
 tools.node = "24"
-tools."npm:renovate" = { version = "44.5.3", allow_builds = [
+tools."npm:renovate" = { version = "44.39.1", allow_builds = [
   "re2",
 ], trust_policy_excludes = [
   "@yarnpkg/libzip@3.2.2",
