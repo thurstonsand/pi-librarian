@@ -51,6 +51,7 @@ export function createProvideResultsTool(onFindings: (findings: Findings) => voi
       "provide_results ends the turn; call it once, after you've gathered your findings.",
     ],
     parameters: FindingsSchema,
+    annotations: { readOnlyHint: true, openWorldHint: false },
 
     async execute(_toolCallId, params) {
       onFindings(params);

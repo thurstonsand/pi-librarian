@@ -94,6 +94,7 @@ export function createSearchGitHubCodeTool(githubClient: GitHubClientProvider) {
       "search_github_code is literal/tokenized and does not support regex; use search_code for public regex/global search.",
     ],
     parameters: SearchGitHubCodeParams,
+    annotations: { readOnlyHint: true, openWorldHint: true },
 
     async execute(_toolCallId, params) {
       const limit = params.limit ?? 30;

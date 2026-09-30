@@ -73,6 +73,7 @@ export default function librarianExtension(pi: ExtensionAPI): void {
   for (const tool of attachableTools) {
     pi.registerTool({
       ...tool,
+      defaultActive: false,
       renderCall(args, theme) {
         const { verb, subject } = formatTraceLine(
           { name: tool.name, args, id: "", startedAt: 0 } satisfies TraceCall,
@@ -97,6 +98,7 @@ export default function librarianExtension(pi: ExtensionAPI): void {
       "Use librarian for deep, multi-step research across repos; for a single file or reference, prefer cheaper means (downloaded dependencies, web search or fetch).",
     ],
     parameters: LibrarianParams,
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
 
     async execute(_toolCallId, params, signal, onUpdate, ctx) {
       const modelRuntime = await createLibrarianModelRuntime(ctx.modelRegistry);

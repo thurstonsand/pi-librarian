@@ -66,6 +66,7 @@ export const searchCodeTool = defineTool<typeof SearchCodeParams, SearchCodeDeta
     "search_code covers public GitHub code only; use search_github_code when private repository access is required.",
   ],
   parameters: SearchCodeParams,
+  annotations: { readOnlyHint: true, openWorldHint: true },
 
   async execute(_toolCallId, params, signal) {
     const result = await searchCodeGrep(

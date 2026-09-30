@@ -54,6 +54,7 @@ export function createReadGitHubFileTool(githubClient: GitHubClientProvider) {
       "Use read_github_file's offset/limit for larger files.",
     ],
     parameters: ReadGitHubFileParams,
+    annotations: { readOnlyHint: true, openWorldHint: true },
 
     async execute(_toolCallId, params) {
       const offset = params.offset ?? 1;

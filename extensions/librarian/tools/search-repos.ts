@@ -37,6 +37,7 @@ export function createSearchReposTool(githubClient: GitHubClientProvider) {
     promptSnippet: "Search GitHub repos by metadata",
     promptGuidelines: ['Use search_repos for questions like "what are the popular X libraries".'],
     parameters: SearchReposParams,
+    annotations: { readOnlyHint: true, openWorldHint: true },
 
     async execute(_toolCallId, params) {
       const limit = params.limit ?? 10;

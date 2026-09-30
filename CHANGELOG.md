@@ -2,6 +2,14 @@
 
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Built against Pi 1.0.2. Pi packages and typebox are now `*` peer dependencies, as Pi's package guidance asks, so npm no longer enforces a minimum Pi version.
+- Declared tool annotations: the search and read tools are read-only; `checkout_repo` writes only to its own checkout cache and is non-destructive; `librarian` is marked non-destructive because its research agent is instructed to use bash only for inspection.
+- Attachable repo tools now register with `defaultActive: false`, so they stay inactive until attached.
+
 ## 0.5.1
 
 ### Changed

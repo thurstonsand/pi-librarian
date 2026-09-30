@@ -35,6 +35,8 @@ export function createCheckoutRepoTool(cacheDir: string) {
       "Do not clone repos directly with `git`; always use checkout_repo.",
     ],
     parameters: CheckoutRepoParams,
+    // Its resets and cleans only ever touch clones inside the checkout cache it owns.
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
 
     async execute(_toolCallId, params, signal) {
       try {
