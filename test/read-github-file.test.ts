@@ -1,10 +1,10 @@
-import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { ExtensionToolContext } from "@earendil-works/pi-coding-agent";
 import { describe, expect, it } from "vitest";
 import type { GitHubClientApi, ReadContentsParams } from "../extensions/librarian/github.ts";
 import { createReadGitHubFileTool } from "../extensions/librarian/tools/read-github-file.ts";
 
-function context(): ExtensionContext {
-  return {} as ExtensionContext;
+function context(): ExtensionToolContext {
+  return {} as ExtensionToolContext;
 }
 
 function unavailable(method: string): never {
