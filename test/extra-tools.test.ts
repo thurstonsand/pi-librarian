@@ -31,6 +31,7 @@ function toolInfo(name: string, extensionPath: string, source = "local"): ToolIn
     name,
     description: `${name} description`,
     parameters: Type.Object({}),
+    exposure: "direct",
     sourceInfo: {
       path: extensionPath,
       source,
