@@ -34,7 +34,7 @@ export function resolveLibrarianModel(
   currentModel: Model<Api> | undefined,
   configuredModel: ModelReference | undefined,
   thinkingLevel: ThinkingLevel,
-): LibrarianModelResolution | undefined {
+): LibrarianModelResolution {
   let failure: string | undefined;
 
   if (configuredModel) {
@@ -43,7 +43,7 @@ export function resolveLibrarianModel(
       cliModel: configuredModel.modelId,
       modelRuntime,
     });
-    if (resolved.model) {
+    if (resolved.model && resolved.model.api !== VIRTUAL_MODEL_API) {
       const resolution: LibrarianModelResolution = {
         model: resolved.model,
         thinkingLevel,
@@ -55,11 +55,15 @@ export function resolveLibrarianModel(
       return resolution;
     }
 
-    failure = configuredModelFailure(configuredModel, resolved.error, resolved.warning);
+    failure = resolved.model
+      ? `it is a virtual model, which the librarian does not support.`
+      : configuredModelFailure(configuredModel, resolved.error, resolved.warning);
   }
 
   if (!currentModel) {
-    return undefined;
+    throw new Error(
+      "No model available for the librarian. Configure librarian.model or select a session model.",
+    );
   }
 
   if (currentModel.api === VIRTUAL_MODEL_API) {

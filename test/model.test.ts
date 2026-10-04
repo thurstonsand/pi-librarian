@@ -109,10 +109,10 @@ describe("resolveLibrarianModel", () => {
     });
   });
 
-  it("returns undefined when no model is available", () => {
-    const resolution = resolveLibrarianModel(modelRuntime([]), undefined, undefined, "medium");
-
-    expect(resolution).toBeUndefined();
+  it("throws when no model is available", () => {
+    expect(() => resolveLibrarianModel(modelRuntime([]), undefined, undefined, "medium")).toThrow(
+      "No model available for the librarian.",
+    );
   });
 
   it("rejects a virtual session model with a clear error", () => {
@@ -134,5 +134,20 @@ describe("resolveLibrarianModel", () => {
         "high",
       ),
     ).toThrow("does not support virtual models");
+  });
+
+  it("falls back to the current model when the configured model is virtual", () => {
+    const virtualModel = { provider: "router", id: "auto", api: "pi-virtual" } as Model<Api>;
+
+    const resolution = resolveLibrarianModel(
+      modelRuntime([virtualModel]),
+      currentModel,
+      new ModelReference("router", "auto"),
+      "high",
+    );
+
+    expect(resolution.model).toBe(currentModel);
+    expect(resolution.source).toBe("current");
+    expect(resolution.warning).toContain("virtual model");
   });
 });

@@ -109,11 +109,6 @@ export default function librarianExtension(pi: ExtensionAPI): void {
         settings.model,
         thinkingLevel,
       );
-      if (!resolution) {
-        throw new Error(
-          "No model available for the librarian. Configure librarian.model or select a session model.",
-        );
-      }
       if (resolution.warning) {
         ctx.ui.notify(resolution.warning, "warning");
       }
