@@ -3,6 +3,9 @@ import type { Api, Model } from "@earendil-works/pi-ai";
 import { type ModelRuntime, resolveCliModel } from "@earendil-works/pi-coding-agent";
 import type { ModelReference } from "./settings.ts";
 
+// Pi exports neither VIRTUAL_MODEL_API nor isVirtualModel; this is the documented API id of virtual catalog entries.
+const VIRTUAL_MODEL_API = "pi-virtual";
+
 export type LibrarianModelSource = "configured" | "current";
 
 export interface LibrarianModelResolution {
@@ -57,6 +60,12 @@ export function resolveLibrarianModel(
 
   if (!currentModel) {
     return undefined;
+  }
+
+  if (currentModel.api === VIRTUAL_MODEL_API) {
+    throw new Error(
+      `The librarian does not support virtual models; "${currentModel.provider}/${currentModel.id}" is one. Configure librarian.model with a physical model or select one for this session.`,
+    );
   }
 
   if (!configuredModel) {

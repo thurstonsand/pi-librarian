@@ -114,4 +114,25 @@ describe("resolveLibrarianModel", () => {
 
     expect(resolution).toBeUndefined();
   });
+
+  it("rejects a virtual session model with a clear error", () => {
+    const virtualModel = { provider: "router", id: "auto", api: "pi-virtual" } as Model<Api>;
+
+    expect(() => resolveLibrarianModel(modelRuntime([]), virtualModel, undefined, "high")).toThrow(
+      'The librarian does not support virtual models; "router/auto" is one.',
+    );
+  });
+
+  it("rejects a virtual session model as the fallback for an unavailable configured model", () => {
+    const virtualModel = { provider: "router", id: "auto", api: "pi-virtual" } as Model<Api>;
+
+    expect(() =>
+      resolveLibrarianModel(
+        modelRuntime([]),
+        virtualModel,
+        new ModelReference("anthropic", "claude-sonnet"),
+        "high",
+      ),
+    ).toThrow("does not support virtual models");
+  });
 });
