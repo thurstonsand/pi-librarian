@@ -2,13 +2,21 @@
 
 # Changelog
 
-## Unreleased
+## 0.6.0
+
+Builds against Pi 1.0.2 and adopts its tool metadata.
+
+### Added
+
+- Declared tool annotations: the search and read tools are read-only; `checkout_repo` writes only to its own checkout cache and is non-destructive; `librarian` is marked non-destructive because its research agent is instructed to use bash only for inspection.
 
 ### Changed
 
-- Requires Pi 1.0.2 or newer. Pi packages and typebox are now `*` peer dependencies, as Pi's package guidance asks, so npm no longer enforces that minimum.
-- Declared tool annotations: the search and read tools are read-only; `checkout_repo` writes only to its own checkout cache and is non-destructive; `librarian` is marked non-destructive because its research agent is instructed to use bash only for inspection.
+- Requires Pi 1.0.2 or newer.
 - Attachable repo tools now register inactive (`defaultActive: false`) instead of being deactivated at session start.
+
+### Fixed
+
 - The librarian now fails with a clear error when the session model is a virtual model, which it does not support. A virtual `librarian.model` falls back to the session model with a warning.
 
 ## 0.5.1
