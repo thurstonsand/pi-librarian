@@ -128,7 +128,7 @@ Force-pushing is correct here. Pi resets rather than pulls, so rewritten history
 
 For the same reason, the branch keeps a single pin commit on top of `main`. Amend it when pins change instead of stacking new commits — the history is rewritten at every release anyway, and a flat branch makes the diff against `main` the whole story.
 
-The branch diverges from `main` in `package-lock.json`, and in `package.json` wherever a pin needs it — a transitive pin needs an `overrides` entry, and a direct pin needs a narrowed range once `main`'s range stops admitting the pinned version. Never merge a lockfile conflict by hand — take the release side, then re-apply every pin listed in `PINS.md` and confirm with `npm ls` before pushing.
+The branch diverges from `main` in `package-lock.json`, and in `package.json` wherever a pin needs it — a transitive pin needs an `overrides` entry, and a direct pin needs a narrowed range once `main`'s range stops admitting the pinned version. Never merge a lockfile conflict by hand — take the release side, then re-apply every pin listed in `PINS.md`, run `npm install` and then `npm dedupe`, and confirm with `npm ls` before pushing. The dedupe matters for direct pins: a fresh install can nest a newer copy of the pinned package under a transitive dependent, which `npm ls` shows as a second version and which the mirror cannot serve.
 
 ### Check pin freshness
 
