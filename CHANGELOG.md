@@ -2,6 +2,14 @@
 
 # Changelog
 
+## 0.6.1
+
+Builds against Pi 1.0.4.
+
+### Changed
+
+- Built and tested against Pi 1.0.4. No extension changes were needed, and Pi 1.0.2 remains the minimum supported version.
+
 ## 0.6.0
 
 Builds against Pi 1.0.2 and adopts its tool metadata.
