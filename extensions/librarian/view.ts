@@ -15,16 +15,24 @@ interface LibrarianRenderContext {
   lastComponent: Component | undefined;
 }
 
-export function formatDuration(milliseconds: number): string {
-  if (milliseconds < 0) {
-    return "0.0s";
+// Mirrors pi's own tool rows, whose formatter is not exported.
+export function formatToolDuration(ms: number): string {
+  const seconds = ms / 1000;
+  if (seconds < 60) return `${seconds.toFixed(1)}s`;
+  const totalSeconds = Math.floor(seconds);
+  const minutes = Math.floor(totalSeconds / 60);
+  const remainder = totalSeconds % 60;
+  if (minutes < 60) return `${minutes}m ${remainder}s`;
+  return `${Math.floor(minutes / 60)}h ${minutes % 60}m ${remainder}s`;
+}
+
+// A finished call shows pi's recorded duration, which is monotonic and survives reloads. Calls pi
+// never ran (blocked or invalid arguments) have none and fall back to the trace timestamps.
+function formatTraceCallTiming(call: TraceCall): string {
+  if (call.endedAt === undefined) {
+    return `Elapsed ${formatToolDuration(Date.now() - call.startedAt)}`;
   }
-  const seconds = milliseconds / 1000;
-  if (seconds >= 60) {
-    const minutes = Math.floor(seconds / 60);
-    return `${minutes}m ${Math.round(seconds - minutes * 60)}s`;
-  }
-  return `${seconds.toFixed(1)}s`;
+  return `Took ${formatToolDuration(call.durationMs ?? call.endedAt - call.startedAt)}`;
 }
 
 export function shorten(text: string, max: number): string {
@@ -162,13 +170,13 @@ function renderTraceCallText(call: TraceCall, cacheDir: string, theme: Theme): s
     : running
       ? theme.fg("accent", currentSpinnerFrame())
       : theme.fg("success", "✓");
-  const duration = formatDuration((call.endedAt ?? Date.now()) - call.startedAt);
+  const timing = formatTraceCallTiming(call);
   const summary = call.resultSummary
     ? theme.fg(call.isError ? "error" : "muted", ` (${shorten(call.resultSummary, 60)})`)
     : "";
 
   const subjectText = subject ? ` ${theme.fg("toolOutput", subject)}` : "";
-  return `  ${icon} ${theme.fg("dim", verb)}${subjectText}${summary} ${theme.fg("dim", `· ${duration}`)}`;
+  return `  ${icon} ${theme.fg("dim", verb)}${subjectText}${summary} ${theme.fg("dim", `· ${timing}`)}`;
 }
 
 function renderQuestion(details: LibrarianRunDetails, expanded: boolean, theme: Theme): string {
@@ -177,7 +185,7 @@ function renderQuestion(details: LibrarianRunDetails, expanded: boolean, theme: 
 
 function renderFooter(details: LibrarianRunDetails, theme: Theme): string {
   const callCount = details.trace.length;
-  const elapsed = formatDuration((details.endedAt ?? Date.now()) - details.startedAt);
+  const elapsed = formatToolDuration((details.endedAt ?? Date.now()) - details.startedAt);
   const model = theme.fg("dim", `${details.modelLabel} (${details.thinkingLevel})`);
   return theme.fg(
     "muted",

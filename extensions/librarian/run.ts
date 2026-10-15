@@ -42,6 +42,7 @@ export interface TraceCall {
   args: unknown;
   startedAt: number;
   endedAt?: number;
+  durationMs?: number;
   isError?: boolean;
   resultSummary?: string;
 }
@@ -230,6 +231,9 @@ export async function runLibrarian(
             break;
           }
           call.endedAt = Date.now();
+          if (event.durationMs !== undefined) {
+            call.durationMs = event.durationMs;
+          }
           if (event.isError) {
             call.isError = true;
           }

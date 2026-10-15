@@ -4,7 +4,7 @@ import { Container, Text } from "@earendil-works/pi-tui";
 import { beforeAll, describe, expect, it } from "vitest";
 import type { LibrarianRunDetails, TraceCall } from "../extensions/librarian/run.ts";
 import {
-  formatDuration,
+  formatToolDuration,
   formatTraceLine,
   relativizeCachePath,
   renderLibrarianResult,
@@ -27,15 +27,17 @@ function call(name: string, args: unknown): TraceCall {
   return { id: "t1", name, args, startedAt: 0 };
 }
 
-describe("formatDuration", () => {
+describe("formatToolDuration", () => {
   it("formats sub-minute as seconds with one decimal", () => {
-    expect(formatDuration(3200)).toBe("3.2s");
-    expect(formatDuration(80)).toBe("0.1s");
-    expect(formatDuration(0)).toBe("0.0s");
+    expect(formatToolDuration(3200)).toBe("3.2s");
+    expect(formatToolDuration(80)).toBe("0.1s");
+    expect(formatToolDuration(0)).toBe("0.0s");
   });
 
-  it("formats minutes", () => {
-    expect(formatDuration(72_000)).toBe("1m 12s");
+  it("formats minutes and hours with whole seconds, like pi's rows", () => {
+    expect(formatToolDuration(72_000)).toBe("1m 12s");
+    expect(formatToolDuration(119_600)).toBe("1m 59s");
+    expect(formatToolDuration(3_723_000)).toBe("1h 2m 3s");
   });
 });
 
@@ -180,6 +182,56 @@ describe("renderLibrarianResult", () => {
     expect(rendered).toContain("to expand");
     expect(rendered).not.toContain("\n  1 tool call");
     expect(rendered).not.toContain("It checks evidence before answering.");
+  });
+
+  it("times running calls as elapsed and finished calls by their recorded duration", () => {
+    const now = Date.now();
+    const rendered = renderLibrarianResult(
+      {
+        content: [{ type: "text", text: "Researching" }],
+        details: {
+          status: "running",
+          query: "How long did each call take?",
+          modelLabel: "test/model",
+          thinkingLevel: "high",
+          trace: [
+            {
+              id: "recorded",
+              name: "checkout_repo",
+              args: { repo: "a/recorded" },
+              startedAt: now - 5_000,
+              endedAt: now - 5_000,
+              durationMs: 90_400,
+            },
+            {
+              id: "never-ran",
+              name: "checkout_repo",
+              args: { repo: "a/never-ran" },
+              startedAt: now - 3_000,
+              endedAt: now - 700,
+              isError: true,
+            },
+            {
+              id: "running",
+              name: "checkout_repo",
+              args: { repo: "a/running" },
+              startedAt: now - 2_000,
+            },
+          ],
+          checkouts: {},
+          startedAt: now - 5_000,
+        },
+      },
+      { expanded: true, isPartial: true },
+      theme,
+      CACHE,
+    )
+      .render(120)
+      .join("\n");
+
+    expect(rendered).toMatch(/a\/recorded · Took 1m 30s/);
+    expect(rendered).toMatch(/a\/never-ran · Took 2\.3s/);
+    expect(rendered).toMatch(/a\/running · Elapsed 2\.\ds/);
   });
 
   it("clears a reused result component before rendering", () => {
