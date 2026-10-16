@@ -2,6 +2,15 @@
 
 # Changelog
 
+## 0.6.2
+
+Builds against Pi 1.3.0 and times the trace like Pi's own tool rows.
+
+### Changed
+
+- Trace rows read "Elapsed 2.3s" while a call runs and "Took 1m 30s" once it finishes. They use Pi's recorded tool duration where Pi provides one (Pi 1.1.0+) and Pi's duration format, which also fixes durations shown as "1m 60s".
+- Built and tested against Pi 1.3.0. No extension changes were needed for Pi 1.1.0 through 1.3.0, and Pi 1.0.2 remains the minimum supported version.
+
 ## 0.6.1
 
 Builds against Pi 1.0.4.
