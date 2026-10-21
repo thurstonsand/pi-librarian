@@ -26,7 +26,7 @@
       "groupName": "npm packages"
     },
     {
-      "description": "Pi is the host this package extends, and users run whatever pi released last. Build against that release the day it ships instead of waiting out the npm release-age gate, and raise the devDependency floor to it rather than only moving the lockfile. The peer ranges stay \"*\"; bump leaves wildcards alone.",
+      "description": "Pi is the host this package extends, and users run whatever pi released last. Build against that release the day it ships instead of waiting out the release-age gate, and raise the devDependency floor to it rather than only moving the lockfile. The peer ranges stay \"*\"; bump leaves wildcards alone.",
       "matchPackageNames": ["@earendil-works/**"],
       "minimumReleaseAge": null,
       "rangeStrategy": "bump"
