@@ -18,7 +18,7 @@ export interface AttachEntryData {
 
 export function readAttachState(ctx: ExtensionContext): boolean {
   let attached = false;
-  for (const entry of ctx.sessionManager.getEntries()) {
+  for (const entry of ctx.sessionManager.getBranch()) {
     if (entry.type !== "custom" || entry.customType !== ATTACH_ENTRY_TYPE) {
       continue;
     }

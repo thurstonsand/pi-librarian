@@ -9,10 +9,10 @@ import {
 } from "../extensions/librarian/attach.ts";
 import { ATTACHABLE_TOOL_NAMES } from "../extensions/librarian/tools/names.ts";
 
-function contextWithEntries(entries: unknown[]): ExtensionContext {
+function contextWithBranch(entries: unknown[]): ExtensionContext {
   return {
     sessionManager: {
-      getEntries: () => entries,
+      getBranch: () => entries,
     },
   } as unknown as ExtensionContext;
 }
@@ -48,11 +48,11 @@ function render(data: unknown, expanded = false): string[] {
 
 describe("readAttachState", () => {
   it("defaults to detached", () => {
-    expect(readAttachState(contextWithEntries([]))).toBe(false);
+    expect(readAttachState(contextWithBranch([]))).toBe(false);
   });
 
   it("honors the most recent attach entry", () => {
-    const ctx = contextWithEntries([
+    const ctx = contextWithBranch([
       {
         type: "custom",
         customType: ATTACH_ENTRY_TYPE,
@@ -69,7 +69,7 @@ describe("readAttachState", () => {
   });
 
   it("ignores malformed entries", () => {
-    const ctx = contextWithEntries([
+    const ctx = contextWithBranch([
       { type: "custom", customType: ATTACH_ENTRY_TYPE, data: { attached: "yes" } },
     ]);
     expect(readAttachState(ctx)).toBe(false);

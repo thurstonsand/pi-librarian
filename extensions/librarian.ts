@@ -1,4 +1,8 @@
-import type { ExtensionAPI, SessionStartEvent } from "@earendil-works/pi-coding-agent";
+import type {
+  ExtensionAPI,
+  SessionStartEvent,
+  SessionTreeEvent,
+} from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 import {
@@ -194,6 +198,10 @@ export default function librarianExtension(pi: ExtensionAPI): void {
 
       setAttachState(pi, nextAttached);
     },
+  });
+
+  pi.on("session_tree", async (_event: SessionTreeEvent, ctx) => {
+    applyAttachState(pi, readAttachState(ctx));
   });
 
   pi.on("session_start", async (_event: SessionStartEvent, ctx) => {
