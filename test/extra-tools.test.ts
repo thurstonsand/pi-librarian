@@ -175,6 +175,7 @@ export default function extension(pi) {
 
     const resourceLoader = createLibrarianResourceLoader({
       cacheDir: tempDir,
+      agentDir: tempDir,
       extensionPaths: [extensionPath],
       systemPromptOverride: () => undefined,
     });

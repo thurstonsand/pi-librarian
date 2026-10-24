@@ -1,4 +1,4 @@
-import type { ToolInfo } from "@earendil-works/pi-coding-agent";
+import { getAgentDir, type ToolInfo } from "@earendil-works/pi-coding-agent";
 import { createLibrarianResourceLoader } from "./resource-loader.ts";
 import type { LibrarianSettings } from "./settings.ts";
 import { LIBRARIAN_RUN_TOOL_NAMES } from "./tools/names.ts";
@@ -96,6 +96,7 @@ export async function collectExtraToolWarnings(
 
   const resourceLoader = createLibrarianResourceLoader({
     cacheDir: settings.cacheDir,
+    agentDir: getAgentDir(),
     extensionPaths: settings.extensions,
     systemPromptOverride: () => undefined,
   });

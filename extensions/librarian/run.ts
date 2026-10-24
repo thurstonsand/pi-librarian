@@ -7,7 +7,7 @@ import type {
   AgentSessionEvent,
   ModelRuntime,
 } from "@earendil-works/pi-coding-agent";
-import { createAgentSession, SessionManager } from "@earendil-works/pi-coding-agent";
+import { createAgentSession, getAgentDir, SessionManager } from "@earendil-works/pi-coding-agent";
 import { type ExtraToolsResolution, LIBRARIAN_BASELINE_TOOL_NAMES } from "./extra-tools.ts";
 import type { GitHubClientProvider } from "./github.ts";
 import {
@@ -167,6 +167,7 @@ export async function runLibrarian(
 
   const resourceLoader = createLibrarianResourceLoader({
     cacheDir: options.settings.cacheDir,
+    agentDir: getAgentDir(),
     extensionPaths: options.extraTools.extensionPaths,
     systemPromptOverride: () => buildLibrarianSystemPrompt(options.settings.cacheDir),
   });
@@ -290,7 +291,7 @@ export async function runLibrarian(
     const lastText = session.getLastAssistantText() ?? "";
     fail(
       "error",
-      `Librarian did not report structured findings after ${MAX_PROVIDE_RESULTS_REMINDERS} reminders.${lastText ? `\n\nRaw final message:\n${lastText}` : ""}`,
+      `Librarian was not able to report findings.${lastText ? `\n\nRaw final message:\n${lastText}` : ""}`,
     );
   } catch (error) {
     if (error instanceof LibrarianRunError) {
