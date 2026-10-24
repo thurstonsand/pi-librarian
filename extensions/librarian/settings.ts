@@ -43,6 +43,8 @@ const SOURCE_SCHEMA = Type.Object({
   url: Type.String({ minLength: 1 }),
   kind: SOURCE_KIND_SCHEMA,
   disabled: Type.Optional(Type.Array(SOURCE_ROLE_SCHEMA, { uniqueItems: true })),
+  tokenEnv: Type.Optional(Type.String({ minLength: 1 })),
+  advancedSearch: Type.Optional(Type.Boolean()),
 });
 
 const LIBRARIAN_FILE_SETTINGS_SCHEMA = Type.Object({
@@ -56,6 +58,18 @@ const LIBRARIAN_FILE_SETTINGS_SCHEMA = Type.Object({
     }),
   ),
   sources: Type.Optional(Type.Array(SOURCE_SCHEMA)),
+  builtInSources: Type.Optional(
+    Type.Object({
+      github: Type.Optional(Type.Boolean()),
+      "gitlab.com": Type.Optional(Type.Boolean()),
+    }),
+  ),
+  search: Type.Optional(
+    Type.Object({
+      timeoutSeconds: Type.Optional(Type.Number({ exclusiveMinimum: 0 })),
+      defaultLimit: Type.Optional(Type.Integer({ minimum: 1, maximum: 50 })),
+    }),
+  ),
   cacheDir: Type.Optional(Type.String()),
   debug: Type.Optional(
     Type.Object({
@@ -83,11 +97,16 @@ export class ModelReference {
   }
 }
 
+// Search roles need an API credential and are dropped without one; cloning uses git's own
+// credentials, so a source without a token still clones. The built-in github source is the
+// exception: its token is resolved lazily, falling back to the gh CLI.
 export interface LibrarianSource {
   name: string;
   url: string;
   kind: SourceKind;
   roles: SourceRole[];
+  token: string | undefined;
+  advancedSearch: boolean;
 }
 
 export interface CloneSource {
@@ -95,6 +114,13 @@ export interface CloneSource {
   url: string;
   kind: CloneSourceKind;
   roles: SourceRole[];
+  token: string | undefined;
+  advancedSearch: boolean;
+}
+
+export interface SearchSettings {
+  timeoutSeconds: number;
+  defaultLimit: number;
 }
 
 export interface LibrarianSettings {
@@ -106,6 +132,7 @@ export interface LibrarianSettings {
     disabled: string[];
   };
   sources: LibrarianSource[];
+  search: SearchSettings;
   cacheDir: string;
   debug: {
     persistRuns: boolean;
@@ -123,6 +150,16 @@ function possibleRoles(kind: SourceKind): readonly SourceRole[] {
 }
 
 export const DEFAULT_CACHE_DIR = "/tmp/pi-librarian";
+export const DEFAULT_SEARCH_TIMEOUT_SECONDS = 15;
+export const DEFAULT_SEARCH_LIMIT = 10;
+export const MAX_SEARCH_LIMIT = 50;
+
+const CONVENTIONAL_TOKEN_ENV: Record<SourceKind, string[]> = {
+  github: ["GITHUB_TOKEN", "GH_TOKEN"],
+  gitlab: ["GITLAB_ACCESS_TOKEN"],
+  "bitbucket-server": ["BITBUCKET_TOKEN"],
+  sourcegraph: ["SRC_ACCESS_TOKEN"],
+};
 
 function expandHome(rawPath: string): string {
   if (rawPath === "~") {
@@ -210,28 +247,87 @@ function normalizeSourceUrl(value: string, name: string): URL {
   return url;
 }
 
-// Public instances of kinds we support
-function builtInSources(): LibrarianSource[] {
-  return [
-    {
-      name: "github",
-      url: "https://github.com",
-      kind: "github",
-      roles: [...SOURCE_ROLES],
-    },
-    {
-      name: "gitlab.com",
-      url: "https://gitlab.com",
-      kind: "gitlab",
-      roles: [...SOURCE_ROLES],
-    },
-  ];
+type BuiltInSourceName = "github" | "gitlab.com";
+
+interface BuiltInSource {
+  name: BuiltInSourceName;
+  url: string;
+  kind: SourceKind;
+  enabledByDefault: boolean;
 }
 
-function normalizeSources(values: LibrarianFileSource[] | undefined): LibrarianSource[] {
-  const sources = builtInSources();
-  const names = new Set(sources.map((source) => source.name));
-  const hostnames = new Set(sources.map((source) => new URL(source.url).hostname));
+// Public instances of kinds we support. Everyone is assumed to want GitHub; gitlab.com search
+// needs a token regardless, so it is opt-in.
+const BUILT_IN_SOURCES: BuiltInSource[] = [
+  { name: "github", url: "https://github.com", kind: "github", enabledByDefault: true },
+  { name: "gitlab.com", url: "https://gitlab.com", kind: "gitlab", enabledByDefault: false },
+];
+
+const ENV_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+// A token pasted where its variable name belongs would sit in a settings file; refuse it there.
+function validateTokenEnv(value: string, name: string): string {
+  const trimmed = value.trim();
+  if (
+    !ENV_NAME_PATTERN.test(trimmed) ||
+    /^(glpat-|ghp_|gho_|github_pat_|sgp_|BBDC-)/.test(trimmed)
+  ) {
+    throw new Error(
+      `librarian.sources "${name}" tokenEnv must name an environment variable, not hold a credential.`,
+    );
+  }
+  return trimmed;
+}
+
+function resolveToken(
+  kind: SourceKind,
+  tokenEnv: string | undefined,
+  env: NodeJS.ProcessEnv,
+): string | undefined {
+  for (const variable of tokenEnv ? [tokenEnv] : CONVENTIONAL_TOKEN_ENV[kind]) {
+    const value = env[variable]?.trim();
+    if (value) {
+      return value;
+    }
+  }
+  return undefined;
+}
+
+function rolesWithCredential(
+  kind: SourceKind,
+  roles: readonly SourceRole[],
+  token: string | undefined,
+): SourceRole[] {
+  return token || kind === "github" ? [...roles] : roles.filter((role) => role === "clone");
+}
+
+function builtInSources(
+  switches: Partial<Record<BuiltInSourceName, boolean>> | undefined,
+  env: NodeJS.ProcessEnv,
+): LibrarianSource[] {
+  return BUILT_IN_SOURCES.filter(
+    (source) => switches?.[source.name] ?? source.enabledByDefault,
+  ).map((source) => {
+    const token = resolveToken(source.kind, undefined, env);
+    return {
+      name: source.name,
+      url: source.url,
+      kind: source.kind,
+      roles: rolesWithCredential(source.kind, SOURCE_ROLES, token),
+      token,
+      advancedSearch: false,
+    };
+  });
+}
+
+function normalizeSources(
+  values: LibrarianFileSource[] | undefined,
+  switches: Partial<Record<BuiltInSourceName, boolean>> | undefined,
+  env: NodeJS.ProcessEnv,
+): LibrarianSource[] {
+  const sources = builtInSources(switches, env);
+  const names = new Set<string>(BUILT_IN_SOURCES.map((source) => source.name));
+  const hostnames = new Set(BUILT_IN_SOURCES.map((source) => new URL(source.url).hostname));
 
   for (const value of values ?? []) {
     const name = value.name.trim();
@@ -248,6 +344,12 @@ function normalizeSources(values: LibrarianFileSource[] | undefined): LibrarianS
       throw new Error(`librarian.sources contains duplicate or reserved hostname "${hostname}".`);
     }
 
+    if (value.advancedSearch !== undefined && value.kind !== "gitlab") {
+      throw new Error(
+        `librarian.sources "${name}" sets advancedSearch, which only gitlab sources have.`,
+      );
+    }
+
     const disabled = value.disabled ?? [];
     const roles = possibleRoles(value.kind).filter((role) => !disabled.includes(role));
     if (roles.length === 0) {
@@ -256,20 +358,29 @@ function normalizeSources(values: LibrarianFileSource[] | undefined): LibrarianS
       );
     }
 
+    const tokenEnv =
+      value.tokenEnv === undefined ? undefined : validateTokenEnv(value.tokenEnv, name);
+    const token = resolveToken(value.kind, tokenEnv, env);
+
     names.add(name);
     hostnames.add(hostname);
     sources.push({
       name,
       url: url.origin.toLowerCase(),
       kind: value.kind,
-      roles,
+      roles: rolesWithCredential(value.kind, roles, token),
+      token,
+      advancedSearch: value.advancedSearch ?? false,
     });
   }
 
   return sources;
 }
 
-export function resolveLibrarianSettings(fileSettings: LibrarianFileSettings): LibrarianSettings {
+export function resolveLibrarianSettings(
+  fileSettings: LibrarianFileSettings,
+  env: NodeJS.ProcessEnv,
+): LibrarianSettings {
   return {
     model: parseModelReference(fileSettings.model),
     thinkingLevel: fileSettings.thinkingLevel,
@@ -278,7 +389,11 @@ export function resolveLibrarianSettings(fileSettings: LibrarianFileSettings): L
       extra: normalizeToolNames(fileSettings.tools?.extra),
       disabled: normalizeToolNames(fileSettings.tools?.disabled),
     },
-    sources: normalizeSources(fileSettings.sources),
+    sources: normalizeSources(fileSettings.sources, fileSettings.builtInSources, env),
+    search: {
+      timeoutSeconds: fileSettings.search?.timeoutSeconds ?? DEFAULT_SEARCH_TIMEOUT_SECONDS,
+      defaultLimit: fileSettings.search?.defaultLimit ?? DEFAULT_SEARCH_LIMIT,
+    },
     cacheDir: normalizeCacheDir(fileSettings.cacheDir),
     debug: {
       persistRuns: fileSettings.debug?.persistRuns ?? false,
@@ -290,7 +405,7 @@ export function loadSettings(): LibrarianSettings {
   const globalSettings = SettingsManager.create(process.cwd()).getGlobalSettings();
   try {
     const parsed = parseTypeBoxValue(ROOT_SETTINGS_SCHEMA, globalSettings, "Invalid settings");
-    return resolveLibrarianSettings(parsed.librarian ?? {});
+    return resolveLibrarianSettings(parsed.librarian ?? {}, process.env);
   } catch (error) {
     if (error instanceof Error && error.message.includes("/librarian/tools Expected object")) {
       throw new Error(

@@ -50,12 +50,14 @@ In pi's global `settings.json`:
         "name": "example-gl",
         "url": "https://gitlab.example.com",
         "kind": "gitlab",
-        "disabled": ["code-search"],
+        "tokenEnv": "EXAMPLE_GITLAB_TOKEN",
+        "advancedSearch": false,
       },
       {
         "name": "example-bb",
         "url": "https://git.example.com",
         "kind": "bitbucket-server",
+        "disabled": ["code-search"],
       },
       {
         "name": "example-sg",
@@ -63,6 +65,8 @@ In pi's global `settings.json`:
         "kind": "sourcegraph",
       },
     ],
+    "builtInSources": { "github": true, "gitlab.com": false },
+    "search": { "timeoutSeconds": 15, "defaultLimit": 10 },
     "extensions": ["~/.pi/agent/extensions/parallel-web-tools"],
     "cacheDir": "/tmp/pi-librarian",
     "debug": { "persistRuns": false },
@@ -77,11 +81,16 @@ In pi's global `settings.json`:
 | `tools.extra`       | names of extra tools to provide the librarian    | `[]`                           |
 | `tools.disabled`    | names of tools to remove from librarian runs     | `[]`                           |
 | `sources`           | code hosts and search backends                   | `[]`                           |
+| `builtInSources`    | switch `github` and `gitlab.com` on or off       | `github` on, `gitlab.com` off  |
+| `search.timeoutSeconds` | seconds a search may run before it is an error | `15`                        |
+| `search.defaultLimit` | results a search returns unless asked for more (at most 50) | `10`              |
 | `extensions`        | extra paths to load extensions for the librarian | `[]`                           |
 | `cacheDir`          | `/tmp/pi-librarian`                              | `/tmp/pi-librarian`            |
 | `debug.persistRuns` | persist nested session file paths for debugging  | `false`                        |
 
-Each `librarian.sources` entry requires a unique `name`, an HTTPS `url`, and a `kind`: `github`, `gitlab`, `bitbucket-server`, or `sourcegraph`. The `kind` decides which roles a source can play — `clone`, `code-search`, `repo-search` — unless `disabled`. `github` and `gitlab.com` are built in and need no entry. Note that `librarian.tools.disabled` is a different lever: it removes a tool from the run entirely, where a source's `disabled` removes one source from one role.
+Each `librarian.sources` entry requires a unique `name`, an HTTPS `url`, and a `kind`: `github`, `gitlab`, `bitbucket-server`, or `sourcegraph`. The `kind` decides which roles a source can play — `clone`, `code-search`, `repo-search` — unless `disabled`. `github` and `gitlab.com` are built in and need no entry; `builtInSources` switches each on or off as a whole, and a switched-off source does not exist at all, though a full clone URL to its host still clones.
+
+Search needs an API token; cloning does not, because it uses git's own credentials. A source reads its token from the environment variable named by `tokenEnv`, or by default from its kind's usual variable: `GITHUB_TOKEN`/`GH_TOKEN`, `GITLAB_ACCESS_TOKEN`, `BITBUCKET_TOKEN`, `SRC_ACCESS_TOKEN`. A source without a token keeps cloning and loses its search tools. `advancedSearch: true`, on a `gitlab` source only, says the instance has GitLab's advanced search, which lets code search span projects. Note that `librarian.tools.disabled` is a different lever: it removes a tool from the run entirely, where a source's `disabled` removes one source from one role.
 
 `librarian.extensions` dynamically loads extra extensions just for the librarian. Add any tools from that extension to `librarian.tools.extra` for the librarian to actually be able to use them. Librarian excludes `write` and `edit`.
 

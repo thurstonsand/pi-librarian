@@ -76,6 +76,7 @@ describe("runLibrarian", () => {
         model: undefined,
         thinkingLevel: undefined,
         extensions: [],
+        search: { timeoutSeconds: 15, defaultLimit: 10 },
         tools: { extra: ["search_web"], disabled: ["bash", "search_code", "search_web"] },
         sources: [
           {
@@ -83,6 +84,8 @@ describe("runLibrarian", () => {
             url: "https://github.com",
             kind: "github",
             roles: ["clone", "code-search", "repo-search"],
+            token: undefined,
+            advancedSearch: false,
           },
         ],
         cacheDir,

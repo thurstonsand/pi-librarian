@@ -27,9 +27,12 @@ function settings(values: {
         url: "https://github.com",
         kind: "github",
         roles: ["clone", "code-search", "repo-search"],
+        token: undefined,
+        advancedSearch: false,
       },
     ],
     extensions: values.extensions ?? [],
+    search: { timeoutSeconds: 15, defaultLimit: 10 },
     cacheDir: values.cacheDir ?? os.tmpdir(),
     debug: { persistRuns: false },
   };

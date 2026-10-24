@@ -24,12 +24,15 @@ function cloneUrls(input: string, sourceName?: string): string[] {
   return parseRepoReference(input, HOSTS, sourceName).cloneUrls;
 }
 
-const HOSTS = resolveLibrarianSettings({
-  sources: [
-    { name: "example-bb", url: "https://git.example.com", kind: "bitbucket-server" },
-    { name: "example-gl", url: "https://gitlab.example.com", kind: "gitlab" },
-  ],
-}).sources;
+const HOSTS = resolveLibrarianSettings(
+  {
+    sources: [
+      { name: "example-bb", url: "https://git.example.com", kind: "bitbucket-server" },
+      { name: "example-gl", url: "https://gitlab.example.com", kind: "gitlab" },
+    ],
+  },
+  {},
+).sources;
 
 describe("parseRepoReference", () => {
   it("requires source for a shorthand repository path", () => {
@@ -47,17 +50,20 @@ describe("parseRepoReference", () => {
 
   // "Unknown" would be a lie and would send the model looking for a spelling mistake.
   it("distinguishes a declared source that cannot clone from an unknown one", () => {
-    const { sources } = resolveLibrarianSettings({
-      sources: [
-        { name: "sg", url: "https://search.example.com", kind: "sourcegraph" },
-        {
-          name: "bb-search-only",
-          url: "https://git.example.com",
-          kind: "bitbucket-server",
-          disabled: ["clone"],
-        },
-      ],
-    });
+    const { sources } = resolveLibrarianSettings(
+      {
+        sources: [
+          { name: "sg", url: "https://search.example.com", kind: "sourcegraph" },
+          {
+            name: "bb-search-only",
+            url: "https://git.example.com",
+            kind: "bitbucket-server",
+            disabled: ["clone"],
+          },
+        ],
+      },
+      {},
+    );
 
     expect(() => parseRepoReference("PROJ/repo", sources, "sg")).toThrow(
       /Source "sg" cannot clone \(kind sourcegraph\)/,
@@ -123,28 +129,31 @@ describe("parseRepoReference", () => {
 
 describe("createCheckoutRepoTool", () => {
   it("exposes only declared clone-enabled sources in its flat source enum", () => {
-    const settings = resolveLibrarianSettings({
-      sources: [
-        { name: "example-gl", url: "https://gitlab.example.com", kind: "gitlab" },
-        { name: "search", url: "https://search.example.com", kind: "sourcegraph" },
-        {
-          name: "no-clone",
-          url: "https://git.example.com",
-          kind: "bitbucket-server",
-          disabled: ["clone"],
-        },
-      ],
-    });
+    const settings = resolveLibrarianSettings(
+      {
+        sources: [
+          { name: "example-gl", url: "https://gitlab.example.com", kind: "gitlab" },
+          { name: "search", url: "https://search.example.com", kind: "sourcegraph" },
+          {
+            name: "no-clone",
+            url: "https://git.example.com",
+            kind: "bitbucket-server",
+            disabled: ["clone"],
+          },
+        ],
+      },
+      {},
+    );
     const tool = createCheckoutRepoTool("/tmp/pi-librarian", settings.sources);
     const sourceSchema = tool.parameters.properties.source as {
       enum: string[];
       description: string;
     };
 
-    expect(sourceSchema.enum).toEqual(["github", "gitlab.com", "example-gl"]);
+    expect(sourceSchema.enum).toEqual(["github", "example-gl"]);
     // The mapping must live here, not in the system prompt: attach mode exposes the tool without it.
     expect(sourceSchema.description).toContain(
-      "github (github.com), gitlab.com (gitlab.com), example-gl (gitlab.example.com)",
+      "github (github.com), example-gl (gitlab.example.com)",
     );
     expect(sourceSchema.description).not.toContain("search.example.com");
   });
@@ -152,9 +161,12 @@ describe("createCheckoutRepoTool", () => {
 
 describe("bitbucket-server /scm/ prefix", () => {
   it("names one repository once however the prefix is spelled", () => {
-    const { sources } = resolveLibrarianSettings({
-      sources: [{ name: "bb", url: "https://git.example.com", kind: "bitbucket-server" }],
-    });
+    const { sources } = resolveLibrarianSettings(
+      {
+        sources: [{ name: "bb", url: "https://git.example.com", kind: "bitbucket-server" }],
+      },
+      {},
+    );
 
     for (const shorthand of ["PROJ/repo", "scm/PROJ/repo", "/scm/PROJ/repo", "SCM/PROJ/repo"]) {
       const reference = parseRepoReference(shorthand, sources, "bb");
