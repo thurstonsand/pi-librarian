@@ -26,6 +26,7 @@ import type { LibrarianSettings } from "./settings.ts";
 import type { Findings } from "./tools/provide-results.ts";
 import { createProvideResultsTool } from "./tools/provide-results.ts";
 import { asRepoToolDetails, summarizeToolResult } from "./trace.ts";
+import { appendSearchUsage } from "./usage.ts";
 
 const MAX_PROVIDE_RESULTS_REMINDERS = 3;
 const DEFAULT_EXCLUDED_TOOLS = ["write", "edit"];
@@ -309,6 +310,9 @@ export async function runLibrarian(
     }
     unsubscribe?.();
     session?.dispose();
+    if (details.runId) {
+      await appendSearchUsage(options.settings.cacheDir, details.runId, details.trace);
+    }
   }
 
   throw new Error("Unreachable librarian run state.");
