@@ -102,19 +102,22 @@ describe("resolveExtraTools", () => {
   });
 
   it("skips librarian's own tools with warnings", async () => {
-    const librarianSettings = settings({ tools: ["librarian", "search_repos"] });
+    const librarianSettings = settings({ tools: ["librarian", "search_repos_github"] });
 
     expect(
-      resolveExtraTools([toolInfo("search_repos", "/ext/librarian.ts")], librarianSettings),
+      resolveExtraTools([toolInfo("search_repos_github", "/ext/librarian.ts")], librarianSettings),
     ).toEqual({
       extensionPaths: [],
       toolNames: [],
     });
     await expect(
-      collectExtraToolWarnings([toolInfo("search_repos", "/ext/librarian.ts")], librarianSettings),
+      collectExtraToolWarnings(
+        [toolInfo("search_repos_github", "/ext/librarian.ts")],
+        librarianSettings,
+      ),
     ).resolves.toMatchObject([
       { toolName: "librarian", reason: "self" },
-      { toolName: "search_repos", reason: "self" },
+      { toolName: "search_repos_github", reason: "self" },
     ]);
   });
 

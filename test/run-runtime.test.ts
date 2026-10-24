@@ -5,6 +5,8 @@ import type { Api, Model } from "@earendil-works/pi-ai";
 import type { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { runLibrarian } from "../extensions/librarian/run.ts";
+import type { LibrarianSettings } from "../extensions/librarian/settings.ts";
+import { createRepoClients, createRepoTools } from "../extensions/librarian/tools/index.ts";
 
 const { createAgentSession } = vi.hoisted(() => ({
   createAgentSession: vi.fn(),
@@ -64,6 +66,25 @@ describe("runLibrarian", () => {
       };
     });
 
+    const settings: LibrarianSettings = {
+      model: undefined,
+      thinkingLevel: undefined,
+      extensions: [],
+      search: { timeoutSeconds: 15, defaultLimit: 10 },
+      tools: { extra: ["search_web"], disabled: ["bash", "search_code_grepapp", "search_web"] },
+      sources: [
+        {
+          name: "github",
+          url: "https://github.com",
+          kind: "github",
+          roles: ["clone", "code-search", "repo-search"],
+          token: undefined,
+          advancedSearch: false,
+        },
+      ],
+      cacheDir,
+      debug: { persistRuns: false },
+    };
     const result = await runLibrarian({
       query: "Verify runtime propagation",
       repos: [],
@@ -72,29 +93,9 @@ describe("runLibrarian", () => {
       modelRuntime,
       model,
       thinkingLevel: "off",
-      settings: {
-        model: undefined,
-        thinkingLevel: undefined,
-        extensions: [],
-        search: { timeoutSeconds: 15, defaultLimit: 10 },
-        tools: { extra: ["search_web"], disabled: ["bash", "search_code", "search_web"] },
-        sources: [
-          {
-            name: "github",
-            url: "https://github.com",
-            kind: "github",
-            roles: ["clone", "code-search", "repo-search"],
-            token: undefined,
-            advancedSearch: false,
-          },
-        ],
-        cacheDir,
-        debug: { persistRuns: false },
-      },
+      settings,
       extraTools: { extensionPaths: [], toolNames: ["search_web"] },
-      githubClient: async () => {
-        throw new Error("GitHub client should not be used");
-      },
+      repoTools: createRepoTools(settings, createRepoClients(settings)).tools,
       signal: undefined,
       onUpdate: undefined,
     });
@@ -103,7 +104,7 @@ describe("runLibrarian", () => {
     expect(createAgentSession.mock.calls[0]?.[0].modelRuntime).toBe(modelRuntime);
     const activeTools = setActiveToolsByName.mock.calls[0]?.[0] as string[];
     expect(activeTools).not.toContain("bash");
-    expect(activeTools).not.toContain("search_code");
+    expect(activeTools).not.toContain("search_code_grepapp");
     expect(activeTools).not.toContain("search_web");
     expect(activeTools).toContain("checkout_repo");
     expect(result.content[0]).toEqual({

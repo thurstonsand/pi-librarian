@@ -7,9 +7,14 @@ import type {
   AgentSessionEvent,
   ModelRuntime,
 } from "@earendil-works/pi-coding-agent";
-import { createAgentSession, getAgentDir, SessionManager } from "@earendil-works/pi-coding-agent";
+import {
+  createAgentSession,
+  getAgentDir,
+  SessionManager,
+  type ToolDefinition,
+} from "@earendil-works/pi-coding-agent";
+import { cloneSources } from "./checkout.ts";
 import { type ExtraToolsResolution, LIBRARIAN_BASELINE_TOOL_NAMES } from "./extra-tools.ts";
-import type { GitHubClientProvider } from "./github.ts";
 import {
   buildLibrarianSystemPrompt,
   buildLibrarianUserPrompt,
@@ -18,14 +23,8 @@ import {
 import { createLibrarianResourceLoader } from "./resource-loader.ts";
 import { renderFindingsMarkdown } from "./results.ts";
 import type { LibrarianSettings } from "./settings.ts";
-import { createCheckoutRepoTool } from "./tools/checkout-repo.ts";
-import { LIBRARIAN_RUN_TOOL_NAMES } from "./tools/names.ts";
 import type { Findings } from "./tools/provide-results.ts";
 import { createProvideResultsTool } from "./tools/provide-results.ts";
-import { createReadGitHubFileTool } from "./tools/read-github-file.ts";
-import { searchCodeTool } from "./tools/search-code.ts";
-import { createSearchGitHubCodeTool } from "./tools/search-github-code.ts";
-import { createSearchReposTool } from "./tools/search-repos.ts";
 import { asRepoToolDetails, summarizeToolResult } from "./trace.ts";
 
 const MAX_PROVIDE_RESULTS_REMINDERS = 3;
@@ -72,7 +71,7 @@ export interface LibrarianRunOptions {
   thinkingLevel: ThinkingLevel;
   settings: LibrarianSettings;
   extraTools: ExtraToolsResolution;
-  githubClient: GitHubClientProvider;
+  repoTools: ToolDefinition[];
   signal: AbortSignal | undefined;
   onUpdate: ((details: LibrarianRunDetails) => void) | undefined;
 }
@@ -154,22 +153,22 @@ export async function runLibrarian(
   }
 
   let findings: Findings | undefined;
+  const disabledTools = new Set(options.settings.tools.disabled);
   const repoTools = [
-    createSearchReposTool(options.githubClient),
-    searchCodeTool,
-    createSearchGitHubCodeTool(options.githubClient),
-    createCheckoutRepoTool(options.settings.cacheDir, options.settings.sources),
-    createReadGitHubFileTool(options.githubClient),
-    createProvideResultsTool((payload) => {
-      findings = payload;
-    }),
-  ];
+    ...options.repoTools,
+    createProvideResultsTool(
+      cloneSources(options.settings.sources).map((source) => source.name),
+      (payload) => {
+        findings = payload;
+      },
+    ),
+  ].filter((tool) => !disabledTools.has(tool.name));
 
   const resourceLoader = createLibrarianResourceLoader({
     cacheDir: options.settings.cacheDir,
     agentDir: getAgentDir(),
     extensionPaths: options.extraTools.extensionPaths,
-    systemPromptOverride: () => buildLibrarianSystemPrompt(options.settings.cacheDir),
+    systemPromptOverride: () => buildLibrarianSystemPrompt(options.settings.cacheDir, repoTools),
   });
   await resourceLoader.reload();
 
@@ -208,11 +207,10 @@ export async function runLibrarian(
     });
     session = created.session;
 
-    const disabledTools = new Set(options.settings.tools.disabled);
     session.setActiveToolsByName(
       [
         ...LIBRARIAN_BASELINE_TOOL_NAMES,
-        ...LIBRARIAN_RUN_TOOL_NAMES,
+        ...repoTools.map((tool) => tool.name),
         ...options.extraTools.toolNames,
       ].filter((toolName) => !disabledTools.has(toolName)),
     );
@@ -247,7 +245,7 @@ export async function runLibrarian(
           }
           const repoDetails = asRepoToolDetails(event.result?.details);
           if (repoDetails?.kind === "checkout_repo" && !event.isError) {
-            details.checkouts[repoDetails.repo] = repoDetails.headSha;
+            details.checkouts[repoDetails.identity] = repoDetails.headSha;
           }
           emit(true);
           break;
@@ -285,7 +283,10 @@ export async function runLibrarian(
 
     if (findings) {
       details.findings = findings;
-      return finish("done", renderFindingsMarkdown(findings, details.checkouts));
+      return finish(
+        "done",
+        renderFindingsMarkdown(findings, details.checkouts, options.settings.sources),
+      );
     }
 
     const lastText = session.getLastAssistantText() ?? "";

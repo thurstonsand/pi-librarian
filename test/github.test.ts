@@ -30,10 +30,10 @@ describe("createGitHubClient logging", () => {
       ),
     );
 
-    const client = createGitHubClient(undefined);
-    const result = await client.searchCode({ pattern: "spawn_agent", limit: 10 });
+    const client = createGitHubClient(undefined, "https://github.com");
+    const result = await client.searchCode({ query: "spawn_agent", limit: 10, signal: undefined });
 
-    expect(result).toEqual({ totalCount: 0, hits: [] });
+    expect(result).toEqual({ totalCount: 0, incompleteResults: false, hits: [] });
     expect(warn).not.toHaveBeenCalled();
     expect(error).not.toHaveBeenCalled();
   });

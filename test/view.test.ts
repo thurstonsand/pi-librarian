@@ -1,3 +1,4 @@
+import { stripVTControlCharacters } from "node:util";
 import type { AgentToolResult } from "@earendil-works/pi-agent-core";
 import { initTheme, type Theme } from "@earendil-works/pi-coding-agent";
 import { Container, Text } from "@earendil-works/pi-tui";
@@ -8,10 +9,21 @@ import {
   formatTraceLine,
   relativizeCachePath,
   renderLibrarianResult,
+  renderRepoToolResult,
   shorten,
+  type TraceContext,
 } from "../extensions/librarian/view.ts";
 
 const CACHE = "/home/user/.cache/pi-librarian";
+const CTX: TraceContext = {
+  cacheDir: CACHE,
+  impliedSources: new Map([
+    ["search_code_github", "github"],
+    ["search_code_grepapp", "grep.app"],
+    ["search_repos_github", "github"],
+    ["read_file", "github"],
+  ]),
+};
 
 // keyHint reads pi's theme singleton, which every real session initializes
 beforeAll(() => {
@@ -64,59 +76,106 @@ describe("formatTraceLine", () => {
         offset: 80,
         limit: 61,
       }),
-      CACHE,
+      CTX,
     );
     expect(line).toEqual({ verb: "read", subject: "drizzle-orm/src/session.ts:80-140" });
   });
 
   it("renders bash with normalized truncated command", () => {
-    const line = formatTraceLine(call("bash", { command: "git   log -S foo\n--oneline" }), CACHE);
+    const line = formatTraceLine(call("bash", { command: "git   log -S foo\n--oneline" }), CTX);
     expect(line).toEqual({ verb: "bash", subject: "git log -S foo --oneline" });
   });
 
   it("renders grep with quoted pattern and scope", () => {
     const line = formatTraceLine(
       call("grep", { pattern: "prepareQuery", path: `${CACHE}/repos/github.com/a/b/src` }),
-      CACHE,
+      CTX,
     );
     expect(line).toEqual({ verb: "grep", subject: '"prepareQuery" b/src' });
   });
 
-  it("renders search_code with scope", () => {
-    const line = formatTraceLine(call("search_code", { pattern: "/foo/", repo: "a/b" }), CACHE);
-    expect(line).toEqual({ verb: "search", subject: "code /foo/ in a/b" });
+  it("names the implied source and scope for a code search", () => {
+    expect(
+      formatTraceLine(call("search_code_grepapp", { pattern: "/foo/", repo: "a/b" }), CTX),
+    ).toEqual({ verb: "search", subject: "code /foo/ in grep.app:a/b" });
+    expect(
+      formatTraceLine(
+        call("search_code_github", {
+          pattern: "defineConfig",
+          owner: "drizzle-team",
+          repos: ["drizzle-orm"],
+        }),
+        CTX,
+      ),
+    ).toEqual({ verb: "search", subject: "code defineConfig in github:drizzle-team/drizzle-orm" });
   });
 
-  it("renders search_github_code with scope", () => {
-    const line = formatTraceLine(
-      call("search_github_code", {
-        pattern: "foo",
-        repos: [{ owner: "a", repo: "b" }],
-        owners: ["org"],
-      }),
-      CACHE,
-    );
-    expect(line).toEqual({ verb: "search.gh", subject: "code foo in a/b,org/*" });
+  it("prefers an explicit source over the implied one", () => {
+    expect(
+      formatTraceLine(
+        call("search_code_sourcegraph", { pattern: "computeBackoff", source: "example-sg" }),
+        CTX,
+      ),
+    ).toEqual({ verb: "search", subject: "code computeBackoff in example-sg" });
+  });
+
+  it("renders a repo search's filters, free text first", () => {
+    expect(
+      formatTraceLine(
+        call("search_repos_github", {
+          text: "orm",
+          language: "typescript",
+          topics: ["sql", "orm"],
+          limit: 20,
+        }),
+        CTX,
+      ),
+    ).toEqual({
+      verb: "search",
+      subject: "repos orm language:typescript topics:sql,orm in github",
+    });
   });
 
   it("renders checkout_repo with source and ref", () => {
     const line = formatTraceLine(
       call("checkout_repo", { repo: "a/b", source: "github", ref: "v2" }),
-      CACHE,
+      CTX,
     );
     expect(line).toEqual({ verb: "checkout", subject: "github:a/b@v2" });
   });
 
-  it("renders read_github_file as repo/path", () => {
-    const line = formatTraceLine(
-      call("read_github_file", { owner: "a", repo: "b", path: "package.json" }),
-      CACHE,
-    );
-    expect(line).toEqual({ verb: "read.gh", subject: "a/b/package.json" });
+  it("renders read_file as source:repo/path with ref and range", () => {
+    expect(
+      formatTraceLine(
+        call("read_file", {
+          repo: "a/b",
+          path: "src/x.ts",
+          ref: "a1b2c3d",
+          offset: 2001,
+          limit: 100,
+        }),
+        CTX,
+      ),
+    ).toEqual({ verb: "read", subject: "github:a/b/src/x.ts@a1b2c3d:2001-2100" });
+  });
+
+  it("renders find_definition with its kind", () => {
+    expect(
+      formatTraceLine(
+        call("find_definition", { symbol: "NewClient", kind: "function", source: "example-sg" }),
+        CTX,
+      ),
+    ).toEqual({ verb: "definition", subject: "function NewClient in example-sg" });
+  });
+
+  it("shortens a search artifact path to its place under the cache", () => {
+    expect(
+      formatTraceLine(call("read", { path: `${CACHE}/searches/tc_1/results.jsonl` }), CTX),
+    ).toEqual({ verb: "read", subject: "searches/tc_1/results.jsonl" });
   });
 
   it("falls back to first string arg for unknown tools", () => {
-    const line = formatTraceLine(call("web_search", { objective: "orm comparison" }), CACHE);
+    const line = formatTraceLine(call("web_search", { objective: "orm comparison" }), CTX);
     expect(line).toEqual({ verb: "web_search", subject: "orm comparison" });
   });
 });
@@ -159,7 +218,7 @@ describe("renderLibrarianResult", () => {
       completedResult(),
       { expanded: true, isPartial: false },
       theme,
-      CACHE,
+      CTX,
     )
       .render(120)
       .join("\n");
@@ -176,7 +235,7 @@ describe("renderLibrarianResult", () => {
       completedResult(),
       { expanded: false, isPartial: false },
       theme,
-      CACHE,
+      CTX,
     )
       .render(120)
       .join("\n");
@@ -230,7 +289,7 @@ describe("renderLibrarianResult", () => {
       },
       { expanded: true, isPartial: true },
       theme,
-      CACHE,
+      CTX,
     )
       .render(120)
       .join("\n");
@@ -248,7 +307,7 @@ describe("renderLibrarianResult", () => {
       completedResult(),
       { expanded: false, isPartial: false },
       theme,
-      CACHE,
+      CTX,
       {
         lastComponent: staleContainer,
       },
@@ -268,7 +327,7 @@ describe("renderLibrarianResult", () => {
       } as AgentToolResult<LibrarianRunDetails>,
       { expanded: false, isPartial: false },
       theme,
-      CACHE,
+      CTX,
     )
       .render(120)
       .join("\n");
@@ -281,5 +340,117 @@ describe("shorten", () => {
   it("collapses whitespace and truncates with ellipsis", () => {
     expect(shorten("a  b\n\nc", 100)).toBe("a b c");
     expect(shorten("abcdef", 3)).toBe("abc…");
+  });
+});
+
+describe("renderRepoToolResult", () => {
+  const entries = Array.from({ length: 7 }, (_, index) => ({
+    group: { label: "example-bb", cloneSource: "example-bb" },
+    label: `PROJ/repo-${index + 1} — src/retry.ts`,
+    revision: "a1b2c3d",
+    detail: `${30 + index}: export function computeBackoff(`,
+  }));
+  const result: AgentToolResult<unknown> = {
+    content: [{ type: "text", text: "digest" }],
+    details: {
+      kind: "search_code_github",
+      source: "example-sg",
+      unit: "files",
+      matchCount: 412,
+      repoCount: 63,
+      fetchedCount: 7,
+      shownCount: 7,
+      complete: false,
+      artifact: {
+        path: "/tmp/pi-librarian/searches/tc_1/results.jsonl",
+        lineCount: 7,
+        byteCount: 2048,
+      },
+      entries,
+    },
+  };
+  const context = (overrides: Partial<{ isError: boolean; durationMs: number | undefined }>) => ({
+    state: {},
+    executionStarted: true,
+    isError: false,
+    durationMs: 1700,
+    invalidate: () => {},
+    ...overrides,
+  });
+  const lines = (component: { render(width: number): string[] }) =>
+    component.render(200).map((line) => stripVTControlCharacters(line).trimEnd());
+
+  it("shows the summary and the first five entries when collapsed", () => {
+    expect(
+      lines(
+        renderRepoToolResult(
+          "search_code_github",
+          result,
+          { expanded: false, isPartial: false },
+          theme,
+          context({}),
+        ),
+      ),
+    ).toEqual([
+      "412 files · 63 repos, incomplete",
+      "example-bb",
+      " 1. PROJ/repo-1 — src/retry.ts",
+      " 2. PROJ/repo-2 — src/retry.ts",
+      " 3. PROJ/repo-3 — src/retry.ts",
+      " 4. PROJ/repo-4 — src/retry.ts",
+      " 5. PROJ/repo-5 — src/retry.ts",
+      expect.stringMatching(/^ … 2 more \(.*to expand\)$/),
+      "Took 1.7s",
+    ]);
+  });
+
+  it("adds revisions, matched lines, and the artifact when expanded", () => {
+    const rendered = lines(
+      renderRepoToolResult(
+        "search_code_github",
+        result,
+        { expanded: true, isPartial: false },
+        theme,
+        context({}),
+      ),
+    );
+    expect(rendered.slice(0, 4)).toEqual([
+      "412 files · 63 repos, incomplete",
+      "example-bb",
+      " 1. PROJ/repo-1 — src/retry.ts (a1b2c3d)",
+      "    30: export function computeBackoff(",
+    ]);
+    expect(rendered.slice(-2)).toEqual([
+      "Full results: /tmp/pi-librarian/searches/tc_1/results.jsonl (7 lines, 2.0KB)",
+      "Took 1.7s",
+    ]);
+  });
+
+  it("shows a verb and a live counter while running, and the error when failed", () => {
+    expect(
+      lines(
+        renderRepoToolResult(
+          "checkout_repo",
+          result,
+          { expanded: false, isPartial: true },
+          theme,
+          context({ durationMs: undefined }),
+        ),
+      ),
+    ).toEqual([expect.stringMatching(/^Cloning… Elapsed \d+\.\ds$/)]);
+    expect(
+      lines(
+        renderRepoToolResult(
+          "search_code_github",
+          {
+            content: [{ type: "text", text: "15s limit hit; 212 files in 40 repos found." }],
+            details: undefined,
+          },
+          { expanded: false, isPartial: false },
+          theme,
+          context({ isError: true, durationMs: 15_400 }),
+        ),
+      ),
+    ).toEqual(["15s limit hit; 212 files in 40 repos found.", "Took 15.4s"]);
   });
 });

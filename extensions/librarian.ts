@@ -14,23 +14,19 @@ import {
   setAttachState,
 } from "./librarian/attach.ts";
 import { collectExtraToolWarnings, resolveExtraTools } from "./librarian/extra-tools.ts";
-import { createGitHubClientProvider } from "./librarian/github.ts";
 import { resolveLibrarianModel } from "./librarian/model.ts";
 import { createLibrarianModelRuntime } from "./librarian/model-runtime.ts";
 import { type LibrarianRunDetails, runLibrarian, type TraceCall } from "./librarian/run.ts";
 import { loadSettings } from "./librarian/settings.ts";
-import { createCheckoutRepoTool } from "./librarian/tools/checkout-repo.ts";
-import { ATTACHABLE_TOOL_NAMES } from "./librarian/tools/names.ts";
-import { createReadGitHubFileTool } from "./librarian/tools/read-github-file.ts";
-import { searchCodeTool } from "./librarian/tools/search-code.ts";
-import { createSearchGitHubCodeTool } from "./librarian/tools/search-github-code.ts";
-import { createSearchReposTool } from "./librarian/tools/search-repos.ts";
+import { createRepoClients, createRepoTools } from "./librarian/tools/index.ts";
 import {
   formatTraceLine,
   renderLibrarianCall,
   renderLibrarianResult,
+  renderRepoToolResult,
   SPINNER_INTERVAL_MS,
   shorten,
+  type TraceContext,
 } from "./librarian/view.ts";
 
 const LibrarianParams = Type.Object({
@@ -60,34 +56,34 @@ const LibrarianParams = Type.Object({
 
 export default function librarianExtension(pi: ExtensionAPI): void {
   const settings = loadSettings();
-  const githubClient = createGitHubClientProvider();
+  const { tools: repoTools, impliedSources } = createRepoTools(
+    settings,
+    createRepoClients(settings),
+  );
+  const repoToolNames = repoTools.map((tool) => tool.name);
+  const traceContext: TraceContext = { cacheDir: settings.cacheDir, impliedSources };
 
   pi.registerEntryRenderer<AttachEntryData>(ATTACH_ENTRY_TYPE, (entry, { expanded }, theme) =>
     renderAttachEntry(entry.data, expanded, theme),
   );
 
-  const attachableTools = [
-    createSearchReposTool(githubClient),
-    searchCodeTool,
-    createSearchGitHubCodeTool(githubClient),
-    createCheckoutRepoTool(settings.cacheDir, settings.sources),
-    createReadGitHubFileTool(githubClient),
-  ];
-
-  for (const tool of attachableTools) {
+  for (const tool of repoTools) {
     pi.registerTool({
       ...tool,
       defaultActive: false,
       renderCall(args, theme) {
         const { verb, subject } = formatTraceLine(
           { name: tool.name, args, id: "", startedAt: 0 } satisfies TraceCall,
-          settings.cacheDir,
+          traceContext,
         );
         return new Text(
           `${theme.fg("toolTitle", theme.bold(verb))} ${theme.fg("toolOutput", subject)}`,
           0,
           0,
         );
+      },
+      renderResult(result, options, theme, context) {
+        return renderRepoToolResult(tool.name, result, options, theme, context);
       },
     });
   }
@@ -97,7 +93,7 @@ export default function librarianExtension(pi: ExtensionAPI): void {
     label: "Librarian",
     description:
       "Understand complex, multi-repo codebases, exploring cross-repo relationships, analyzing architectural patterns, finding implementations across codebases, understanding code evolution/commit history, diving deep on specific code bases, getting comprehensive feature explanations, and exploring end-to-end system design across within or across repositories.",
-    promptSnippet: "Research GitHub repos and codebases, returning cited findings",
+    promptSnippet: "Research repositories and codebases, returning cited findings",
     promptGuidelines: [
       "Use librarian for deep, multi-step research across repos; for a single file or reference, prefer cheaper means (downloaded dependencies, web search or fetch).",
     ],
@@ -129,7 +125,7 @@ export default function librarianExtension(pi: ExtensionAPI): void {
         thinkingLevel: resolution.thinkingLevel,
         settings,
         extraTools,
-        githubClient,
+        repoTools,
         signal,
         onUpdate: onUpdate
           ? (details) => {
@@ -162,12 +158,12 @@ export default function librarianExtension(pi: ExtensionAPI): void {
         clearInterval(state.interval);
         state.interval = undefined;
       }
-      return renderLibrarianResult(result, options, theme, settings.cacheDir, context);
+      return renderLibrarianResult(result, options, theme, traceContext, context);
     },
   });
 
   pi.registerCommand("librarian", {
-    description: "Attach/detach the librarian's GitHub tools in this session (on|off|status)",
+    description: "Attach/detach the librarian's repository tools in this session (on|off|status)",
     getArgumentCompletions: (prefix) =>
       ["on", "off", "status"]
         .filter((option) => option.startsWith(prefix.trim()))
@@ -179,7 +175,7 @@ export default function librarianExtension(pi: ExtensionAPI): void {
       if (argument === "status") {
         ctx.ui.notify(
           currentlyAttached
-            ? `Librarian tools attached: ${ATTACHABLE_TOOL_NAMES.join(", ")}`
+            ? `Librarian tools attached: ${repoToolNames.join(", ")}`
             : "Librarian tools not attached. Run /librarian to attach.",
           "info",
         );
@@ -196,16 +192,16 @@ export default function librarianExtension(pi: ExtensionAPI): void {
         return;
       }
 
-      setAttachState(pi, nextAttached);
+      setAttachState(pi, nextAttached, repoToolNames);
     },
   });
 
   pi.on("session_tree", async (_event: SessionTreeEvent, ctx) => {
-    applyAttachState(pi, readAttachState(ctx));
+    applyAttachState(pi, readAttachState(ctx), repoToolNames);
   });
 
   pi.on("session_start", async (_event: SessionStartEvent, ctx) => {
-    applyAttachState(pi, readAttachState(ctx));
+    applyAttachState(pi, readAttachState(ctx), repoToolNames);
 
     const warnings = await collectExtraToolWarnings(pi.getAllTools(), settings);
     for (const warning of warnings) {

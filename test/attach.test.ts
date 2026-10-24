@@ -7,7 +7,8 @@ import {
   renderAttachEntry,
   setAttachState,
 } from "../extensions/librarian/attach.ts";
-import { ATTACHABLE_TOOL_NAMES } from "../extensions/librarian/tools/names.ts";
+
+const TOOLS = ["search_code_github", "search_repos_github", "checkout_repo"];
 
 function contextWithBranch(entries: unknown[]): ExtensionContext {
   return {
@@ -79,16 +80,13 @@ describe("readAttachState", () => {
 describe("applyAttachState", () => {
   it("adds the attachable tools when attaching", () => {
     const { pi, getActive } = fakePi(["read", "bash", "librarian"]);
-    applyAttachState(pi, true);
-    for (const name of ATTACHABLE_TOOL_NAMES) {
-      expect(getActive()).toContain(name);
-    }
-    expect(getActive()).toContain("librarian");
+    applyAttachState(pi, true, TOOLS);
+    expect(getActive()).toEqual(["read", "bash", "librarian", ...TOOLS]);
   });
 
   it("removes the attachable tools when detaching, leaving others", () => {
-    const { pi, getActive } = fakePi(["read", "search_repos", "checkout_repo", "librarian"]);
-    applyAttachState(pi, false);
+    const { pi, getActive } = fakePi(["read", "search_repos_github", "checkout_repo", "librarian"]);
+    applyAttachState(pi, false, TOOLS);
     expect(getActive()).toEqual(["read", "librarian"]);
   });
 });
@@ -97,12 +95,12 @@ describe("setAttachState", () => {
   it.each([true, false])("snapshots the affected tools when attached is %s", (attached) => {
     const { pi, getEntries } = fakePi(["read"]);
 
-    setAttachState(pi, attached);
+    setAttachState(pi, attached, TOOLS);
 
     expect(getEntries()).toEqual([
       {
         customType: ATTACH_ENTRY_TYPE,
-        data: { attached, tools: ATTACHABLE_TOOL_NAMES },
+        data: { attached, tools: TOOLS },
       },
     ]);
   });

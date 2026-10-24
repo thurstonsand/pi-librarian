@@ -3,7 +3,7 @@ import { createProvideResultsTool } from "../extensions/librarian/tools/provide-
 
 describe("provide_results", () => {
   it("terminates the turn after recording findings", async () => {
-    const tool = createProvideResultsTool(() => {});
+    const tool = createProvideResultsTool(["github"], () => {});
     const result = await tool.execute(
       "call-1",
       { summary: "Done.", locations: [] },

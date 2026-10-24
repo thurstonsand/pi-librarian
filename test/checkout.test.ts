@@ -7,7 +7,6 @@ import {
   parseRepoReference,
   repoCachePath,
 } from "../extensions/librarian/checkout.ts";
-import type { CloneSource } from "../extensions/librarian/settings.ts";
 import { resolveLibrarianSettings } from "../extensions/librarian/settings.ts";
 import { createCheckoutRepoTool } from "../extensions/librarian/tools/checkout-repo.ts";
 

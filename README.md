@@ -1,6 +1,6 @@
 # pi-librarian
 
-A GitHub research subagent for the [pi coding agent](https://github.com/badlogic/pi-mono) inspired by [Amp](https://ampcode.com/): deep-dive questions about specific repos ("how does drizzle-orm implement prepared statements?") and discovery across the ecosystem ("compare the most popular TypeScript SQL ORMs").
+A code research subagent for the [pi coding agent](https://github.com/badlogic/pi-mono) inspired by [Amp](https://ampcode.com/): deep-dive questions about specific repos ("how does drizzle-orm implement prepared statements?") and discovery across the ecosystem ("compare the most popular TypeScript SQL ORMs").
 
 ![calling the librarian tool](images/librarian-run.png)
 
@@ -8,13 +8,15 @@ A GitHub research subagent for the [pi coding agent](https://github.com/badlogic
 
 ## How it works
 
-The `librarian` tool spawns a research subagent with purpose-built tools:
+The `librarian` tool spawns a research subagent with purpose-built tools, built from the sources you configure. One tool per search engine, because every engine's query language and filters differ; a tool with no configured instance does not appear, and one with several takes a `source` argument naming which.
 
 - **`checkout_repo`** — clone into a local cache, where it can be read locally, and `git log -S`/`blame`/`diff` covers history. Takes a repository path plus a `source` naming one of your configured sources, or a full HTTPS/SSH clone URL on its own.
-- **`search_repos`** — GitHub repository discovery (stars, topics, other metadata).
-- **`search_code`** — cross-repo public code search via [Grep](https://grep.app/) (regex, global discovery, repo/language/path filters).
-- **`search_github_code`** — GitHub REST code search over public code and private repositories your configured GitHub auth can access.
-- **`read_github_file`** — single-file API reads for quick peeks without cloning.
+- **`read_file`** — read one file or list one directory from a code host without cloning.
+- **`search_code_github`** — GitHub code search over public code and private repositories your token can read.
+- **`search_code_grepapp`** — public code search via [Grep](https://grep.app/), with regex.
+- **`search_repos_github`** — GitHub repository discovery by name, topics, language, stars, and activity.
+
+Every search returns a short digest, 10 results unless the librarian asks for up to 50, and writes the full result set to a file it can grep. A search that runs past its 15-second budget is an error that says how to narrow it, never a partial answer.
 
 ## Usage
 
@@ -30,7 +32,7 @@ Public GitHub reads work without configuration. To let the librarian search and 
 1. Set `GITHUB_TOKEN` or `GH_TOKEN` in the environment before starting pi.
 2. Or authenticate the GitHub CLI so `gh auth token` returns a token:
 
-The token is loaded once per pi session and used for GitHub access in `search_repos`, `search_github_code`, and `read_github_file`. For private repositories, use a token with read access to the target repos. `checkout_repo` uses git's built-in credential helpers instead.
+The token is loaded once per pi session and used for GitHub access in `search_code_github`, `search_repos_github`, and `read_file`. For private repositories, use a token with read access to the target repos. `checkout_repo` uses git's built-in credential helpers instead.
 
 ## Configuration
 

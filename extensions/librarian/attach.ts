@@ -2,7 +2,6 @@ import type { ExtensionAPI, ExtensionContext, Theme } from "@earendil-works/pi-c
 import { type Component, Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 import { safeParseTypeBoxValue } from "../shared/typebox.ts";
-import { ATTACHABLE_TOOL_NAMES } from "./tools/names.ts";
 
 export const ATTACH_ENTRY_TYPE = "pi-librarian:attach";
 
@@ -30,9 +29,9 @@ export function readAttachState(ctx: ExtensionContext): boolean {
   return attached;
 }
 
-export function applyAttachState(pi: ExtensionAPI, attached: boolean): void {
+export function applyAttachState(pi: ExtensionAPI, attached: boolean, toolNames: string[]): void {
   const active = new Set(pi.getActiveTools());
-  for (const name of ATTACHABLE_TOOL_NAMES) {
+  for (const name of toolNames) {
     if (attached) {
       active.add(name);
     } else {
@@ -42,12 +41,9 @@ export function applyAttachState(pi: ExtensionAPI, attached: boolean): void {
   pi.setActiveTools([...active]);
 }
 
-export function setAttachState(pi: ExtensionAPI, attached: boolean): void {
-  applyAttachState(pi, attached);
-  pi.appendEntry<AttachEntryData>(ATTACH_ENTRY_TYPE, {
-    attached,
-    tools: [...ATTACHABLE_TOOL_NAMES],
-  });
+export function setAttachState(pi: ExtensionAPI, attached: boolean, toolNames: string[]): void {
+  applyAttachState(pi, attached, toolNames);
+  pi.appendEntry<AttachEntryData>(ATTACH_ENTRY_TYPE, { attached, tools: [...toolNames] });
 }
 
 export function renderAttachEntry(data: unknown, expanded: boolean, theme: Theme): Component {

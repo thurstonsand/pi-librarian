@@ -2,8 +2,15 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { RequestError } from "@octokit/request-error";
 import { Octokit } from "@octokit/rest";
-import { type Static, Type } from "typebox";
+import { Type } from "typebox";
 import { safeParseTypeBoxValue } from "../shared/typebox.ts";
+import {
+  EntryNotFoundError,
+  EntryTooLargeError,
+  type RepoEntry,
+  type RepoEntryType,
+  type RepoFileReader,
+} from "./repo-entry.ts";
 
 const execFileAsync = promisify(execFile);
 
@@ -11,7 +18,6 @@ export class GitHubApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
-    readonly retryAfterSeconds: number | undefined,
     override readonly cause?: unknown,
   ) {
     super(message, cause === undefined ? undefined : { cause });
@@ -19,20 +25,11 @@ export class GitHubApiError extends Error {
   }
 }
 
-export interface GitHubRepoSlug {
-  owner: string;
-  repo: string;
-}
-
-function repoFullName(repo: GitHubRepoSlug): string {
-  return `${repo.owner}/${repo.repo}`;
-}
-
 export interface GitHubClientApi {
   searchRepositories(params: SearchRepositoriesParams): Promise<RepoSearchResult>;
-  searchCode(params: SearchGitHubCodeParams): Promise<GitHubCodeSearchResult>;
-  readContents(params: ReadContentsParams): Promise<FileContents | DirectoryContents>;
-  getRepo(repo: GitHubRepoSlug): Promise<RepoMeta>;
+  searchCode(params: SearchCodeParams): Promise<GitHubCodeSearchResult>;
+  readEntry(params: ReadEntryParams): Promise<RepoEntry>;
+  getRepo(owner: string, repo: string, signal: AbortSignal | undefined): Promise<RepoMeta>;
 }
 
 export type GitHubClientProvider = () => Promise<GitHubClientApi>;
@@ -64,10 +61,15 @@ const SILENT_OCTOKIT_LOG = {
   error: () => {},
 };
 
-export function createGitHubClient(token: string | undefined): GitHubClient {
+function apiBaseUrl(webUrl: string): string {
+  return webUrl === "https://github.com" ? "https://api.github.com" : `${webUrl}/api/v3`;
+}
+
+export function createGitHubClient(token: string | undefined, webUrl: string): GitHubClient {
   return new GitHubClient(
     new Octokit({
       ...(token ? { auth: token } : {}),
+      baseUrl: apiBaseUrl(webUrl),
       userAgent: "pi-librarian",
       log: SILENT_OCTOKIT_LOG,
       request: {
@@ -81,29 +83,27 @@ export function createGitHubClient(token: string | undefined): GitHubClient {
 }
 
 export function createGitHubClientProvider(
-  tokenResolver: () => Promise<string | undefined> = resolveGitHubToken,
+  tokenResolver: () => Promise<string | undefined>,
+  webUrl: string,
 ): GitHubClientProvider {
   let client: Promise<GitHubClient> | undefined;
   return () => {
-    client ??= tokenResolver().then((token) => createGitHubClient(token));
+    client ??= tokenResolver().then((token) => createGitHubClient(token, webUrl));
     return client;
   };
 }
 
-function retryAfterSeconds(
+// The rate-limit reset is an epoch second on GitHub's clock; measuring it against the response's own
+// Date header rather than ours keeps clock skew out of the wait we report.
+function rateLimitResetSeconds(
   headers: Record<string, string | number | undefined> | undefined,
 ): number | undefined {
-  const retryAfter = headers?.["retry-after"];
-  const rateReset = headers?.["x-ratelimit-reset"];
-
-  let seconds: number | undefined;
-  if (retryAfter) {
-    seconds = Number(retryAfter);
-  } else if (rateReset) {
-    seconds = Math.max(0, Number(rateReset) - Math.floor(Date.now() / 1000));
+  const reset = Number(headers?.["x-ratelimit-reset"]);
+  const serverDate = Date.parse(String(headers?.date ?? ""));
+  if (!Number.isFinite(reset) || Number.isNaN(serverDate)) {
+    return undefined;
   }
-
-  return Number.isFinite(seconds) ? seconds : undefined;
+  return Math.max(0, Math.ceil(reset - serverDate / 1000));
 }
 
 const GITHUB_ERROR_DATA_SCHEMA = Type.Object({
@@ -112,28 +112,42 @@ const GITHUB_ERROR_DATA_SCHEMA = Type.Object({
 
 function errorDetail(error: RequestError): string {
   const parsed = safeParseTypeBoxValue(GITHUB_ERROR_DATA_SCHEMA, error.response?.data);
-  if (parsed?.message) {
-    return parsed.message;
-  }
-  return error.message;
+  return parsed?.message ?? error.message;
 }
 
 function normalizeGitHubError(error: unknown, operation: string): never {
-  if (error instanceof RequestError) {
-    const detail = errorDetail(error).slice(0, 300);
+  if (!(error instanceof RequestError)) {
+    throw error;
+  }
+
+  const headers = error.response?.headers;
+  if (
+    (error.status === 403 || error.status === 429) &&
+    String(headers?.["x-ratelimit-remaining"]) === "0"
+  ) {
+    const reset = rateLimitResetSeconds(headers);
     throw new GitHubApiError(
-      `GitHub API ${error.status} during ${operation}${detail ? `: ${detail}` : ""}`,
+      `GitHub ${operation} rate limit reached${reset === undefined ? "" : `; resets in ${reset}s`}.`,
       error.status,
-      retryAfterSeconds(error.response?.headers),
       error,
     );
   }
 
-  throw error;
+  const detail = errorDetail(error).slice(0, 300);
+  throw new GitHubApiError(
+    `GitHub API ${error.status} during ${operation}${detail ? `: ${detail}` : ""}`,
+    error.status,
+    error,
+  );
+}
+
+function requestOptions(signal: AbortSignal | undefined): { signal?: AbortSignal } {
+  return signal ? { signal } : {};
 }
 
 const REPO_SEARCH_ITEM_SCHEMA = Type.Object({
   full_name: Type.String(),
+  html_url: Type.String(),
   description: Type.Union([Type.String(), Type.Null()]),
   stargazers_count: Type.Number(),
   language: Type.Union([Type.String(), Type.Null()]),
@@ -143,13 +157,15 @@ const REPO_SEARCH_ITEM_SCHEMA = Type.Object({
   fork: Type.Boolean(),
 });
 
-const REPO_SEARCH_RESPONSE_SCHEMA = Type.Object({
+const SEARCH_RESPONSE_SCHEMA = Type.Object({
   total_count: Type.Number(),
+  incomplete_results: Type.Boolean(),
   items: Type.Array(Type.Unknown()),
 });
 
 export interface RepoSearchHit {
   repo: string;
+  url: string;
   description: string | undefined;
   stars: number;
   language: string | undefined;
@@ -166,8 +182,9 @@ export interface RepoSearchResult {
 
 export interface SearchRepositoriesParams {
   query: string;
-  sort: "stars" | "updated" | "best-match";
+  sort: "best-match" | "stars" | "updated";
   limit: number;
+  signal: AbortSignal | undefined;
 }
 
 const CODE_SEARCH_MATCH_SCHEMA = Type.Object({
@@ -176,84 +193,82 @@ const CODE_SEARCH_MATCH_SCHEMA = Type.Object({
 
 const CODE_SEARCH_ITEM_SCHEMA = Type.Object({
   path: Type.String(),
+  html_url: Type.String(),
   repository: Type.Object({ full_name: Type.String() }),
   text_matches: Type.Optional(Type.Array(Type.Unknown())),
-});
-
-const CODE_SEARCH_RESPONSE_SCHEMA = Type.Object({
-  total_count: Type.Number(),
-  items: Type.Array(Type.Unknown()),
 });
 
 export interface CodeSearchHit {
   repo: string;
   path: string;
+  url: string;
+  commit: string | undefined;
   fragments: string[];
 }
 
 export interface GitHubCodeSearchResult {
   totalCount: number;
+  incompleteResults: boolean;
   hits: CodeSearchHit[];
 }
 
-export interface SearchGitHubCodeParams {
-  pattern: string;
-  repos?: GitHubRepoSlug[];
-  owners?: string[];
-  language?: string;
-  path?: string;
+export interface SearchCodeParams {
+  query: string;
   limit: number;
+  signal: AbortSignal | undefined;
 }
 
-const CONTENTS_DIR_ENTRY_SCHEMA = Type.Object({
+const CONTENTS_ENTRY_SCHEMA = Type.Object({
   type: Type.String(),
+  name: Type.String(),
   path: Type.String(),
-  size: Type.Optional(Type.Number()),
+  size: Type.Number(),
+  sha: Type.String(),
+  content: Type.Optional(Type.String()),
+  encoding: Type.Optional(Type.String()),
+  target: Type.Optional(Type.String()),
+  submodule_git_url: Type.Optional(Type.String()),
 });
 
-export type FileContents = {
-  kind: "file";
-  text: string;
-};
-
-export type DirectoryContents = {
-  kind: "directory";
-  entries: { type: string; path: string; size: number | undefined }[];
-};
-
-export interface ReadContentsParams {
-  repo: GitHubRepoSlug;
+export interface ReadEntryParams {
+  owner: string;
+  repo: string;
   path: string;
   ref: string | undefined;
+  maxBytes: number;
+  signal: AbortSignal | undefined;
 }
 
 const REPO_META_SCHEMA = Type.Object({
+  full_name: Type.String(),
   default_branch: Type.String(),
   private: Type.Boolean(),
 });
 
 export interface RepoMeta {
+  fullName: string;
   defaultBranch: string;
   isPrivate: boolean;
 }
 
-function buildGitHubCodeQuery(params: SearchGitHubCodeParams): string {
-  const parts: string[] = [params.pattern.replace(/^\/|\/$/g, "")];
+// The contents API spells the four entry types this way; a directory listing reports a submodule
+// as "file" with no download_url in some versions, so the single-entry form is the one trusted.
+function entryType(type: string): RepoEntryType {
+  switch (type) {
+    case "dir":
+      return "directory";
+    case "symlink":
+      return "symlink";
+    case "submodule":
+      return "submodule";
+    default:
+      return "file";
+  }
+}
 
-  for (const repo of params.repos ?? []) {
-    parts.push(`repo:${repoFullName(repo)}`);
-  }
-  for (const owner of params.owners ?? []) {
-    parts.push(`user:${owner}`);
-  }
-  if (params.language) {
-    parts.push(`language:${params.language}`);
-  }
-  if (params.path) {
-    parts.push(`path:${params.path}`);
-  }
-
-  return parts.join(" ");
+// Line references in GitHub's blob URLs are a commit, which is what a reader needs to agree on lines.
+function commitFromBlobUrl(url: string): string | undefined {
+  return /\/blob\/([0-9a-f]{40})\//.exec(url)?.[1];
 }
 
 export class GitHubClient implements GitHubClientApi {
@@ -265,8 +280,9 @@ export class GitHubClient implements GitHubClientApi {
         q: params.query,
         per_page: params.limit,
         ...(params.sort === "best-match" ? {} : { sort: params.sort, order: "desc" as const }),
+        request: requestOptions(params.signal),
       });
-      const payload = safeParseTypeBoxValue(REPO_SEARCH_RESPONSE_SCHEMA, response.data);
+      const payload = safeParseTypeBoxValue(SEARCH_RESPONSE_SCHEMA, response.data);
       if (!payload) {
         throw new Error("GitHub repository search returned an unexpected payload shape.");
       }
@@ -277,9 +293,9 @@ export class GitHubClient implements GitHubClientApi {
         if (!parsed) {
           continue;
         }
-
         hits.push({
           repo: parsed.full_name,
+          url: parsed.html_url,
           description: parsed.description ?? undefined,
           stars: parsed.stargazers_count,
           language: parsed.language ?? undefined,
@@ -296,15 +312,16 @@ export class GitHubClient implements GitHubClientApi {
     }
   }
 
-  async searchCode(params: SearchGitHubCodeParams): Promise<GitHubCodeSearchResult> {
+  async searchCode(params: SearchCodeParams): Promise<GitHubCodeSearchResult> {
     try {
       const response = await this.octokit.rest.search.code({
-        q: buildGitHubCodeQuery(params),
+        q: params.query,
         per_page: params.limit,
         mediaType: { format: "text-match" },
+        request: requestOptions(params.signal),
       });
 
-      const payload = safeParseTypeBoxValue(CODE_SEARCH_RESPONSE_SCHEMA, response.data);
+      const payload = safeParseTypeBoxValue(SEARCH_RESPONSE_SCHEMA, response.data);
       if (!payload) {
         throw new Error("GitHub code search returned an unexpected payload shape.");
       }
@@ -324,56 +341,133 @@ export class GitHubClient implements GitHubClientApi {
           }
         }
 
-        hits.push({ repo: parsed.repository.full_name, path: parsed.path, fragments });
+        hits.push({
+          repo: parsed.repository.full_name,
+          path: parsed.path,
+          url: parsed.html_url,
+          commit: commitFromBlobUrl(parsed.html_url),
+          fragments,
+        });
       }
 
-      return { totalCount: payload.total_count, hits };
+      return {
+        totalCount: payload.total_count,
+        incompleteResults: payload.incomplete_results,
+        hits,
+      };
     } catch (error) {
       normalizeGitHubError(error, "code search");
     }
   }
 
-  async readContents(params: ReadContentsParams): Promise<FileContents | DirectoryContents> {
+  async readEntry(params: ReadEntryParams): Promise<RepoEntry> {
+    const operation = `read ${params.owner}/${params.repo}/${params.path}`;
     try {
       const response = await this.octokit.rest.repos.getContent({
-        owner: params.repo.owner,
-        repo: params.repo.repo,
+        owner: params.owner,
+        repo: params.repo,
         path: params.path,
         ...(params.ref ? { ref: params.ref } : {}),
-        mediaType: { format: "raw" },
+        request: requestOptions(params.signal),
       });
 
       if (Array.isArray(response.data)) {
         const entries = response.data
-          .map((entry) => safeParseTypeBoxValue(CONTENTS_DIR_ENTRY_SCHEMA, entry))
-          .filter((entry): entry is Static<typeof CONTENTS_DIR_ENTRY_SCHEMA> => entry !== undefined)
-          .map((entry) => ({ type: entry.type, path: entry.path, size: entry.size }));
-        return { kind: "directory", entries };
+          .map((entry) => safeParseTypeBoxValue(CONTENTS_ENTRY_SCHEMA, entry))
+          .filter((entry) => entry !== undefined)
+          .map((entry) => ({ name: entry.name, type: entryType(entry.type) }));
+        return { type: "directory", entries };
       }
 
-      if (typeof response.data === "string") {
-        return { kind: "file", text: response.data };
+      const entry = safeParseTypeBoxValue(CONTENTS_ENTRY_SCHEMA, response.data);
+      if (!entry) {
+        throw new Error(`Unexpected payload during ${operation}.`);
       }
 
-      throw new Error(`Unexpected payload reading ${repoFullName(params.repo)}:${params.path}.`);
+      switch (entryType(entry.type)) {
+        case "symlink":
+          return { type: "symlink", target: entry.target ?? "" };
+        case "submodule":
+          return { type: "submodule", url: entry.submodule_git_url };
+        case "directory":
+          throw new Error(`Unexpected directory entry during ${operation}.`);
+        case "file":
+          break;
+      }
+
+      if (entry.size > params.maxBytes) {
+        throw new EntryTooLargeError(entry.size);
+      }
+      // Above 1 MB the JSON form returns 200 with empty content; only the raw media type serves it.
+      if (entry.encoding === "base64" && entry.content !== undefined && entry.content.length > 0) {
+        return { type: "file", size: entry.size, bytes: Buffer.from(entry.content, "base64") };
+      }
+      const raw = await this.octokit.rest.repos.getContent({
+        owner: params.owner,
+        repo: params.repo,
+        path: params.path,
+        ...(params.ref ? { ref: params.ref } : {}),
+        mediaType: { format: "raw" },
+        request: requestOptions(params.signal),
+      });
+      const bytes =
+        typeof raw.data === "string"
+          ? Buffer.from(raw.data)
+          : Buffer.from(raw.data as unknown as ArrayBuffer);
+      return { type: "file", size: entry.size, bytes };
     } catch (error) {
-      normalizeGitHubError(error, `read ${repoFullName(params.repo)}:${params.path}`);
+      if (error instanceof EntryTooLargeError) {
+        throw error;
+      }
+      if (error instanceof RequestError && error.status === 404) {
+        throw new EntryNotFoundError(
+          `Not found: ${params.owner}/${params.repo}/${params.path}${params.ref ? ` at ${params.ref}` : ""}.\nGitHub returns the same 404 for a missing path, ref, or repository and for a private repository your token cannot read.`,
+        );
+      }
+      normalizeGitHubError(error, operation);
     }
   }
 
-  async getRepo(repo: GitHubRepoSlug): Promise<RepoMeta> {
+  async getRepo(owner: string, repo: string, signal: AbortSignal | undefined): Promise<RepoMeta> {
     try {
-      const response = await this.octokit.rest.repos.get({ owner: repo.owner, repo: repo.repo });
+      const response = await this.octokit.rest.repos.get({
+        owner,
+        repo,
+        request: requestOptions(signal),
+      });
       const payload = safeParseTypeBoxValue(REPO_META_SCHEMA, response.data);
       if (!payload) {
         throw new Error(
-          `GitHub repo metadata for ${repoFullName(repo)} returned an unexpected payload shape.`,
+          `GitHub repo metadata for ${owner}/${repo} returned an unexpected payload shape.`,
         );
       }
-
-      return { defaultBranch: payload.default_branch, isPrivate: payload.private };
+      return {
+        fullName: payload.full_name,
+        defaultBranch: payload.default_branch,
+        isPrivate: payload.private,
+      };
     } catch (error) {
-      normalizeGitHubError(error, `repo metadata for ${repoFullName(repo)}`);
+      normalizeGitHubError(error, `repo lookup for ${owner}/${repo}`);
     }
   }
+}
+
+export function createGitHubFileReader(provider: GitHubClientProvider): RepoFileReader {
+  return {
+    async readEntry(request) {
+      const [owner, repo, ...rest] = request.repo.split("/");
+      if (!owner || !repo || rest.length > 0) {
+        throw new Error(`GitHub repositories are owner/repo; "${request.repo}" is not.`);
+      }
+      const client = await provider();
+      return client.readEntry({
+        owner,
+        repo,
+        path: request.path,
+        ref: request.ref,
+        maxBytes: request.maxBytes,
+        signal: request.signal,
+      });
+    },
+  };
 }

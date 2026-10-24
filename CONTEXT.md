@@ -16,7 +16,7 @@ The pi session uuid of a librarian run, so that it may be continued for follow u
 The structured output of a librarian run, produced by `provide_results`: summary, locations, optional description.
 
 **Repo tools**:
-The repository research tools this package registers: `search_repos`, `search_code`, `search_github_code`, `checkout_repo`, `read_github_file`, `provide_results`. Exclusive to librarian runs unless attached.
+The repository research tools this package registers, built from the configured sources: one `search_code_<engine>` and `search_repos_<engine>` tool per engine with an instance, plus `read_file`, `checkout_repo`, and `provide_results`. Exclusive to librarian runs unless attached.
 
 **Source**:
 A declared instance the librarian can reach.
@@ -29,6 +29,13 @@ Something a source may do: `clone`, `code-search`, `repo-search`.
 
 **Backend**:
 Service that answers a code search.
+
+**Digest**:
+What a search tool returns to the agent: what was found, whether the search was complete, what is shown versus fetched, and the path of its artifact, then the first results.
+
+**Artifact**:
+The `results.jsonl` file every search writes under `<cacheDir>/searches/<call-id>/`, holding every result it fetched at full detail.
+_Avoid_: cache (reserved for clones)
 
 **Inherited tools**:
 Pi built-ins granted to librarian runs (`read`, `grep`, `find`, `ls`, `bash`); `write`/`edit` are not included.

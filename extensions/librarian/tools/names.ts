@@ -1,21 +1,25 @@
 export const LIBRARIAN_TOOL_NAMES = {
-  searchRepos: "search_repos",
-  searchCode: "search_code",
-  searchGitHubCode: "search_github_code",
+  searchCodeGitHub: "search_code_github",
+  searchCodeGrepApp: "search_code_grepapp",
+  searchCodeSourcegraph: "search_code_sourcegraph",
+  searchCodeGitLab: "search_code_gitlab",
+  searchCodeBitbucket: "search_code_bitbucket",
+  searchReposGitHub: "search_repos_github",
+  searchReposSourcegraph: "search_repos_sourcegraph",
+  searchReposGitLab: "search_repos_gitlab",
+  searchReposBitbucket: "search_repos_bitbucket",
+  findDefinition: "find_definition",
+  readFile: "read_file",
   checkoutRepo: "checkout_repo",
-  readGitHubFile: "read_github_file",
   provideResults: "provide_results",
 } as const;
 
-export const ATTACHABLE_TOOL_NAMES = [
-  LIBRARIAN_TOOL_NAMES.searchRepos,
-  LIBRARIAN_TOOL_NAMES.searchCode,
-  LIBRARIAN_TOOL_NAMES.searchGitHubCode,
-  LIBRARIAN_TOOL_NAMES.checkoutRepo,
-  LIBRARIAN_TOOL_NAMES.readGitHubFile,
-] as const;
+export const REPO_TOOL_NAMES: readonly string[] = Object.values(LIBRARIAN_TOOL_NAMES);
 
-export const LIBRARIAN_RUN_TOOL_NAMES = [
-  ...ATTACHABLE_TOOL_NAMES,
-  LIBRARIAN_TOOL_NAMES.provideResults,
-] as const;
+export function isCodeSearchTool(name: string): boolean {
+  return name.startsWith("search_code_");
+}
+
+export function isRepoSearchTool(name: string): boolean {
+  return name.startsWith("search_repos_");
+}

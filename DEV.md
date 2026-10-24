@@ -34,7 +34,8 @@ No build/compile step — the pi framework loads extensions directly from TypeSc
 ## Project structure
 
 - **Entrypoint**: `extensions/librarian.ts` — registers the `librarian` tool and `/librarian` command.
-- **Research tools**: `extensions/librarian/tools/` — `search_repos`, `search_code`, `search_github_code`, `checkout_repo`, `read_github_file`, `provide_results`.
+- **Research tools**: `extensions/librarian/tools/` — one `search_code_<engine>` / `search_repos_<engine>` file per engine, plus `read-file.ts`, `checkout-repo.ts`, `provide-results.ts`. `tools/index.ts` builds the set and the per-source clients from settings; `tools/shared.ts` holds the `limit` and `source` arguments and edge validation.
+- **Delivery**: `extensions/librarian/delivery.ts` — the artifact every search writes and the digest it returns; `budget.ts` — the search time limit as an error, cancelling the request.
 - **Clients**: `extensions/librarian/github.ts` (REST + gh auth), `extensions/librarian/grep-app.ts` (public code search).
 - **Checkout cache**: `extensions/librarian/checkout.ts` — blob-less partial clones under `/tmp/pi-librarian/repos/` by default.
 - **Runtime**: `extensions/librarian/run.ts` — nested agent session, `provide_results` enforcement.

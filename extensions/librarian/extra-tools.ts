@@ -1,11 +1,11 @@
 import { getAgentDir, type ToolInfo } from "@earendil-works/pi-coding-agent";
 import { createLibrarianResourceLoader } from "./resource-loader.ts";
 import type { LibrarianSettings } from "./settings.ts";
-import { LIBRARIAN_RUN_TOOL_NAMES } from "./tools/names.ts";
+import { REPO_TOOL_NAMES } from "./tools/names.ts";
 
 export const LIBRARIAN_BASELINE_TOOL_NAMES = ["read", "grep", "find", "ls", "bash"] as const;
 
-const LIBRARIAN_SELF_TOOL_NAMES = new Set<string>(["librarian", ...LIBRARIAN_RUN_TOOL_NAMES]);
+const LIBRARIAN_SELF_TOOL_NAMES = new Set<string>(["librarian", ...REPO_TOOL_NAMES]);
 
 export type ExtraToolWarningReason = "self" | "unresolved" | "extensionLoad";
 

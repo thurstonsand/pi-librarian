@@ -1,18 +1,19 @@
 import type { AgentToolResult } from "@earendil-works/pi-agent-core";
+import { formatCount, plural } from "./delivery.ts";
 import type { CheckoutRepoDetails } from "./tools/checkout-repo.ts";
-import { LIBRARIAN_RUN_TOOL_NAMES } from "./tools/names.ts";
+import { REPO_TOOL_NAMES } from "./tools/names.ts";
 import type { ProvideResultsDetails } from "./tools/provide-results.ts";
-import type { ReadGitHubFileDetails } from "./tools/read-github-file.ts";
-import type { SearchCodeDetails } from "./tools/search-code.ts";
-import type { SearchGitHubCodeDetails } from "./tools/search-github-code.ts";
-import type { SearchReposDetails } from "./tools/search-repos.ts";
+import type { ReadFileDetails } from "./tools/read-file.ts";
+import type { SearchCodeGitHubDetails } from "./tools/search-code-github.ts";
+import type { SearchCodeGrepAppDetails } from "./tools/search-code-grepapp.ts";
+import type { SearchReposGitHubDetails } from "./tools/search-repos-github.ts";
 
-type RepoToolDetails =
-  | SearchReposDetails
-  | SearchCodeDetails
-  | SearchGitHubCodeDetails
+export type RepoToolDetails =
+  | SearchCodeGitHubDetails
+  | SearchCodeGrepAppDetails
+  | SearchReposGitHubDetails
+  | ReadFileDetails
   | CheckoutRepoDetails
-  | ReadGitHubFileDetails
   | ProvideResultsDetails;
 
 interface ToolResultShape {
@@ -26,11 +27,60 @@ export function asRepoToolDetails(details: unknown): RepoToolDetails | undefined
     typeof details === "object" &&
     "kind" in details &&
     typeof details.kind === "string" &&
-    LIBRARIAN_RUN_TOOL_NAMES.includes(details.kind as (typeof LIBRARIAN_RUN_TOOL_NAMES)[number])
+    REPO_TOOL_NAMES.includes(details.kind)
   ) {
     return details as RepoToolDetails;
   }
   return undefined;
+}
+
+interface CodeSearchSummary {
+  unit: "repos" | "files" | "matches";
+  matchCount: number;
+  repoCount: number | undefined;
+  complete: boolean | undefined;
+}
+
+function summarizeCodeSearch(details: CodeSearchSummary, ranked: boolean): string {
+  const repos =
+    details.unit === "repos" || details.repoCount === undefined
+      ? ""
+      : ` · ${plural(details.repoCount, "repo")}`;
+  const flags = [
+    ...(details.complete === false ? ["incomplete"] : []),
+    ...(ranked ? [] : ["unranked"]),
+  ];
+  return `${formatCount(details.matchCount)} ${details.unit}${repos}${flags.length > 0 ? `, ${flags.join(", ")}` : ""}`;
+}
+
+interface RepoSearchSummary {
+  matchCount: number;
+  fetchedCount: number;
+  complete: boolean | undefined;
+}
+
+function summarizeRepoSearch(details: RepoSearchSummary): string {
+  const count =
+    details.fetchedCount < details.matchCount
+      ? `${formatCount(details.fetchedCount)} of ${formatCount(details.matchCount)} repos`
+      : plural(details.matchCount, "repo");
+  return details.complete === false ? `${count}, incomplete` : count;
+}
+
+export function summarizeRepoToolDetails(details: RepoToolDetails): string | undefined {
+  switch (details.kind) {
+    case "search_code_github":
+    case "search_code_grepapp":
+      return summarizeCodeSearch(details, true);
+    case "search_repos_github":
+      return summarizeRepoSearch(details);
+    case "read_file":
+      return undefined;
+    case "checkout_repo":
+      return `${details.fileCount} files @ ${details.headSha.slice(0, 7)}`;
+    case "provide_results":
+      return plural(details.locationCount, "location");
+  }
 }
 
 export function summarizeToolResult(
@@ -51,20 +101,7 @@ export function summarizeToolResult(
 
   const details = asRepoToolDetails(result.details);
   if (details) {
-    switch (details.kind) {
-      case "search_repos":
-        return `${details.resultCount} of ${details.totalCount} repos`;
-      case "search_code":
-        return `${details.matchCount} hits · ${details.repoCount} repos · ${details.backend}`;
-      case "search_github_code":
-        return `${details.matchCount} hits · ${details.repoCount} repos · github`;
-      case "checkout_repo":
-        return `${details.reusedClone ? "cached" : "cloned"} · ${details.fileCount} files @ ${details.headSha.slice(0, 7)}`;
-      case "read_github_file":
-        return details.isDirectory ? `${details.lineCount} entries` : `${details.lineCount} lines`;
-      case "provide_results":
-        return `${details.locationCount} location${details.locationCount === 1 ? "" : "s"}`;
-    }
+    return summarizeRepoToolDetails(details);
   }
 
   if (firstText !== undefined) {
