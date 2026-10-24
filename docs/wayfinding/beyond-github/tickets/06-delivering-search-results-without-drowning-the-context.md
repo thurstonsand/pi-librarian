@@ -24,6 +24,20 @@ The numbers are in [Native search versus a search backend, head to head](02-nati
 
 File-level returns the **identical file list in identical rank order** as full — verified by diff — keeping `repository`, `path`, `commit`, `language`, `branches`. Everything a pinnable citation needs, at 8% of the cost.
 
+**But 8% is a property of that query, not of the projection.** Ticket 07 re-measured on a saturating instance-wide query: `select:file` returned 4.59 MB against 5.27 MB full, a **13%** saving across 13,055 matched files. The projection works by dropping snippets, so it saves enormously when a few files carry many matches each and almost nothing when thousands of files carry one match each. The middle rung is therefore worth 8% or 87% depending on match density, which the caller cannot know in advance — an argument for making the rung an explicit argument rather than an inference, and against quoting any single savings figure in a tool description.
+
+### Completeness is an allowlist, not a denylist
+
+Carried from ticket 07, where this was a live bug rather than a hypothesis. Incompleteness arrives through `skipped[]`, and there is more than one way to be incomplete:
+
+- `shard-timeout` — repositories that could not be searched in time.
+- `shard-match-limit` — the `count:` budget was reached and the search stopped early; the title reads "result limit hit".
+- `repository-fork`, `repository-archived` — **benign**, both are deliberate default exclusions.
+
+Ticket 07's probe harness checked for `shard-timeout` alone and pronounced a truncated 250-match search complete. So the rule is to treat any reason outside the benign set as incomplete, because checking only for the failures you thought of is how a confident lie ships. This applies to `search_code` today, not to a future tool.
+
+Worse, and relevant to any "showing N of M" wording: `repositoriesCount` in the progress event counts repositories **with matches**, not repositories searched. The streaming API cannot express coverage as a fraction at all. `skipped` says something was missed and never how much.
+
 **A naive limit parameter is not available.** The backend's `count:N` is a match budget, not a file budget: `count:20` returned one file, `count:100` returned two, and the ground-truth answer was absent from both. Whatever bounds results, it is not a passed-through limit.
 
 **Volume is selectivity times breadth, not scope.** The same project scope cost 7,472 bytes for a selective symbol and 753,636 bytes for stemmed common terms. So a scope requirement would not have bounded anything; only asking for a coarser resolution does.
