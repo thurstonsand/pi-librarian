@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { RequestError } from "@octokit/request-error";
 import { Octokit } from "@octokit/rest";
-import { Type } from "typebox";
+import { type Static, type TSchema, Type } from "typebox";
 import { parseTypeBoxValue, safeParseTypeBoxValue } from "../shared/typebox.ts";
 import {
   EntryNotFoundError,
@@ -25,14 +25,7 @@ export class GitHubApiError extends Error {
   }
 }
 
-export interface GitHubClientApi {
-  searchRepositories(params: SearchRepositoriesParams): Promise<RepoSearchResult>;
-  searchCode(params: SearchCodeParams): Promise<GitHubCodeSearchResult>;
-  readEntry(params: ReadEntryParams): Promise<RepoEntry>;
-  getRepo(owner: string, repo: string, signal: AbortSignal | undefined): Promise<RepoMeta>;
-}
-
-export type GitHubClientProvider = () => Promise<GitHubClientApi>;
+export type GitHubClientProvider = () => Promise<GitHubClient>;
 
 // GITHUB_TOKEN and GH_TOKEN are read with the rest of the settings; this is the zero-config fallback.
 export async function resolveGhCliToken(): Promise<string | undefined> {
@@ -153,11 +146,13 @@ const REPO_SEARCH_ITEM_SCHEMA = Type.Object({
   fork: Type.Boolean(),
 });
 
-const SEARCH_RESPONSE_SCHEMA = Type.Object({
-  total_count: Type.Number(),
-  incomplete_results: Type.Boolean(),
-  items: Type.Array(Type.Unknown()),
-});
+function searchResponseSchema<T extends TSchema>(item: T) {
+  return Type.Object({
+    total_count: Type.Number(),
+    incomplete_results: Type.Boolean(),
+    items: Type.Array(item),
+  });
+}
 
 export interface RepoSearchHit {
   repo: string;
@@ -192,7 +187,7 @@ const CODE_SEARCH_ITEM_SCHEMA = Type.Object({
   path: Type.String(),
   html_url: Type.String(),
   repository: Type.Object({ full_name: Type.String() }),
-  text_matches: Type.Optional(Type.Array(Type.Unknown())),
+  text_matches: Type.Optional(Type.Array(CODE_SEARCH_MATCH_SCHEMA)),
 });
 
 export interface CodeSearchHit {
@@ -268,189 +263,197 @@ function commitFromBlobUrl(url: string): string | undefined {
   return /\/blob\/([0-9a-f]{40})\//.exec(url)?.[1];
 }
 
-export class GitHubClient implements GitHubClientApi {
+// One GitHub API request. route is Octokit's "METHOD /path/{param}" form, filled from params.
+export interface GitHubRequest {
+  route: string;
+  params: Record<string, unknown>;
+  operation: string;
+  signal: AbortSignal | undefined;
+}
+
+export class GitHubClient {
   constructor(private readonly octokit: Octokit) {}
 
-  async searchRepositories(params: SearchRepositoriesParams): Promise<RepoSearchResult> {
+  // Every response crosses the edge here, so a caller holds a validated value or an error that
+  // names the operation; GitHub's own failures arrive as GitHubApiError with the status.
+  async get<T extends TSchema>(request: GitHubRequest, schema: T): Promise<Static<T>> {
     try {
-      const response = await this.octokit.rest.search.repos({
-        q: params.query,
-        per_page: params.limit,
-        ...(params.sort === "best-match" ? {} : { sort: params.sort, order: "desc" as const }),
-        request: requestOptions(params.signal),
+      const response = await this.octokit.request(request.route, {
+        ...request.params,
+        request: requestOptions(request.signal),
       });
-      const payload = safeParseTypeBoxValue(SEARCH_RESPONSE_SCHEMA, response.data);
-      if (!payload) {
-        throw new Error("GitHub repository search returned an unexpected payload shape.");
-      }
-
-      const hits: RepoSearchHit[] = [];
-      for (const item of payload.items) {
-        const parsed = parseTypeBoxValue(
-          REPO_SEARCH_ITEM_SCHEMA,
-          item,
-          "GitHub repository search result",
-        );
-        hits.push({
-          repo: parsed.full_name,
-          url: parsed.html_url,
-          description: parsed.description ?? undefined,
-          stars: parsed.stargazers_count,
-          language: parsed.language ?? undefined,
-          topics: parsed.topics ?? [],
-          pushedAt: parsed.pushed_at ?? undefined,
-          archived: parsed.archived,
-          fork: parsed.fork,
-        });
-      }
-
-      return {
-        totalCount: payload.total_count,
-        incompleteResults: payload.incomplete_results,
-        hits,
-      };
+      return parseTypeBoxValue(schema, response.data, `GitHub ${request.operation}`);
     } catch (error) {
-      normalizeGitHubError(error, "repository search");
+      normalizeGitHubError(error, request.operation);
     }
   }
 
-  async searchCode(params: SearchCodeParams): Promise<GitHubCodeSearchResult> {
+  async getRaw(request: GitHubRequest): Promise<Buffer> {
     try {
-      const response = await this.octokit.rest.search.code({
-        q: params.query,
-        per_page: params.limit,
-        mediaType: { format: "text-match" },
-        request: requestOptions(params.signal),
-      });
-
-      const payload = safeParseTypeBoxValue(SEARCH_RESPONSE_SCHEMA, response.data);
-      if (!payload) {
-        throw new Error("GitHub code search returned an unexpected payload shape.");
-      }
-
-      const hits: CodeSearchHit[] = [];
-      for (const item of payload.items) {
-        const parsed = parseTypeBoxValue(
-          CODE_SEARCH_ITEM_SCHEMA,
-          item,
-          "GitHub code search result",
-        );
-
-        const fragments: string[] = [];
-        for (const match of parsed.text_matches ?? []) {
-          const parsedMatch = safeParseTypeBoxValue(CODE_SEARCH_MATCH_SCHEMA, match);
-          if (parsedMatch?.fragment) {
-            fragments.push(parsedMatch.fragment);
-          }
-        }
-
-        hits.push({
-          repo: parsed.repository.full_name,
-          path: parsed.path,
-          url: parsed.html_url,
-          commit: commitFromBlobUrl(parsed.html_url),
-          fragments,
-        });
-      }
-
-      return {
-        totalCount: payload.total_count,
-        incompleteResults: payload.incomplete_results,
-        hits,
-      };
-    } catch (error) {
-      normalizeGitHubError(error, "code search");
-    }
-  }
-
-  async readEntry(params: ReadEntryParams): Promise<RepoEntry> {
-    const operation = `read ${params.owner}/${params.repo}/${params.path}`;
-    try {
-      const response = await this.octokit.rest.repos.getContent({
-        owner: params.owner,
-        repo: params.repo,
-        path: params.path,
-        ...(params.ref ? { ref: params.ref } : {}),
-        request: requestOptions(params.signal),
-      });
-
-      if (Array.isArray(response.data)) {
-        const entries = response.data
-          .map((entry) => parseTypeBoxValue(CONTENTS_ENTRY_SCHEMA, entry, "GitHub directory entry"))
-          .map((entry) => ({ name: entry.name, type: entryType(entry.type) }));
-        return { type: "directory", entries };
-      }
-
-      const entry = safeParseTypeBoxValue(CONTENTS_ENTRY_SCHEMA, response.data);
-      if (!entry) {
-        throw new Error(`Unexpected payload during ${operation}.`);
-      }
-
-      switch (entryType(entry.type)) {
-        case "symlink":
-          return { type: "symlink", target: entry.target ?? "" };
-        case "submodule":
-          return { type: "submodule", url: entry.submodule_git_url };
-        case "directory":
-          throw new Error(`Unexpected directory entry during ${operation}.`);
-        case "file":
-          break;
-      }
-
-      if (entry.size > params.maxBytes) {
-        throw new EntryTooLargeError(entry.size);
-      }
-      // Above 1 MB the JSON form returns 200 with empty content; only the raw media type serves it.
-      if (entry.encoding === "base64" && entry.content !== undefined && entry.content.length > 0) {
-        return { type: "file", size: entry.size, bytes: Buffer.from(entry.content, "base64") };
-      }
-      const raw = await this.octokit.rest.repos.getContent({
-        owner: params.owner,
-        repo: params.repo,
-        path: params.path,
-        ...(params.ref ? { ref: params.ref } : {}),
+      const response = await this.octokit.request(request.route, {
+        ...request.params,
         mediaType: { format: "raw" },
-        request: requestOptions(params.signal),
+        request: requestOptions(request.signal),
       });
-      const bytes =
-        typeof raw.data === "string"
-          ? Buffer.from(raw.data)
-          : Buffer.from(raw.data as unknown as ArrayBuffer);
-      return { type: "file", size: entry.size, bytes };
+      const data: unknown = response.data;
+      if (typeof data === "string") {
+        return Buffer.from(data);
+      }
+      if (data instanceof ArrayBuffer) {
+        return Buffer.from(data);
+      }
+      throw new Error(`GitHub ${request.operation} returned no raw content.`);
     } catch (error) {
-      if (error instanceof EntryTooLargeError) {
-        throw error;
-      }
-      if (error instanceof RequestError && error.status === 404) {
-        throw new EntryNotFoundError(
-          `Not found: ${params.owner}/${params.repo}/${params.path}${params.ref ? ` at ${params.ref}` : ""}.\nGitHub returns the same 404 for a missing path, ref, or repository and for a private repository your token cannot read.`,
-        );
-      }
+      normalizeGitHubError(error, request.operation);
+    }
+  }
+
+  async graphql<T extends TSchema>(
+    query: string,
+    variables: Record<string, unknown>,
+    schema: T,
+    operation: string,
+    signal: AbortSignal | undefined,
+  ): Promise<Static<T>> {
+    try {
+      const data: unknown = await this.octokit.graphql(query, {
+        ...variables,
+        request: requestOptions(signal),
+      });
+      return parseTypeBoxValue(schema, data, `GitHub ${operation}`);
+    } catch (error) {
       normalizeGitHubError(error, operation);
     }
   }
 
-  async getRepo(owner: string, repo: string, signal: AbortSignal | undefined): Promise<RepoMeta> {
+  async searchRepositories(params: SearchRepositoriesParams): Promise<RepoSearchResult> {
+    const payload = await this.get(
+      {
+        route: "GET /search/repositories",
+        params: {
+          q: params.query,
+          per_page: params.limit,
+          ...(params.sort === "best-match" ? {} : { sort: params.sort, order: "desc" }),
+        },
+        operation: "repository search",
+        signal: params.signal,
+      },
+      searchResponseSchema(REPO_SEARCH_ITEM_SCHEMA),
+    );
+    return {
+      totalCount: payload.total_count,
+      incompleteResults: payload.incomplete_results,
+      hits: payload.items.map((item) => ({
+        repo: item.full_name,
+        url: item.html_url,
+        description: item.description ?? undefined,
+        stars: item.stargazers_count,
+        language: item.language ?? undefined,
+        topics: item.topics ?? [],
+        pushedAt: item.pushed_at ?? undefined,
+        archived: item.archived,
+        fork: item.fork,
+      })),
+    };
+  }
+
+  async searchCode(params: SearchCodeParams): Promise<GitHubCodeSearchResult> {
+    const payload = await this.get(
+      {
+        route: "GET /search/code",
+        params: { q: params.query, per_page: params.limit, mediaType: { format: "text-match" } },
+        operation: "code search",
+        signal: params.signal,
+      },
+      searchResponseSchema(CODE_SEARCH_ITEM_SCHEMA),
+    );
+    return {
+      totalCount: payload.total_count,
+      incompleteResults: payload.incomplete_results,
+      hits: payload.items.map((item) => ({
+        repo: item.repository.full_name,
+        path: item.path,
+        url: item.html_url,
+        commit: commitFromBlobUrl(item.html_url),
+        fragments: (item.text_matches ?? []).flatMap((match) =>
+          match.fragment ? [match.fragment] : [],
+        ),
+      })),
+    };
+  }
+
+  async readEntry(params: ReadEntryParams): Promise<RepoEntry> {
+    const request: GitHubRequest = {
+      route: "GET /repos/{owner}/{repo}/contents/{path}",
+      params: {
+        owner: params.owner,
+        repo: params.repo,
+        path: params.path,
+        ...(params.ref ? { ref: params.ref } : {}),
+      },
+      operation: `read ${params.owner}/${params.repo}/${params.path}`,
+      signal: params.signal,
+    };
     try {
-      const response = await this.octokit.rest.repos.get({
-        owner,
-        repo,
-        request: requestOptions(signal),
-      });
-      const payload = safeParseTypeBoxValue(REPO_META_SCHEMA, response.data);
-      if (!payload) {
-        throw new Error(
-          `GitHub repo metadata for ${owner}/${repo} returned an unexpected payload shape.`,
+      const payload = await this.get(
+        request,
+        Type.Union([Type.Array(CONTENTS_ENTRY_SCHEMA), CONTENTS_ENTRY_SCHEMA]),
+      );
+      if (Array.isArray(payload)) {
+        return {
+          type: "directory",
+          entries: payload.map((entry) => ({ name: entry.name, type: entryType(entry.type) })),
+        };
+      }
+
+      switch (entryType(payload.type)) {
+        case "symlink":
+          return { type: "symlink", target: payload.target ?? "" };
+        case "submodule":
+          return { type: "submodule", url: payload.submodule_git_url };
+        case "directory":
+          throw new Error(`Unexpected directory entry during ${request.operation}.`);
+        case "file":
+          break;
+      }
+
+      if (payload.size > params.maxBytes) {
+        throw new EntryTooLargeError(payload.size);
+      }
+      // Above 1 MB the JSON form returns 200 with empty content; only the raw media type serves it.
+      if (
+        payload.encoding === "base64" &&
+        payload.content !== undefined &&
+        payload.content.length > 0
+      ) {
+        return { type: "file", size: payload.size, bytes: Buffer.from(payload.content, "base64") };
+      }
+      return { type: "file", size: payload.size, bytes: await this.getRaw(request) };
+    } catch (error) {
+      if (error instanceof GitHubApiError && error.status === 404) {
+        throw new EntryNotFoundError(
+          `Not found: ${params.owner}/${params.repo}/${params.path}${params.ref ? ` at ${params.ref}` : ""}.\nGitHub returns the same 404 for a missing path, ref, or repository and for a private repository your token cannot read.`,
         );
       }
-      return {
-        fullName: payload.full_name,
-        defaultBranch: payload.default_branch,
-        isPrivate: payload.private,
-      };
-    } catch (error) {
-      normalizeGitHubError(error, `repo lookup for ${owner}/${repo}`);
+      throw error;
     }
+  }
+
+  async getRepo(owner: string, repo: string, signal: AbortSignal | undefined): Promise<RepoMeta> {
+    const payload = await this.get(
+      {
+        route: "GET /repos/{owner}/{repo}",
+        params: { owner, repo },
+        operation: `repo lookup for ${owner}/${repo}`,
+        signal,
+      },
+      REPO_META_SCHEMA,
+    );
+    return {
+      fullName: payload.full_name,
+      defaultBranch: payload.default_branch,
+      isPrivate: payload.private,
+    };
   }
 }
 

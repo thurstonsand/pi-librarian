@@ -11,7 +11,7 @@ import {
 } from "../delivery.ts";
 import {
   GitHubApiError,
-  type GitHubClientApi,
+  type GitHubClient,
   type GitHubClientProvider,
   type GitHubCodeSearchResult,
 } from "../github.ts";
@@ -124,7 +124,7 @@ export function buildGitHubCodeQuery(query: GitHubCodeQuery): string {
 // incomplete_results with nothing found means GitHub could not search the scope at all, which reads
 // as "no matches" unless said otherwise. A repo lookup follows renames, the commonest cause.
 async function unsearchableScopeError(
-  client: GitHubClientApi,
+  client: GitHubClient,
   owner: string | undefined,
   repos: string[] | undefined,
   signal: AbortSignal | undefined,
