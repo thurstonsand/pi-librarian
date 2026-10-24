@@ -1,11 +1,12 @@
-import { Type } from "typebox";
-import { safeParseTypeBoxValue } from "../shared/typebox.ts";
+import { type Static, Type } from "typebox";
+import { parseTypeBoxValue, safeParseTypeBoxValue } from "../shared/typebox.ts";
 import {
   EntryNotFoundError,
   EntryTooLargeError,
   type RepoEntry,
   type RepoEntryType,
   type RepoFileReader,
+  submoduleUrl,
 } from "./repo-entry.ts";
 
 export class BitbucketApiError extends Error {
@@ -71,9 +72,13 @@ const PAGE_SCHEMA = Type.Object({
   values: Type.Array(Type.Unknown()),
 });
 
+const LISTING_PAGE_SIZE = 1000;
+const MAX_LISTING_PAGES = 20;
+
 const BROWSE_SCHEMA = Type.Object({
   children: Type.Object({
     isLastPage: Type.Boolean(),
+    nextPageStart: Type.Optional(Type.Number()),
     values: Type.Array(
       Type.Object({
         path: Type.Object({ name: Type.String() }),
@@ -98,16 +103,13 @@ function decodeHit(text: string): string {
     .replace(/&amp;/g, "&");
 }
 
-function toRepository(value: unknown): BitbucketRepository | undefined {
-  const parsed = safeParseTypeBoxValue(REPOSITORY_SCHEMA, value);
-  return parsed
-    ? {
-        repo: `${parsed.project.key}/${parsed.slug}`,
-        name: parsed.name,
-        description: parsed.description || undefined,
-        archived: parsed.archived ?? false,
-      }
-    : undefined;
+function repository(parsed: Static<typeof REPOSITORY_SCHEMA>): BitbucketRepository {
+  return {
+    repo: `${parsed.project.key}/${parsed.slug}`,
+    name: parsed.name,
+    description: parsed.description || undefined,
+    archived: parsed.archived ?? false,
+  };
 }
 
 function browseType(type: string): RepoEntryType {
@@ -198,13 +200,9 @@ export class BitbucketClient {
     }
     const hits: BitbucketCodeHit[] = [];
     for (const value of parsed.code.values) {
-      const hit = safeParseTypeBoxValue(CODE_HIT_SCHEMA, value);
-      if (!hit) {
-        continue;
-      }
-      const repository = toRepository(hit.repository);
+      const hit = parseTypeBoxValue(CODE_HIT_SCHEMA, value, "Bitbucket code search result");
       hits.push({
-        repo: repository?.repo ?? "",
+        repo: repository(hit.repository).repo,
         path: hit.file,
         hitCount: hit.hitCount,
         lines: hit.hitContexts
@@ -230,9 +228,9 @@ export class BitbucketClient {
       throw new Error("Bitbucket repository search returned an unexpected payload shape.");
     }
     return {
-      repositories: parsed.values
-        .map(toRepository)
-        .filter((repository) => repository !== undefined),
+      repositories: parsed.values.map((value) =>
+        repository(parseTypeBoxValue(REPOSITORY_SCHEMA, value, "Bitbucket repository")),
+      ),
       isLastPage: parsed.isLastPage,
     };
   }
@@ -262,18 +260,31 @@ export class BitbucketClient {
     const cleanPath = path.replace(/^\/+|\/+$/g, "");
     const encodedPath = cleanPath.split("/").map(encodeURIComponent).join("/");
     const location = `${repo}/${cleanPath}${ref ? ` at ${ref}` : ""}`;
+    // A listing reads every page: an entry on page two is not absent.
     const browse = async (browsePath: string) => {
       try {
-        const response = await this.request(
-          `${base}/browse${browsePath ? `/${browsePath}` : ""}`,
-          { params: { at: ref, limit: "1000" } },
-          signal,
-        );
-        const parsed = safeParseTypeBoxValue(BROWSE_SCHEMA, await response.json());
-        if (!parsed) {
-          throw new Error(`Bitbucket browse of ${location} returned an unexpected payload shape.`);
+        const children: { path: { name: string }; type: string; size?: number }[] = [];
+        let start = 0;
+        for (let page = 0; page < MAX_LISTING_PAGES; page += 1) {
+          const response = await this.request(
+            `${base}/browse${browsePath ? `/${browsePath}` : ""}`,
+            { params: { at: ref, limit: String(LISTING_PAGE_SIZE), start: String(start) } },
+            signal,
+          );
+          const parsed = parseTypeBoxValue(
+            BROWSE_SCHEMA,
+            await response.json(),
+            "Bitbucket browse",
+          );
+          children.push(...parsed.children.values);
+          if (parsed.children.isLastPage || parsed.children.nextPageStart === undefined) {
+            return children;
+          }
+          start = parsed.children.nextPageStart;
         }
-        return parsed.children.values;
+        throw new Error(
+          `${repo}/${browsePath} has more than ${MAX_LISTING_PAGES * LISTING_PAGE_SIZE} entries; clone it with checkout_repo and list it locally.`,
+        );
       } catch (error) {
         if (error instanceof BitbucketApiError && error.status === 404) {
           throw new EntryNotFoundError(`Not found: ${location}.\n${error.message}`);
@@ -307,7 +318,19 @@ export class BitbucketClient {
       };
     }
     if (type === "submodule") {
-      return { type: "submodule", url: undefined };
+      try {
+        const gitmodules = await this.request(
+          `${base}/raw/.gitmodules`,
+          { params: { at: ref } },
+          signal,
+        );
+        return { type: "submodule", url: submoduleUrl(await gitmodules.text(), cleanPath) };
+      } catch (error) {
+        if (error instanceof BitbucketApiError && error.status === 404) {
+          return { type: "submodule", url: undefined };
+        }
+        throw error;
+      }
     }
     if (size !== undefined && size > maxBytes) {
       throw new EntryTooLargeError(size);

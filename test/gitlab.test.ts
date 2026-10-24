@@ -232,6 +232,12 @@ describe("read_file on GitLab", () => {
             ])
           : undefined,
       (request) =>
+        request.url.pathname === "/api/v4/projects/42/repository/files/.gitmodules/raw"
+          ? new Response(
+              '[submodule "proto"]\n\tpath = src/proto\n\turl = https://gitlab.example.com/platform/proto.git\n',
+            )
+          : undefined,
+      (request) =>
         request.url.pathname.endsWith("latest/raw")
           ? new Response(request.method === "HEAD" ? null : "v2\n", {
               headers: { "x-gitlab-size": "3" },
@@ -247,7 +253,7 @@ describe("read_file on GitLab", () => {
       call(tools, "read_file", { source: "example-gl", repo: "platform/widget-sdk", path });
 
     expect(text(await read("src/proto"))).toBe(
-      "platform/widget-sdk/src/proto is a submodule — read it from that repository.",
+      "platform/widget-sdk/src/proto is a submodule pointing at https://gitlab.example.com/platform/proto.git — read it from that repository.",
     );
     expect(text(await read("src/latest"))).toBe(
       "platform/widget-sdk/src/latest is a symlink to v2 — read that path instead.",
@@ -257,6 +263,7 @@ describe("read_file on GitLab", () => {
       requests
         .filter((request) => request.url.pathname.endsWith("/raw"))
         .map((request) => request.method),
-    ).toEqual(["HEAD", "GET", "HEAD", "GET"]);
+      // .gitmodules for the submodule, then a size check and a read for each file
+    ).toEqual(["GET", "HEAD", "GET", "HEAD", "GET"]);
   });
 });

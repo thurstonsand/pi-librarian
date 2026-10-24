@@ -27,6 +27,7 @@ import {
   repoFilter,
   runSourcegraphSearch,
   sourcegraphClients,
+  validateRe2,
   validateRegex,
 } from "./sourcegraph-search.ts";
 
@@ -53,6 +54,23 @@ export interface SearchCodeSourcegraphDetails {
   entries: ShownEntry[];
 }
 
+// Measured on 7.7: inside /…/ the scanner passes every \X through untouched except \/, which ends
+// up a slash. So escapes are copied as pairs and only a bare / is escaped — doubling backslashes
+// would turn \( into an unbalanced group.
+export function escapeBareSlashes(pattern: string): string {
+  let escaped = "";
+  for (let index = 0; index < pattern.length; index += 1) {
+    const char = pattern[index];
+    if (char === "\\") {
+      escaped += pattern.slice(index, index + 2);
+      index += 1;
+    } else {
+      escaped += char === "/" ? "\\/" : char;
+    }
+  }
+  return escaped;
+}
+
 // The query parser is a trap — whitespace becomes .*? under regexp, and/or/not are operators in
 // every mode — so agent text only ever reaches it in the two forms parsed atomically.
 export function encodeSourcegraphPattern(pattern: string, patternType: PatternType): string {
@@ -64,14 +82,11 @@ export function encodeSourcegraphPattern(pattern: string, patternType: PatternTy
       return `content:"${pattern.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
     }
     case "regexp": {
-      try {
-        new RegExp(pattern);
-      } catch (error) {
-        throw new Error(
-          `pattern is not a valid regular expression: ${error instanceof Error ? error.message : String(error)}`,
-        );
+      if (pattern.length === 0) {
+        throw new Error("pattern cannot be empty.");
       }
-      return `/${pattern.replace(/\//g, "\\/")}/`;
+      validateRe2("pattern", pattern);
+      return `/${escapeBareSlashes(pattern)}/`;
     }
     case "keyword":
       return rejectKeywordFilters(pattern);

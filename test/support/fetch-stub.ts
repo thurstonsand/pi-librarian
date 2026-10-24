@@ -26,8 +26,15 @@ export function stubFetch(routes: Route[]): RecordedRequest[] {
       if (init?.signal?.aborted || request.signal.aborted) {
         throw new DOMException("aborted", "AbortError");
       }
+      const signal = init?.signal ?? request.signal;
+      // Like real fetch, a pending response rejects when the request is aborted.
+      const aborted = new Promise<never>((_resolve, reject) => {
+        signal.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")), {
+          once: true,
+        });
+      });
       for (const route of routes) {
-        const response = await route(recorded);
+        const response = await Promise.race([route(recorded), aborted]);
         if (response) {
           return response;
         }

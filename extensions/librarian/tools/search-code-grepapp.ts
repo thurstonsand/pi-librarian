@@ -97,9 +97,9 @@ export function createSearchCodeGrepAppTool(cacheDir: string, search: SearchSett
             searchSignal,
           ),
       );
-      const matches = result.matches.slice(0, limit);
+      const matches = result.matches;
       const repoCount = new Set(matches.map((match) => match.repo)).size;
-      const entries: ShownEntry[] = matches.map((match) => {
+      const entries: ShownEntry[] = matches.slice(0, limit).map((match) => {
         const detail = matchDetail(match);
         return {
           label: `${match.repo} — ${match.path}`,
@@ -124,7 +124,7 @@ export function createSearchCodeGrepAppTool(cacheDir: string, search: SearchSett
                 complete: undefined,
                 incompleteReason: undefined,
                 fetchedCount: matches.length,
-                limitHit: result.matches.length > limit,
+                limitHit: false,
                 shownCount: entries.length,
                 artifact,
               },

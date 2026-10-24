@@ -4,6 +4,7 @@ import { initTheme, type Theme } from "@earendil-works/pi-coding-agent";
 import { Container, Text } from "@earendil-works/pi-tui";
 import { beforeAll, describe, expect, it } from "vitest";
 import type { LibrarianRunDetails, TraceCall } from "../extensions/librarian/run.ts";
+import { resolveLibrarianSettings } from "../extensions/librarian/settings.ts";
 import {
   formatToolDuration,
   formatTraceLine,
@@ -23,6 +24,7 @@ const CTX: TraceContext = {
     ["search_repos_github", "github"],
     ["read_file", "github"],
   ]),
+  sources: [],
 };
 
 // keyHint reads pi's theme singleton, which every real session initializes
@@ -213,6 +215,44 @@ describe("renderLibrarianResult", () => {
     };
   }
 
+  it("links each expanded location to its file on the source's host, at the commit read", () => {
+    const result = completedResult();
+    if (!result.details) {
+      throw new Error("fixture has details");
+    }
+    result.details.findings = {
+      summary: "Backoff lives in one place.",
+      locations: [
+        {
+          source: "example-gl",
+          repo: "platform/widget-sdk",
+          file: "src/retry.ts",
+          lines: "29-44",
+          note: "full jitter",
+        },
+      ],
+    };
+    result.details.checkouts = {
+      "gitlab.example.com/platform/widget-sdk": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0",
+    };
+    const { sources } = resolveLibrarianSettings(
+      { sources: [{ name: "example-gl", url: "https://gitlab.example.com", kind: "gitlab" }] },
+      {},
+    );
+
+    const rendered = renderLibrarianResult(result, { expanded: true, isPartial: false }, theme, {
+      ...CTX,
+      sources,
+    })
+      .render(200)
+      .map((line) => stripVTControlCharacters(line).trimEnd());
+
+    expect(rendered.slice(4, 6)).toEqual([
+      "- example-gl:platform/widget-sdk/src/retry.ts:29-44 — full jitter",
+      "  https://gitlab.example.com/platform/widget-sdk/-/blob/a1b2c3d4e5f6/src/retry.ts#L29-44",
+    ]);
+  });
+
   it("replaces trace lines with full findings after completion when expanded", () => {
     const rendered = renderLibrarianResult(
       completedResult(),
@@ -369,7 +409,7 @@ describe("renderRepoToolResult", () => {
       entries,
     },
   };
-  const context = (overrides: Partial<{ isError: boolean; durationMs: number | undefined }>) => ({
+  const context = (overrides: { isError?: boolean; durationMs?: number | undefined }) => ({
     state: {},
     executionStarted: true,
     isError: false,

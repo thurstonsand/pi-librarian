@@ -98,23 +98,46 @@ export async function runSourcegraphSearch(
   };
 }
 
-export function validateRegex(argument: string, pattern: string): string {
-  const trimmed = pattern.trim();
-  if (trimmed.length === 0) {
-    throw new Error(`${argument} cannot be blank.`);
+// JavaScript's RegExp is not RE2: it refuses RE2's inline flags and accepts lookaround and
+// backreferences, which RE2 lacks. So RE2-only syntax is rewritten before the JavaScript check, and
+// the JavaScript-only syntax is refused, before an invalid pattern can become a silent zero.
+export function validateRe2(argument: string, pattern: string): string {
+  if (/\(\?<?[=!]/.test(pattern)) {
+    throw new Error(`${argument} uses lookaround, which RE2 does not support.`);
   }
-  // A space ends a filter value, and the engine answers an invalid regex with a silent zero.
-  if (/\s/.test(trimmed)) {
-    throw new Error(`${argument} cannot contain spaces; use \\s in the pattern: "${pattern}".`);
+  if (/\\[1-9]/.test(pattern)) {
+    throw new Error(`${argument} uses a backreference, which RE2 does not support.`);
   }
+  const javascript = pattern
+    .replace(/\(\?[imsU]+\)/g, "")
+    .replace(/\(\?[imsU]*-?[imsU]*:/g, "(?:")
+    .replace(/\(\?P</g, "(?<")
+    .replace(/\[\[:[a-z]+:\]\]/g, "\\w")
+    .replace(/\\[pP]\{?[A-Za-z]+\}?/g, "\\w")
+    .replace(/\\[Az]/g, "");
   try {
-    new RegExp(trimmed);
+    new RegExp(javascript);
   } catch (error) {
     throw new Error(
       `${argument} is not a valid regular expression: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
-  return trimmed;
+  return pattern;
+}
+
+export function validateRegex(argument: string, pattern: string): string {
+  const trimmed = pattern.trim();
+  if (trimmed.length === 0) {
+    throw new Error(`${argument} cannot be blank.`);
+  }
+  // A space ends a filter value and a quote closes one, so either would let the rest of the value
+  // be parsed as another filter; the engine answers an invalid regex with a silent zero.
+  if (/[\s"']/.test(trimmed)) {
+    throw new Error(
+      `${argument} cannot contain spaces or quotes; use \\s or \\x22 in the pattern: "${pattern}".`,
+    );
+  }
+  return validateRe2(argument, trimmed);
 }
 
 // Several repo: filters are intersected; one alternation is the union an agent means by a list.
@@ -131,7 +154,7 @@ export function repoFilter(patterns: string[] | undefined): string | undefined {
 export function rejectKeywordFilters(pattern: string): string {
   const trimmed = pattern.trim();
   const unquoted = trimmed.replace(/"[^"]*"/g, " ");
-  const filter = /(^|\s)(-?[A-Za-z_.]+):\S/.exec(unquoted);
+  const filter = /(^|[\s(])(-?[A-Za-z_.]+):\S/.exec(unquoted);
   if (filter) {
     throw new Error(
       `pattern contains a filter "${filter[2]}:". Use the repos, path, and language arguments instead, or quote it to search for the text.`,

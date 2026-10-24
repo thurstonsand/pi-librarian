@@ -153,7 +153,7 @@ Fetched 2; showing all 2. Full results: <artifact>
     ).rejects.toThrow('pass owner "drizzle-team" and repos ["drizzle-orm"]');
     await expect(
       call(tools, "search_code_github", { pattern: "x", path: "src lib" }),
-    ).rejects.toThrow("cannot contain spaces or quotes");
+    ).rejects.toThrow("cannot contain spaces, quotes, or parentheses");
     expect(requests.map((request) => request.url.searchParams.get("q"))).toEqual([
       '"this OR that"',
     ]);

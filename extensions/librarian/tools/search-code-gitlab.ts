@@ -176,7 +176,7 @@ export function createSearchCodeGitLabTool(
         ? "filters scan the whole project; search without them, then read the files."
         : "use a rarer pattern, or narrow with path.";
 
-      const { files, hasMore, total } = await runRestSearch(
+      const { files, hasMore, total, projectPaths } = await runRestSearch(
         search,
         signal,
         advice,
@@ -228,14 +228,15 @@ export function createSearchCodeGitLabTool(
               `${project.path}'s repository is restricted, so GitLab returns no code for it to this token. This is not an empty result.`,
             );
           }
-          return { files: groupByFile(hits, params.pattern), hasMore: more, total: lastTotal };
+          const grouped = groupByFile(hits, params.pattern);
+          // Inside the deadline: every lookup a digest needs is part of the search.
+          const paths = new Map<number, string>();
+          for (const projectId of new Set(grouped.map((file) => file.projectId))) {
+            paths.set(projectId, await client.projectPath(projectId, searchSignal));
+          }
+          return { files: grouped, hasMore: more, total: lastTotal, projectPaths: paths };
         },
       );
-
-      const projectPaths = new Map<number, string>();
-      for (const projectId of new Set(files.map((file) => file.projectId))) {
-        projectPaths.set(projectId, await client.projectPath(projectId, signal));
-      }
       const shown = files.slice(0, limit);
       const entries: ShownEntry[] = shown.map((file) => {
         const lines = file.lines.slice(0, MATCHED_LINES_SHOWN);

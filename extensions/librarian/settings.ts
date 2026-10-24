@@ -82,7 +82,7 @@ const ROOT_SETTINGS_SCHEMA = Type.Object({
   librarian: Type.Optional(LIBRARIAN_FILE_SETTINGS_SCHEMA),
 });
 
-type LibrarianFileSettings = Static<typeof LIBRARIAN_FILE_SETTINGS_SCHEMA>;
+export type LibrarianFileSettings = Static<typeof LIBRARIAN_FILE_SETTINGS_SCHEMA>;
 
 type LibrarianFileSource = Static<typeof SOURCE_SCHEMA>;
 
@@ -249,6 +249,11 @@ function normalizeSourceUrl(value: string, name: string): URL {
 
 type BuiltInSourceName = "github" | "gitlab.com";
 
+interface BuiltInSourceSwitches {
+  github?: boolean;
+  "gitlab.com"?: boolean;
+}
+
 interface BuiltInSource {
   name: BuiltInSourceName;
   url: string;
@@ -302,7 +307,7 @@ function rolesWithCredential(
 }
 
 function builtInSources(
-  switches: Partial<Record<BuiltInSourceName, boolean>> | undefined,
+  switches: BuiltInSourceSwitches | undefined,
   env: NodeJS.ProcessEnv,
 ): LibrarianSource[] {
   return BUILT_IN_SOURCES.filter(
@@ -322,7 +327,7 @@ function builtInSources(
 
 function normalizeSources(
   values: LibrarianFileSource[] | undefined,
-  switches: Partial<Record<BuiltInSourceName, boolean>> | undefined,
+  switches: BuiltInSourceSwitches | undefined,
   env: NodeJS.ProcessEnv,
 ): LibrarianSource[] {
   const sources = builtInSources(switches, env);

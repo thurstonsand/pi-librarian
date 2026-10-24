@@ -3,21 +3,25 @@ import os from "node:os";
 import path from "node:path";
 import type { AgentToolResult } from "@earendil-works/pi-agent-core";
 import type { ExtensionToolContext, ToolDefinition } from "@earendil-works/pi-coding-agent";
-import { resolveLibrarianSettings } from "../../extensions/librarian/settings.ts";
+import {
+  type LibrarianFileSettings,
+  resolveLibrarianSettings,
+} from "../../extensions/librarian/settings.ts";
 import { createRepoClients, createRepoTools } from "../../extensions/librarian/tools/index.ts";
-
-type FileSettings = Parameters<typeof resolveLibrarianSettings>[0];
 
 export async function temporaryCacheDir(): Promise<string> {
   return fs.mkdtemp(path.join(os.tmpdir(), "librarian-tools-"));
 }
 
 export function repoTools(
-  fileSettings: FileSettings,
+  fileSettings: LibrarianFileSettings,
   env: NodeJS.ProcessEnv,
 ): Map<string, ToolDefinition> {
   const settings = resolveLibrarianSettings(fileSettings, env);
-  const { tools } = createRepoTools(settings, createRepoClients(settings));
+  const { tools } = createRepoTools(
+    settings,
+    createRepoClients(settings, async () => undefined),
+  );
   return new Map(tools.map((tool) => [tool.name, tool]));
 }
 

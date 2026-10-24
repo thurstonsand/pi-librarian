@@ -38,3 +38,27 @@ export class EntryTooLargeError extends Error {
     this.name = "EntryTooLargeError";
   }
 }
+
+// GitLab and Bitbucket report that an entry is a submodule but not where it points; .gitmodules does.
+export function submoduleUrl(gitmodules: string, path: string): string | undefined {
+  let sectionPath: string | undefined;
+  let sectionUrl: string | undefined;
+  for (const rawLine of [...gitmodules.split("\n"), "[end]"]) {
+    const line = rawLine.trim();
+    if (line.startsWith("[")) {
+      if (sectionPath === path && sectionUrl) {
+        return sectionUrl;
+      }
+      sectionPath = undefined;
+      sectionUrl = undefined;
+      continue;
+    }
+    const setting = /^(path|url)\s*=\s*(.+)$/.exec(line);
+    if (setting?.[1] === "path") {
+      sectionPath = setting[2];
+    } else if (setting?.[1] === "url") {
+      sectionUrl = setting[2];
+    }
+  }
+  return undefined;
+}

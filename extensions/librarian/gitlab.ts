@@ -1,11 +1,12 @@
 import { Type } from "typebox";
-import { safeParseTypeBoxValue } from "../shared/typebox.ts";
+import { parseTypeBoxValue, safeParseTypeBoxValue } from "../shared/typebox.ts";
 import {
   EntryNotFoundError,
   EntryTooLargeError,
   type RepoEntry,
   type RepoEntryType,
   type RepoFileReader,
+  submoduleUrl,
 } from "./repo-entry.ts";
 
 export class GitLabApiError extends Error {
@@ -19,6 +20,8 @@ export class GitLabApiError extends Error {
 }
 
 const CODE_SEARCHES_PER_WINDOW = 30;
+const LISTING_PAGE_SIZE = 1000;
+const MAX_LISTING_PAGES = 20;
 const RATE_WINDOW_MS = 60_000;
 
 // GitLab allows 30 code searches a minute per user, counting every page and every refusal, in a
@@ -71,6 +74,13 @@ function errorMessage(body: string): string {
     // Not JSON; the body itself is the message.
   }
   return body.slice(0, 200);
+}
+
+function listBody(body: unknown): unknown[] {
+  if (!Array.isArray(body)) {
+    throw new Error("GitLab returned an object where it lists results.");
+  }
+  return body;
 }
 
 const PROJECT_SCHEMA = Type.Object({
@@ -202,7 +212,7 @@ export class GitLabClient {
           if (!parsed) {
             throw new Error(`GitLab project ${path} returned an unexpected payload shape.`);
           }
-          return {
+          const resolved: GitLabProject = {
             id: parsed.id,
             path: parsed.path_with_namespace,
             defaultBranch: parsed.default_branch ?? undefined,
@@ -210,6 +220,11 @@ export class GitLabClient {
               parsed.repository_access_level !== undefined &&
               parsed.repository_access_level !== "enabled",
           };
+          // A search result names its project by id; this saves looking up one already resolved.
+          if (!this.projects.has(String(parsed.id))) {
+            this.projects.set(String(parsed.id), Promise.resolve(resolved));
+          }
+          return resolved;
         })
         .catch((error: unknown) => {
           this.projects.delete(key);
@@ -269,18 +284,16 @@ export class GitLabClient {
     );
     const body: unknown = await response.json();
     const hits: GitLabBlobHit[] = [];
-    for (const item of Array.isArray(body) ? body : []) {
-      const parsed = safeParseTypeBoxValue(BLOB_HIT_SCHEMA, item);
-      if (parsed) {
-        hits.push({
-          pathMatch: parsed.id !== null,
-          path: parsed.path,
-          data: parsed.data,
-          ref: parsed.ref,
-          startline: parsed.startline,
-          projectId: parsed.project_id,
-        });
-      }
+    for (const item of listBody(body)) {
+      const parsed = parseTypeBoxValue(BLOB_HIT_SCHEMA, item, "GitLab code search result");
+      hits.push({
+        pathMatch: parsed.id !== null,
+        path: parsed.path,
+        data: parsed.data,
+        ref: parsed.ref,
+        startline: parsed.startline,
+        projectId: parsed.project_id,
+      });
     }
     const total = Number(response.headers.get("x-total"));
     return {
@@ -301,24 +314,47 @@ export class GitLabClient {
     const response = await this.request("/projects", params, signal);
     const body: unknown = await response.json();
     const hits: GitLabProjectHit[] = [];
-    for (const item of Array.isArray(body) ? body : []) {
-      const parsed = safeParseTypeBoxValue(PROJECT_SEARCH_ITEM_SCHEMA, item);
-      if (parsed) {
-        hits.push({
-          path: parsed.path_with_namespace,
-          url: parsed.web_url,
-          description: parsed.description || undefined,
-          stars: parsed.star_count,
-          lastActivityAt: parsed.last_activity_at,
-          topics: parsed.topics ?? [],
-        });
-      }
+    for (const item of listBody(body)) {
+      const parsed = parseTypeBoxValue(
+        PROJECT_SEARCH_ITEM_SCHEMA,
+        item,
+        "GitLab project search result",
+      );
+      hits.push({
+        path: parsed.path_with_namespace,
+        url: parsed.web_url,
+        description: parsed.description || undefined,
+        stars: parsed.star_count,
+        lastActivityAt: parsed.last_activity_at,
+        topics: parsed.topics ?? [],
+      });
     }
     const total = Number(response.headers.get("x-total"));
     return {
       total: response.headers.has("x-total") && Number.isFinite(total) ? total : undefined,
       hits,
     };
+  }
+
+  private async submoduleTarget(
+    projectId: number,
+    path: string,
+    ref: string | undefined,
+    signal: AbortSignal | undefined,
+  ): Promise<string | undefined> {
+    try {
+      const response = await this.request(
+        `/projects/${projectId}/repository/files/.gitmodules/raw`,
+        { ref },
+        signal,
+      );
+      return submoduleUrl(await response.text(), path);
+    } catch (error) {
+      if (error instanceof GitLabApiError && error.status === 404) {
+        return undefined;
+      }
+      throw error;
+    }
   }
 
   async readEntry(
@@ -331,16 +367,30 @@ export class GitLabClient {
     const project = await this.resolveProject(projectPath, signal);
     const cleanPath = path.replace(/^\/+|\/+$/g, "");
     const location = `${project.path}/${cleanPath}${ref ? ` at ${ref}` : ""}`;
+    // A listing reads every page: an entry on page two is not absent.
     const treeEntries = async (treePath: string) => {
-      const response = await this.request(
-        `/projects/${project.id}/repository/tree`,
-        { path: treePath || undefined, ref, per_page: "1000" },
-        signal,
+      const entries: { name: string; type: string; mode: string }[] = [];
+      for (let page = 1; page <= MAX_LISTING_PAGES; page += 1) {
+        const response = await this.request(
+          `/projects/${project.id}/repository/tree`,
+          {
+            path: treePath || undefined,
+            ref,
+            per_page: String(LISTING_PAGE_SIZE),
+            page: String(page),
+          },
+          signal,
+        );
+        for (const item of listBody(await response.json())) {
+          entries.push(parseTypeBoxValue(TREE_ENTRY_SCHEMA, item, "GitLab tree entry"));
+        }
+        if ((response.headers.get("x-next-page") ?? "") === "") {
+          return entries;
+        }
+      }
+      throw new Error(
+        `${project.path}/${treePath} has more than ${MAX_LISTING_PAGES * LISTING_PAGE_SIZE} entries; clone it with checkout_repo and list it locally.`,
       );
-      const body: unknown = await response.json();
-      return (Array.isArray(body) ? body : [])
-        .map((item) => safeParseTypeBoxValue(TREE_ENTRY_SCHEMA, item))
-        .filter((entry) => entry !== undefined);
     };
 
     // The raw endpoint cannot tell a submodule from an empty file or a symlink from a one-line text
@@ -376,7 +426,10 @@ export class GitLabClient {
       };
     }
     if (type === "submodule") {
-      return { type: "submodule", url: undefined };
+      return {
+        type: "submodule",
+        url: await this.submoduleTarget(project.id, cleanPath, ref, signal),
+      };
     }
 
     const rawPath = `/projects/${project.id}/repository/files/${encodeURIComponent(cleanPath)}/raw`;

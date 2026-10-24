@@ -5,7 +5,6 @@ import {
   createGitHubClientProvider,
   createGitHubFileReader,
   type GitHubClientProvider,
-  resolveGitHubToken,
 } from "../github.ts";
 import { createGitLabFileReader, GitLabClient } from "../gitlab.ts";
 import type { RepoFileReader } from "../repo-entry.ts";
@@ -43,7 +42,11 @@ export function sourcesWith(
   return sources.filter((source) => source.kind === kind && source.roles.includes(role));
 }
 
-export function createRepoClients(settings: LibrarianSettings): RepoClients {
+// ghCliToken is the built-in github source's fallback when no token variable is set.
+export function createRepoClients(
+  settings: LibrarianSettings,
+  ghCliToken: () => Promise<string | undefined>,
+): RepoClients {
   const github = new Map<string, GitHubClientProvider>();
   const sourcegraph = new Map<string, SourcegraphClient>();
   const gitlab = new Map<string, GitLabClient>();
@@ -53,10 +56,9 @@ export function createRepoClients(settings: LibrarianSettings): RepoClients {
   for (const source of settings.sources) {
     switch (source.kind) {
       case "github": {
-        // The built-in source keeps its zero-config path: GITHUB_TOKEN, GH_TOKEN, then gh's token.
         const token = source.token;
         const provider = createGitHubClientProvider(
-          source.name === "github" && token === undefined ? resolveGitHubToken : async () => token,
+          source.name === "github" && token === undefined ? ghCliToken : async () => token,
           source.url,
         );
         github.set(source.name, provider);

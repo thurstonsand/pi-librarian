@@ -207,6 +207,12 @@ export function createSearchReposGitHubTool(
           }),
       );
 
+      if (result.incompleteResults && result.hits.length === 0) {
+        throw new Error(
+          "GitHub could not finish this repository search and found nothing before it stopped. This is not an empty result; narrow it and retry.",
+        );
+      }
+      const complete = result.incompleteResults ? false : undefined;
       const entries: ShownEntry[] = result.hits.map((hit) => {
         const detail = repoDetail(hit);
         return {
@@ -230,8 +236,8 @@ export function createSearchReposGitHubTool(
               {
                 found: `${formatCount(result.totalCount)} repositories match`,
                 source: instance.name,
-                complete: undefined,
-                incompleteReason: undefined,
+                complete,
+                incompleteReason: "GitHub did not finish searching every repository",
                 fetchedCount: result.hits.length,
                 limitHit: result.hits.length < result.totalCount,
                 shownCount: entries.length,
@@ -247,7 +253,7 @@ export function createSearchReposGitHubTool(
           matchCount: result.totalCount,
           fetchedCount: result.hits.length,
           shownCount: entries.length,
-          complete: undefined,
+          complete,
           artifact,
           entries,
         },

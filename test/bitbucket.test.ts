@@ -149,7 +149,11 @@ describe("read_file on Bitbucket", () => {
                 ],
               },
             })
-          : undefined,
+          : request.url.pathname === "/rest/api/1.0/projects/CORE/repos/deploy-cli/raw/.gitmodules"
+            ? new Response(
+                '[submodule "protocol"]\n\tpath = vendor/protocol\n\turl = ../protocol.git\n',
+              )
+            : undefined,
     ]);
     const read = (path: string) =>
       call(repoTools(settings(), ENV), "read_file", {
@@ -159,9 +163,11 @@ describe("read_file on Bitbucket", () => {
       });
 
     expect(text(await read("vendor/protocol"))).toBe(
-      "CORE/deploy-cli/vendor/protocol is a submodule — read it from that repository.",
+      "CORE/deploy-cli/vendor/protocol is a submodule pointing at ../protocol.git — read it from that repository.",
     );
     await expect(read("vendor/dump.sql")).rejects.toThrow("is 6.0MB, over the 5.0MB read limit");
-    expect(requests.some((request) => request.url.pathname.includes("/raw/"))).toBe(false);
+    expect(requests.some((request) => request.url.pathname.endsWith("/raw/vendor/dump.sql"))).toBe(
+      false,
+    );
   });
 });

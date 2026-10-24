@@ -1,5 +1,5 @@
 import { Type } from "typebox";
-import { safeParseTypeBoxValue } from "../shared/typebox.ts";
+import { parseTypeBoxValue, safeParseTypeBoxValue } from "../shared/typebox.ts";
 
 export class SourcegraphError extends Error {
   constructor(message: string) {
@@ -100,11 +100,8 @@ export interface StreamSearchParams {
   onPartial: (partial: StreamResult) => void;
 }
 
-function toMatch(value: unknown): SourcegraphMatch | undefined {
-  const parsed = safeParseTypeBoxValue(MATCH_SCHEMA, value);
-  if (!parsed) {
-    return undefined;
-  }
+function toMatch(value: unknown): SourcegraphMatch {
+  const parsed = parseTypeBoxValue(MATCH_SCHEMA, value, "Sourcegraph match");
   return {
     type: parsed.type,
     repository: parsed.repository,
@@ -167,34 +164,30 @@ export class SourcegraphClient {
       const payload: unknown = JSON.parse(data);
       switch (event) {
         case "matches":
-          for (const value of Array.isArray(payload) ? payload : []) {
-            const match = toMatch(value);
-            if (match) {
-              result.matches.push(match);
-            }
+          if (!Array.isArray(payload)) {
+            throw new SourcegraphError("Sourcegraph matches event was not a list.");
+          }
+          for (const value of payload) {
+            result.matches.push(toMatch(value));
           }
           break;
         case "progress": {
-          const progress = safeParseTypeBoxValue(PROGRESS_SCHEMA, payload);
-          if (progress) {
-            // Each progress event also carries an internal trace URL; it is never copied out.
-            result.progress = {
-              matchCount: progress.matchCount,
-              repositoriesCount: progress.repositoriesCount ?? 0,
-              durationMs: progress.durationMs,
-              skipped: (progress.skipped ?? []).map((skipped) => ({
-                reason: skipped.reason,
-                title: skipped.title,
-              })),
-            };
-          }
+          const progress = parseTypeBoxValue(PROGRESS_SCHEMA, payload, "Sourcegraph progress");
+          // Each progress event also carries an internal trace URL; it is never copied out.
+          result.progress = {
+            matchCount: progress.matchCount,
+            repositoriesCount: progress.repositoriesCount ?? 0,
+            durationMs: progress.durationMs,
+            skipped: (progress.skipped ?? []).map((skipped) => ({
+              reason: skipped.reason,
+              title: skipped.title,
+            })),
+          };
           break;
         }
         case "alert": {
-          const alert = safeParseTypeBoxValue(ALERT_SCHEMA, payload);
-          if (alert) {
-            result.alerts.push({ title: alert.title, description: alert.description ?? undefined });
-          }
+          const alert = parseTypeBoxValue(ALERT_SCHEMA, payload, "Sourcegraph alert");
+          result.alerts.push({ title: alert.title, description: alert.description ?? undefined });
           break;
         }
         case "error": {

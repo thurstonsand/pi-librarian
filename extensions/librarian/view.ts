@@ -12,8 +12,9 @@ import {
   Text,
 } from "@earendil-works/pi-tui";
 import { formatArtifact, type ShownEntry } from "./delivery.ts";
-import { formatLocation } from "./results.ts";
+import { formatLocation, locationUrl } from "./results.ts";
 import type { LibrarianRunDetails, TraceCall } from "./run.ts";
+import type { LibrarianSource } from "./settings.ts";
 import { isCodeSearchTool, isRepoSearchTool, LIBRARIAN_TOOL_NAMES } from "./tools/names.ts";
 import { asRepoToolDetails, summarizeRepoToolDetails } from "./trace.ts";
 
@@ -96,6 +97,7 @@ export type ImpliedSources = ReadonlyMap<string, string>;
 export interface TraceContext {
   cacheDir: string;
   impliedSources: ImpliedSources;
+  sources: LibrarianSource[];
 }
 
 function stringArg(args: Record<string, unknown>, key: string): string | undefined {
@@ -376,7 +378,7 @@ export function renderLibrarianResult(
           ),
         );
       }
-      const markdown = buildFindingsMarkdown(details, options.expanded);
+      const markdown = buildFindingsMarkdown(details, options.expanded, traceContext.sources);
       container.addChild(new Markdown(markdown, 0, 0, getMarkdownTheme()));
     } else if (details.error) {
       container.addChild(new Spacer(1));
@@ -393,7 +395,11 @@ export function renderLibrarianResult(
   return container;
 }
 
-function buildFindingsMarkdown(details: LibrarianRunDetails, expanded: boolean): string {
+function buildFindingsMarkdown(
+  details: LibrarianRunDetails,
+  expanded: boolean,
+  sources: LibrarianSource[],
+): string {
   const findings = details.findings;
   if (!findings) {
     return "";
@@ -402,7 +408,10 @@ function buildFindingsMarkdown(details: LibrarianRunDetails, expanded: boolean):
   const sections = [findings.summary];
 
   if (findings.locations.length > 0) {
-    const bullets = findings.locations.map((location) => `- ${formatLocation(location)}`);
+    const bullets = findings.locations.map((location) => {
+      const url = locationUrl(location, details.checkouts, sources);
+      return url ? `- ${formatLocation(location)}\n  ${url}` : `- ${formatLocation(location)}`;
+    });
     sections.push(bullets.join("\n"));
   }
 

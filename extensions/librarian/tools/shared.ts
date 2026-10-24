@@ -53,14 +53,15 @@ export function selectInstance(instances: LibrarianSource[], params: object): Li
 }
 
 // Engines read a space in an interpolated value as the start of another qualifier, and a quoted
-// value as a silent zero, so there is no safe escaping: refuse both.
+// value as a silent zero, so there is no safe escaping: refuse them.
 export function rejectUnsafeValue(argument: string, value: string): string {
   const trimmed = value.trim();
   if (trimmed.length === 0) {
     throw new Error(`${argument} cannot be blank.`);
   }
-  if (/[\s"']/.test(trimmed)) {
-    throw new Error(`${argument} cannot contain spaces or quotes: "${value}".`);
+  // Parentheses too: inside a predicate, one closes it and lets the rest become another filter.
+  if (/[\s"'()]/.test(trimmed)) {
+    throw new Error(`${argument} cannot contain spaces, quotes, or parentheses: "${value}".`);
   }
   return trimmed;
 }

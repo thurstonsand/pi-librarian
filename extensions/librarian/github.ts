@@ -3,7 +3,7 @@ import { promisify } from "node:util";
 import { RequestError } from "@octokit/request-error";
 import { Octokit } from "@octokit/rest";
 import { Type } from "typebox";
-import { safeParseTypeBoxValue } from "../shared/typebox.ts";
+import { parseTypeBoxValue, safeParseTypeBoxValue } from "../shared/typebox.ts";
 import {
   EntryNotFoundError,
   EntryTooLargeError,
@@ -34,12 +34,8 @@ export interface GitHubClientApi {
 
 export type GitHubClientProvider = () => Promise<GitHubClientApi>;
 
-export async function resolveGitHubToken(): Promise<string | undefined> {
-  const envToken = process.env.GITHUB_TOKEN?.trim() || process.env.GH_TOKEN?.trim();
-  if (envToken) {
-    return envToken;
-  }
-
+// GITHUB_TOKEN and GH_TOKEN are read with the rest of the settings; this is the zero-config fallback.
+export async function resolveGhCliToken(): Promise<string | undefined> {
   try {
     const { stdout } = await execFileAsync("gh", ["auth", "token"], { timeout: 10_000 });
     const token = stdout.trim();
@@ -177,6 +173,7 @@ export interface RepoSearchHit {
 
 export interface RepoSearchResult {
   totalCount: number;
+  incompleteResults: boolean;
   hits: RepoSearchHit[];
 }
 
@@ -289,10 +286,11 @@ export class GitHubClient implements GitHubClientApi {
 
       const hits: RepoSearchHit[] = [];
       for (const item of payload.items) {
-        const parsed = safeParseTypeBoxValue(REPO_SEARCH_ITEM_SCHEMA, item);
-        if (!parsed) {
-          continue;
-        }
+        const parsed = parseTypeBoxValue(
+          REPO_SEARCH_ITEM_SCHEMA,
+          item,
+          "GitHub repository search result",
+        );
         hits.push({
           repo: parsed.full_name,
           url: parsed.html_url,
@@ -306,7 +304,11 @@ export class GitHubClient implements GitHubClientApi {
         });
       }
 
-      return { totalCount: payload.total_count, hits };
+      return {
+        totalCount: payload.total_count,
+        incompleteResults: payload.incomplete_results,
+        hits,
+      };
     } catch (error) {
       normalizeGitHubError(error, "repository search");
     }
@@ -328,10 +330,11 @@ export class GitHubClient implements GitHubClientApi {
 
       const hits: CodeSearchHit[] = [];
       for (const item of payload.items) {
-        const parsed = safeParseTypeBoxValue(CODE_SEARCH_ITEM_SCHEMA, item);
-        if (!parsed) {
-          continue;
-        }
+        const parsed = parseTypeBoxValue(
+          CODE_SEARCH_ITEM_SCHEMA,
+          item,
+          "GitHub code search result",
+        );
 
         const fragments: string[] = [];
         for (const match of parsed.text_matches ?? []) {
@@ -373,8 +376,7 @@ export class GitHubClient implements GitHubClientApi {
 
       if (Array.isArray(response.data)) {
         const entries = response.data
-          .map((entry) => safeParseTypeBoxValue(CONTENTS_ENTRY_SCHEMA, entry))
-          .filter((entry) => entry !== undefined)
+          .map((entry) => parseTypeBoxValue(CONTENTS_ENTRY_SCHEMA, entry, "GitHub directory entry"))
           .map((entry) => ({ name: entry.name, type: entryType(entry.type) }));
         return { type: "directory", entries };
       }

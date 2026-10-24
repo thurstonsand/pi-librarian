@@ -93,7 +93,7 @@ Fetched 2 (limit); showing all 2. Full results: <artifact>
     [{ language: "typescrypt" }, /does not know the language "typescrypt"/],
     [{ pushed_after: "2026-01-01 stars:>5" }, /YYYY-MM-DD/],
     [{ pushed_after: "01/02/2026" }, /YYYY-MM-DD/],
-    [{ topics: ["orm sql"] }, /cannot contain spaces or quotes/],
+    [{ topics: ["orm sql"] }, /cannot contain spaces, quotes, or parentheses/],
     [{ text: "orm language:go" }, /qualifier "language:"/],
   ])("refuses %j before sending anything", async (params, message) => {
     const requests = stubFetch([]);

@@ -14,6 +14,7 @@ import {
   setAttachState,
 } from "./librarian/attach.ts";
 import { collectExtraToolWarnings, resolveExtraTools } from "./librarian/extra-tools.ts";
+import { resolveGhCliToken } from "./librarian/github.ts";
 import { resolveLibrarianModel } from "./librarian/model.ts";
 import { createLibrarianModelRuntime } from "./librarian/model-runtime.ts";
 import { type LibrarianRunDetails, runLibrarian, type TraceCall } from "./librarian/run.ts";
@@ -58,10 +59,14 @@ export default function librarianExtension(pi: ExtensionAPI): void {
   const settings = loadSettings();
   const { tools: repoTools, impliedSources } = createRepoTools(
     settings,
-    createRepoClients(settings),
+    createRepoClients(settings, resolveGhCliToken),
   );
   const repoToolNames = repoTools.map((tool) => tool.name);
-  const traceContext: TraceContext = { cacheDir: settings.cacheDir, impliedSources };
+  const traceContext: TraceContext = {
+    cacheDir: settings.cacheDir,
+    impliedSources,
+    sources: settings.sources,
+  };
 
   pi.registerEntryRenderer<AttachEntryData>(ATTACH_ENTRY_TYPE, (entry, { expanded }, theme) =>
     renderAttachEntry(entry.data, expanded, theme),
@@ -71,6 +76,12 @@ export default function librarianExtension(pi: ExtensionAPI): void {
     pi.registerTool({
       ...tool,
       defaultActive: false,
+      // pi renders a result only once one exists, so a tool that sends no update until it finishes
+      // would show nothing while it runs.
+      execute(toolCallId, params, signal, onUpdate, ctx) {
+        onUpdate?.({ content: [], details: undefined });
+        return tool.execute(toolCallId, params, signal, onUpdate, ctx);
+      },
       renderCall(args, theme) {
         const { verb, subject } = formatTraceLine(
           { name: tool.name, args, id: "", startedAt: 0 } satisfies TraceCall,

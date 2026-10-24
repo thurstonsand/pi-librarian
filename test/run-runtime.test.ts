@@ -95,7 +95,10 @@ describe("runLibrarian", () => {
       thinkingLevel: "off",
       settings,
       extraTools: { extensionPaths: [], toolNames: ["search_web"] },
-      repoTools: createRepoTools(settings, createRepoClients(settings)).tools,
+      repoTools: createRepoTools(
+        settings,
+        createRepoClients(settings, async () => undefined),
+      ).tools,
       signal: undefined,
       onUpdate: undefined,
     });
