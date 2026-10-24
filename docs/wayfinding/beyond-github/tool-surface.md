@@ -826,7 +826,7 @@ Two forms parse a pattern atomically, and the tool uses only those:
 
 `patternType:regexp` is never sent. The previous draft said the default was literal; it is standard, which is why the encoding matters even when no type is chosen. And `structural` stays dropped.
 
-**Always sent with every query:** `type:file`, because a bare pattern also returns repository-name and path matches mixed in with code; `count:` in the unit `detail` selects; and `timeout:15s`. `count:` without `timeout:` silently raises the timeout to the site maximum, and `count:all` is still a finite limit that ran past its timeout.
+**Always sent with every query:** `type:file`, because a bare pattern also returns repository-name and path matches mixed in with code; `count:` in the unit `detail` selects — as built, 5,000 repositories, 1,000 files, or 2,000 matched ranges, read to the end of the stream so the digest has the final counts; and `timeout:15s`. Reaching that limit is reported as incomplete, "reached the result limit for one search". This replaces the delivery contract's "read the stream until it has `limit` files, then cancel", which would have thrown away the counts the header and the narrowing error need. `count:` without `timeout:` silently raises the timeout to the site maximum, and `count:all` is still a finite limit that ran past its timeout.
 
 **`detail` changes the unit `count:` counts.** Under `select:file`, a 5,000-result limit means 5,000 files, so on a broad query `files` returned _more_ bytes than full matches — 1.46 MB against 1.04 MB. Under `select:repo`, the same limit exceeded the 1,701 matching repositories, so that search ran to completion where the full one hit its limit. Server time is the same for all three. So `repos` is the cheap, complete-at-scale rung, and `files` is a different resolution rather than a cheaper one.
 
@@ -1295,7 +1295,7 @@ Two constraints:
 
 The Sourcegraph spike settled this one with evidence, and the answer is one tool, not two.
 
-**`find_definition` is cheap and works.** `type:symbol` matches symbol names — substring, case-insensitive — so the tool sends `^name$` as a regex for an exact name, optionally narrowed by kind with `select:symbol.function` and its siblings. Latency was 0.4–1.9s. One finding shapes the default: `^NewMultiMatchQuery$` returned 16 definitions in 6 repositories, **5 of them vendored copies.** So vendored paths are excluded by default — which is ticket 10's question arriving early — with an argument to include them.
+**`find_definition` is cheap and works.** `type:symbol` matches symbol names — substring, case-insensitive — so the tool sends `^name$` as a regex for an exact name, optionally narrowed by kind with `select:symbol.function` and its siblings. Latency was 0.4–1.9s. One finding shapes the default: `^NewMultiMatchQuery$` returned 16 definitions, and **13 of them are vendored copies** — the spike reported 5; reading the artifact's paths during implementation found 13, leaving 3 real definitions. So vendored paths are excluded by default — which is ticket 10's question arriving early — with an argument to include them.
 
 **`find_references` does not ship.** The instance has precise code intelligence for about 1,464 repositories, and `usagesForSymbol` works well _within_ one: from a definition, 4 precise usages plus search-based mentions, in 3.4s. But **across repositories it only resolves definitions.** From a widely used definition it returned usages in the defining repository alone, while text search found callers in six others. Precise symbol names embed the dependency version, so a consumer pinned to another version never links.
 
@@ -1312,7 +1312,7 @@ Revisit if precise cross-repository references are ever configured.
 const Params = Type.Object({
   symbol: Type.String({ description: "Exact symbol name, e.g. NewClient." }),
   kind: Type.Optional(
-    StringEnum(["function", "method", "class", "struct", "interface", "type", "variable", "constant"], {
+    StringEnum(["function", "method", "class", "struct", "interface", "enum", "variable", "constant", "field", "property"], {
       description: "Only definitions of this kind.",
     }),
   ),
@@ -1326,7 +1326,7 @@ const Params = Type.Object({
 });
 ```
 
-`kind` is a fine argument name now that the tool is singular — the collision with the `Details` discriminant was only ever a problem for a mode switch, and there is no mode any more. Its enum needs checking against the kinds the instance actually reports.
+`kind` is a fine argument name now that the tool is singular — the collision with the `Details` discriminant was only ever a problem for a mode switch, and there is no mode any more. Its enum is measured: the instance reports FUNCTION, METHOD, CLASS, STRUCT, INTERFACE, ENUM, VARIABLE, CONSTANT, FIELD, PROPERTY, TYPEPARAMETER, PACKAGE, and UNKNOWN, and `select:symbol.type` is an "Invalid field" alert, so `type` is not offered.
 
 ```ts
 name: "find_definition",
@@ -1354,7 +1354,18 @@ No `shownCount`: a symbol with more definitions than fit is the answer, not a di
 
 ### What the agent receives
 
-Grouped like `search_code_sourcegraph`'s results, with context lines:
+Grouped like `search_code_sourcegraph`'s results. **Implemented without context lines**: a symbol match carries no content, and the raw endpoint measured 2.3–2.7s warm and 6.8s cold per file, so context for ten definitions would spend most of the budget on three lines each. Each entry names its kind and container instead, and `read_file` is one call away. As built:
+
+```pi_agent
+2 definitions of computeBackoff (example-sg). Complete.
+Fetched 2; showing all 2. Full results: /tmp/pi-librarian/searches/tc_01HB/results.jsonl (2 lines, 914B)
+
+example-bb — clone with source: example-bb
+ 1. PROJ/widget-sdk — src/retry.ts:30 (a1b2c3d) — function in retry
+ 2. CORE/deploy-cli — internal/backoff.go:13 (9f8e7d6) — function in backoff
+```
+
+The draft it replaced:
 
 ```pi_agent
 2 definitions of computeBackoff (example-sg). Complete.

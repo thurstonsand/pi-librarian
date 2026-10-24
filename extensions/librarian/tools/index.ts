@@ -1,4 +1,5 @@
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
+import { cloneSources } from "../checkout.ts";
 import {
   createGitHubClientProvider,
   createGitHubFileReader,
@@ -7,17 +8,22 @@ import {
 } from "../github.ts";
 import type { RepoFileReader } from "../repo-entry.ts";
 import type { LibrarianSettings, LibrarianSource, SourceKind, SourceRole } from "../settings.ts";
+import { SourcegraphClient } from "../sourcegraph.ts";
 import { createCheckoutRepoTool } from "./checkout-repo.ts";
+import { createFindDefinitionTool } from "./find-definition.ts";
 import { LIBRARIAN_TOOL_NAMES } from "./names.ts";
 import { createReadFileTool } from "./read-file.ts";
 import { createSearchCodeGitHubTool } from "./search-code-github.ts";
 import { createSearchCodeGrepAppTool } from "./search-code-grepapp.ts";
+import { createSearchCodeSourcegraphTool } from "./search-code-sourcegraph.ts";
 import { createSearchReposGitHubTool } from "./search-repos-github.ts";
+import { createSearchReposSourcegraphTool } from "./search-repos-sourcegraph.ts";
 
 // One explicit client per source. Each kind's clients share nothing with another kind's, so there
 // is no common interface to put in a registry.
 export interface RepoClients {
   github: Map<string, GitHubClientProvider>;
+  sourcegraph: Map<string, SourcegraphClient>;
   readers: Map<string, RepoFileReader>;
 }
 
@@ -31,6 +37,7 @@ export function sourcesWith(
 
 export function createRepoClients(settings: LibrarianSettings): RepoClients {
   const github = new Map<string, GitHubClientProvider>();
+  const sourcegraph = new Map<string, SourcegraphClient>();
   const readers = new Map<string, RepoFileReader>();
 
   for (const source of settings.sources) {
@@ -46,14 +53,18 @@ export function createRepoClients(settings: LibrarianSettings): RepoClients {
         readers.set(source.name, createGitHubFileReader(provider));
         break;
       }
+      case "sourcegraph":
+        if (source.token) {
+          sourcegraph.set(source.name, new SourcegraphClient(source.url, source.token));
+        }
+        break;
       case "gitlab":
       case "bitbucket-server":
-      case "sourcegraph":
         break;
     }
   }
 
-  return { github, readers };
+  return { github, sourcegraph, readers };
 }
 
 export function readableSources(
@@ -97,10 +108,40 @@ export function createRepoTools(settings: LibrarianSettings, clients: RepoClient
   }
   tools.push(createSearchCodeGrepAppTool(cacheDir, search));
 
+  const clonable = cloneSources(sources);
+  const sourcegraphCode = sourcesWith(sources, "sourcegraph", "code-search");
+  if (sourcegraphCode.length > 0) {
+    tools.push(
+      createSearchCodeSourcegraphTool(
+        sourcegraphCode,
+        clients.sourcegraph,
+        clonable,
+        cacheDir,
+        search,
+      ),
+      createFindDefinitionTool(sourcegraphCode, clients.sourcegraph, clonable, cacheDir, search),
+    );
+    implyWhenSingle(impliedSources, LIBRARIAN_TOOL_NAMES.searchCodeSourcegraph, sourcegraphCode);
+    implyWhenSingle(impliedSources, LIBRARIAN_TOOL_NAMES.findDefinition, sourcegraphCode);
+  }
+
   const githubRepos = sourcesWith(sources, "github", "repo-search");
   if (githubRepos.length > 0) {
     tools.push(createSearchReposGitHubTool(githubRepos, clients.github, cacheDir, search));
     implyWhenSingle(impliedSources, LIBRARIAN_TOOL_NAMES.searchReposGitHub, githubRepos);
+  }
+  const sourcegraphRepos = sourcesWith(sources, "sourcegraph", "repo-search");
+  if (sourcegraphRepos.length > 0) {
+    tools.push(
+      createSearchReposSourcegraphTool(
+        sourcegraphRepos,
+        clients.sourcegraph,
+        clonable,
+        cacheDir,
+        search,
+      ),
+    );
+    implyWhenSingle(impliedSources, LIBRARIAN_TOOL_NAMES.searchReposSourcegraph, sourcegraphRepos);
   }
 
   const readable = readableSources(settings, clients);

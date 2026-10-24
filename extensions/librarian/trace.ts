@@ -1,17 +1,23 @@
 import type { AgentToolResult } from "@earendil-works/pi-agent-core";
 import { formatCount, plural } from "./delivery.ts";
 import type { CheckoutRepoDetails } from "./tools/checkout-repo.ts";
+import type { FindDefinitionDetails } from "./tools/find-definition.ts";
 import { REPO_TOOL_NAMES } from "./tools/names.ts";
 import type { ProvideResultsDetails } from "./tools/provide-results.ts";
 import type { ReadFileDetails } from "./tools/read-file.ts";
 import type { SearchCodeGitHubDetails } from "./tools/search-code-github.ts";
 import type { SearchCodeGrepAppDetails } from "./tools/search-code-grepapp.ts";
+import type { SearchCodeSourcegraphDetails } from "./tools/search-code-sourcegraph.ts";
 import type { SearchReposGitHubDetails } from "./tools/search-repos-github.ts";
+import type { SearchReposSourcegraphDetails } from "./tools/search-repos-sourcegraph.ts";
 
 export type RepoToolDetails =
   | SearchCodeGitHubDetails
   | SearchCodeGrepAppDetails
+  | SearchCodeSourcegraphDetails
   | SearchReposGitHubDetails
+  | SearchReposSourcegraphDetails
+  | FindDefinitionDetails
   | ReadFileDetails
   | CheckoutRepoDetails
   | ProvideResultsDetails;
@@ -71,9 +77,15 @@ export function summarizeRepoToolDetails(details: RepoToolDetails): string | und
   switch (details.kind) {
     case "search_code_github":
     case "search_code_grepapp":
+    case "search_code_sourcegraph":
       return summarizeCodeSearch(details, true);
     case "search_repos_github":
+    case "search_repos_sourcegraph":
       return summarizeRepoSearch(details);
+    case "find_definition": {
+      const count = plural(details.matchCount, "definition");
+      return details.complete ? count : `${count}, incomplete`;
+    }
     case "read_file":
       return undefined;
     case "checkout_repo":
