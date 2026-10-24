@@ -24,6 +24,7 @@ Researches code beyond GitHub: declared GitLab, Bitbucket Server, and Sourcegrap
 - Attached tools render their results: a summary and the first entries collapsed, metadata and matched lines expanded.
 - Findings name each location's source and link it at the commit that was read, on any declared host.
 - Runs that search append how they used the results to `<cacheDir>/usage.jsonl`.
+- `checkout_repo` takes a shorthand `repo` without `source` when only one source can clone.
 
 ### Changed
 

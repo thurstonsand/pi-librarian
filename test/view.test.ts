@@ -5,6 +5,7 @@ import { Container, Text } from "@earendil-works/pi-tui";
 import { beforeAll, describe, expect, it } from "vitest";
 import type { LibrarianRunDetails, TraceCall } from "../extensions/librarian/run.ts";
 import { resolveLibrarianSettings } from "../extensions/librarian/settings.ts";
+import { summarizeToolResult } from "../extensions/librarian/trace.ts";
 import {
   formatToolDuration,
   formatTraceLine,
@@ -492,5 +493,29 @@ describe("renderRepoToolResult", () => {
         ),
       ),
     ).toEqual(["15s limit hit; 212 files in 40 repos found.", "Took 15.4s"]);
+  });
+});
+
+describe("summarizeToolResult", () => {
+  it("singularizes a code search's unit", () => {
+    const details = {
+      kind: "search_code_github",
+      source: "github",
+      unit: "files",
+      matchCount: 1,
+      repoCount: 1,
+      fetchedCount: 1,
+      shownCount: 1,
+      complete: undefined,
+      artifact: { path: "/tmp/x", lineCount: 1, byteCount: 1 },
+      entries: [],
+    };
+    expect(summarizeToolResult({ content: [], details }, false)).toBe("1 file · 1 repo");
+    expect(
+      summarizeToolResult(
+        { content: [], details: { ...details, unit: "matches", matchCount: 1204, repoCount: 63 } },
+        false,
+      ),
+    ).toBe("1,204 matches · 63 repos");
   });
 });

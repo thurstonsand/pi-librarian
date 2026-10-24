@@ -34,8 +34,15 @@ const HOSTS = resolveLibrarianSettings(
 ).sources;
 
 describe("parseRepoReference", () => {
-  it("requires source for a shorthand repository path", () => {
+  it("requires source for a shorthand repository path when several sources clone", () => {
     expect(() => key("a/b")).toThrow(/Pass source/);
+  });
+
+  it("reads a shorthand as the only clone source when there is one", () => {
+    const { sources } = resolveLibrarianSettings({}, {});
+    expect(parseRepoReference("drizzle-team/drizzle-orm", sources).cloneUrls).toEqual([
+      "https://github.com/drizzle-team/drizzle-orm.git",
+    ]);
   });
 
   it("derives GitHub shorthand from the implicit github source", () => {

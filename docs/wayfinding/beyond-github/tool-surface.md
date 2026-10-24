@@ -1535,6 +1535,8 @@ ref: Type.Optional(Type.String({
 
 Repositories a Sourcegraph result maps to no declared source — a mirrored public repository, say — are reached with a full clone URL, which is why that form stays.
 
+**With exactly one clone source, a shorthand `repo` needs no `source`.** Added after recordings showed the librarian's first checkout omitting `source` and being refused, run after run, in the default configuration where only `github` clones. One source leaves nothing to disambiguate — the same reason a search tool over one instance takes no `source` — and with two or more the refusal stands.
+
 ```ts
 name: "checkout_repo",
 label: "Checkout repo",

@@ -50,6 +50,7 @@ export function asRepoToolDetails(details: unknown): RepoToolDetails | undefined
 
 interface CodeSearchSummary {
   unit: "repos" | "files" | "matches";
+  atLeast?: boolean;
   matchCount: number;
   repoCount: number | undefined;
   complete: boolean | undefined;
@@ -64,7 +65,11 @@ function summarizeCodeSearch(details: CodeSearchSummary, ranked: boolean): strin
     ...(details.complete === false ? ["incomplete"] : []),
     ...(ranked ? [] : ["unranked"]),
   ];
-  return `${formatCount(details.matchCount)} ${details.unit}${repos}${flags.length > 0 ? `, ${flags.join(", ")}` : ""}`;
+  const singular = { repos: "repo", files: "file", matches: "match" }[details.unit];
+  const count = details.atLeast
+    ? `${formatCount(details.matchCount)}+ ${details.unit}`
+    : plural(details.matchCount, singular, details.unit);
+  return `${count}${repos}${flags.length > 0 ? `, ${flags.join(", ")}` : ""}`;
 }
 
 interface RepoSearchSummary {

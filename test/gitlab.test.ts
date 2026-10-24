@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CodeSearchWindow } from "../extensions/librarian/gitlab.ts";
+import { summarizeToolResult } from "../extensions/librarian/trace.ts";
 import { stubFetch } from "./support/fetch-stub.ts";
 import { call, repoTools, temporaryCacheDir, text, withoutArtifact } from "./support/tools.ts";
 
@@ -265,5 +266,22 @@ describe("read_file on GitLab", () => {
         .map((request) => request.method),
       // .gitmodules for the submodule, then a size check and a read for each file
     ).toEqual(["GET", "HEAD", "GET", "HEAD", "GET"]);
+  });
+});
+
+describe("search_code_gitlab summary", () => {
+  it("marks a count as a floor when more pages exist", async () => {
+    stubFetch([
+      (request) =>
+        request.url.pathname.endsWith("/search")
+          ? Response.json([blob("a.go", 1, "needle")], { headers: { "x-next-page": "2" } })
+          : json(PROJECT),
+    ]);
+    const result = await call(repoTools(settings(), ENV), "search_code_gitlab", {
+      pattern: "needle",
+      project: "platform/widget-sdk",
+      limit: 1,
+    });
+    expect(summarizeToolResult(result, false)).toBe("1+ files · 1 repo, unranked");
   });
 });

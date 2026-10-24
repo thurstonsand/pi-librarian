@@ -30,7 +30,10 @@ export function createCheckoutRepoTool(cacheDir: string, sources: LibrarianSourc
       StringEnum(
         clonable.map((source) => source.name),
         {
-          description: `Source for the code: ${sourceLabels(clonable)}. Omit when repo is a full clone URL.`,
+          description:
+            clonable.length === 1
+              ? `Source for the code: ${sourceLabels(clonable)}, the only one, so it may be omitted.`
+              : `Source for the code: ${sourceLabels(clonable)}. Omit when repo is a full clone URL.`,
         },
       ),
     ),

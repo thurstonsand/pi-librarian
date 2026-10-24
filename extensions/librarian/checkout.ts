@@ -195,6 +195,13 @@ export function parseRepoReference(
     return cloneUrlReference;
   }
 
+  // With one clone source a shorthand can only mean that one, as a search tool over one instance
+  // takes no source at all.
+  const clonable = cloneSources(sources);
+  const only = clonable.length === 1 ? clonable[0] : undefined;
+  if (!sourceName && only) {
+    return deriveReference(trimmed, input, only);
+  }
   if (!sourceName) {
     throw new CheckoutError(
       `Repository "${input}" is a shorthand path. Pass source to select its code host, or pass an HTTPS/SSH clone URL.`,

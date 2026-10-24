@@ -38,6 +38,8 @@ export interface SearchCodeGitLabDetails {
   shownCount: number;
   complete: boolean | undefined;
   ranked: false;
+  // More pages exist than were fetched, so matchCount is a floor.
+  atLeast: boolean;
   artifact: SearchArtifact;
   entries: ShownEntry[];
 }
@@ -294,6 +296,7 @@ export function createSearchCodeGitLabTool(
           shownCount: entries.length,
           complete: undefined,
           ranked: false,
+          atLeast: hasMore,
           artifact,
           entries,
         },

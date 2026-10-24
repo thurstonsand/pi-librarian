@@ -124,6 +124,11 @@ export function createReadFileTool(
     label: "Read file",
     description:
       "Read one file, or list one directory, from a repository without cloning it. Long files come back in pages of up to 2,000 lines; files over about 5 MB and binary files are refused. For exploring several files, cloning is faster.",
+    // Measured: given bash, a run fetched a file with gh api instead, skipping the entry-type checks
+    // and the size limit.
+    promptGuidelines: [
+      "Read files from code hosts with read_file or checkout_repo, never with curl, gh, or other network commands in bash.",
+    ],
     parameters: Params,
     annotations: { readOnlyHint: true, openWorldHint: true },
 
