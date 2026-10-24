@@ -2,6 +2,7 @@ import { StringEnum } from "@earendil-works/pi-ai";
 import { defineTool } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import {
+  clipLine,
   formatDigest,
   plural,
   type SearchArtifact,
@@ -206,7 +207,7 @@ export function createSearchCodeSourcegraphTool(
           ...(detail === "matches" && lines.length > 0
             ? {
                 detail: [
-                  ...lines.map((line) => `${line.lineNumber}: ${line.text.trimEnd()}`),
+                  ...lines.map((line) => `${line.lineNumber}: ${clipLine(line.text)}`),
                   ...(match.lines.length > lines.length
                     ? [`… ${match.lines.length - lines.length} more matched lines`]
                     : []),

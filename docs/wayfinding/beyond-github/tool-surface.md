@@ -697,17 +697,17 @@ The honest reason for five tools. **Measured** marks what was tested against a l
 
 |                    | `_github`                                  | `_grepapp`       | `_sourcegraph`                        | `_gitlab`                        | `_bitbucket`        |
 | ------------------ | ------------------------------------------ | ---------------- | ------------------------------------- | -------------------------------- | ------------------- |
-| pattern            | substring, words ANDed, quoted phrase      | literal or regex | literal, keyword, regex — always encoded | exact string of the whole query, measured | `?`                 |
-| substring match    | **yes**, measured                          | yes              | yes                                   | yes | `?`                 |
+| pattern            | substring, words ANDed, quoted phrase      | literal or regex | literal, keyword, regex — always encoded | exact string of the whole query, measured | whole tokens, words ANDed, OR/NOT, phrases, measured |
+| substring match    | **yes**, measured                          | yes              | yes                                   | yes | **no**, measured    |
 | regex              | **no**; `/…/` is literal text, `OR` is silently AND, measured | yes         | yes                                   | no                               | no                  |
-| path filter        | `path:`                                    | yes              | `file:`                               | `path:`, `filename:`, `extension:` — project scope, measured             | `?`                 |
-| language filter    | `language:`                                | yes              | `lang:`                               | no; `extension:`             | `?`                 |
+| path filter        | `path:`                                    | yes              | `file:`                               | `path:`, `filename:`, `extension:` — project scope, measured             | `path:`, `ext:`, measured |
+| language filter    | `language:`                                | yes              | `lang:`                               | no; `extension:`             | `lang:`, measured   |
 | repo scope         | `repo:`, `user:` = `org:`, measured        | repo prefix      | `repo:` regex                         | one project unless advanced, measured | project, repo       |
 | projection         | no                                         | no               | **yes**                               | no                               | no                  |
 | private repos      | yes, with auth                             | **no**           | yes                                   | yes                              | yes                 |
 | completeness       | `incomplete_results` = scope unsearchable  | none             | `skipped` allowlist                   | none                             | 1,000-result window |
 | result ceiling     | 1,000                                      | `?`              | match budget                          | none; `x-total` a lower bound | **1,000, hard**     |
-| rate limit         | 10/min, measured by hitting it             | `?`              | none in 311 requests                  | **30/min per user**, measured | `?`                 |
+| rate limit         | 10/min, measured by hitting it             | `?`              | none in 311 requests                  | **30/min per user**, measured | none seen in 40 requests |
 
 Three rows deserve attention. **grep.app reaches no private code**, which makes it the wrong choice for anyone with declared sources and the only choice for anyone without. **Three of five engines give no completeness signal**, so their digests can report what they found and must stay silent about what they missed — not fixable from our side. And **GitHub reads `OR` as AND without saying so**, the worst kind of failure, handled below.
 
@@ -959,18 +959,33 @@ description:
 
 Correct, cheap, and not growing — Bitbucket Server is being replaced by self-hosted GitLab over roughly two years.
 
-It rests on an **undocumented** REST endpoint with a hard 1,000-result window. The tool pages up to the window and stops. Reaching it is reported as incomplete, because it is the engine refusing to go further rather than a limit we chose:
+It rests on an **undocumented** REST endpoint, `POST /rest/search/latest/search`. Measured during implementation against a 9.4 instance, 40 requests:
 
-```pi_agent
-1,000 files across 87 repos (example-bb). Incomplete: reached Bitbucket's 1,000-result window.
-Showing 10. Full results: /tmp/pi-librarian/searches/tc_01HD/results.jsonl (1,000 lines, 212 KB)
-```
+| behaviour | measured |
+| --- | --- |
+| matching | **whole tokens**, case-insensitive: `etryBacko` finds 0; punctuation is ignored, so `retryBackoff(` finds what `retryBackoff` does |
+| several words | ANDed: 835 and 7,536 become 119 |
+| `OR`, `NOT`, `-word`, parentheses | all work: 8,252 for `OR`, 716 for `NOT` and `-word` |
+| quotes | an exact phrase |
+| `*`, `/…/` | no wildcard and no regex; `retryBack*` finds 0 |
+| `lang:`, `ext:`, `path:` | work |
+| unknown modifier, or an unknown `project:` key | **silent zero** |
+| `repo:` without `project:` | a loud `400` |
+| `count` | exact up to 10,000, then stops at 10,000 |
+| the window | a page reaching past about 1,000 results is a `400`, "Unable to display more results" |
+| hit lines | 1-based, HTML-escaped, the matched text wrapped in `<em>` |
+| latency | 0.3–0.9s |
+
+So the tool takes `language`, `extension`, and `path` as arguments beside `project` and `repo`, refuses modifiers and wildcards in the pattern, and checks the project exists when a search scoped to one finds nothing. With `limit` at most 50, one request at offset 0 is all it ever makes, so the window never bites; the earlier plan to page up to it predates `limit`.
 
 ```ts
 const Params = Type.Object({
-  pattern: Type.String({ description: "Code to find." }),
-  project: Type.Optional(Type.String({ description: "Restrict to a project key." })),
-  repo: Type.Optional(Type.String({ description: "Restrict to one repository in project. Requires project." })),
+  pattern: Type.String({ description: "Whole words to find, case-insensitively; words must all appear in the file. Quote a phrase to keep it together, join alternatives with OR, exclude with NOT or -word, group with parentheses. Matches whole tokens only — no substrings, no wildcards, no regex — and ignores punctuation." }),
+  project: Type.Optional(Type.String({ description: "Restrict to a project key, e.g. PROJ." })),
+  repo: Type.Optional(Type.String({ description: "Restrict to one repository slug in project. Requires project." })),
+  language: Type.Optional(Type.String({ description: "Restrict to a language, e.g. go." })),
+  extension: Type.Optional(Type.String({ description: "File extension without the dot, e.g. go." })),
+  path: Type.Optional(Type.String({ description: "Restrict to paths containing this directory, e.g. internal." })),
 });
 ```
 
@@ -1005,7 +1020,7 @@ What we give up is anything the arguments do not model: boolean `OR` between qua
 | both at once     | no                                   | `repo:has.file(path: content:)` | no                                 | no           |
 | changed after    | `pushed:>date`                       | `repo:has.commit.after()`       | `last_activity_after`              | no           |
 | archived / fork  | `archived:`, `fork:`                 | `archived:`, `fork:`            | `archived=`                        | no           |
-| sort             | best-match, stars, updated           | **none**                        | see below                          | `?`          |
+| sort             | best-match, stars, updated           | **none**                        | see below                          | none         |
 
 `changed_after` exists on three engines and is a cheap index lookup on two of them and a git history walk on the third, so its cost warning belongs on one tool's argument and would be a lie on the others. The warning goes on the argument, only on the slow one; naming what is fast is noise.
 
@@ -1157,9 +1172,11 @@ const Params = Type.Object({
 
 ### `search_repos_bitbucket`
 
+Measured: `name` matches the **start** of a repository name, case-insensitively — `open` finds 39 names, all starting with it, and `pensear` finds nothing — so the description says so rather than "substring". `projectkey` filters by key; `projectname` silently matches nothing when given one. The response has no total, only `isLastPage`. Personal repositories come back under a `~user` project, which `checkout_repo` now accepts.
+
 ```ts
 const Params = Type.Object({
-  name: Type.Optional(Type.String({ description: "Substring matched against repository name." })),
+  name: Type.Optional(Type.String({ description: "Repositories whose name starts with this, case-insensitively." })),
   project: Type.Optional(Type.String({ description: "Restrict to a project key." })),
 });
 ```
@@ -1609,12 +1626,10 @@ In [What the user sees](#what-the-user-sees), with every state.
 
 ### Measured during implementation, on this machine
 
-- The `kind` enum on `find_definition`, against the symbol kinds the instance reports.
-- Whether a lowercase project key works in a Bitbucket `/scm/` clone URL, since Sourcegraph reports keys uppercase.
-
-- Bitbucket pattern semantics — substring, phrase, regex — against the declared instance, the way GitHub's and GitLab's were measured here. Needs a Bitbucket credential on this machine.
-- Whether aborted GitLab searches count against its 30-a-minute limit.
-- Bitbucket's sort options and query modifiers, the `?` cells.
+- **Done:** the `kind` enum on `find_definition` — `type` is not a kind the instance accepts; see that section.
+- **Done:** a lowercase project key works in a Bitbucket `/scm/` clone URL — `oss/…` cloned the repository Sourcegraph names `OSS/…`.
+- **Done:** Bitbucket pattern semantics, modifiers, and the result window — see `search_code_bitbucket`. Its repository search has no sort to offer.
+- **Not measured:** whether aborted GitLab searches count against its 30-a-minute limit. The client counts every search it starts, aborted or not, so an uncounted abort only makes it conservative.
 
 ### Measured elsewhere
 

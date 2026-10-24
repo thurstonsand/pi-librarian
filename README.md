@@ -16,6 +16,7 @@ The `librarian` tool spawns a research subagent with purpose-built tools, built 
 - **`search_code_grepapp`** — public code search via [Grep](https://grep.app/), with regex.
 - **`search_repos_github`** — GitHub repository discovery by name, topics, language, stars, and activity.
 - **`search_code_gitlab`**, **`search_repos_gitlab`** — with a declared GitLab: exact-string code search within a project (across projects with `advancedSearch`), held to GitLab's 30 code searches a minute, and project search by name, group, topic, and activity.
+- **`search_code_bitbucket`**, **`search_repos_bitbucket`** — with a declared Bitbucket Server: whole-word code search across every repository, and repository search by the start of a name.
 - **`search_code_sourcegraph`**, **`search_repos_sourcegraph`**, **`find_definition`** — with a declared Sourcegraph: code search across every repository it indexes, with a `detail` of repos, files, or matched lines and a statement of whether it covered them all; repository search by name, topic, contained path, or recent commits; and symbol definitions by exact name, leaving vendored copies out unless asked.
 
 Every search returns a short digest, 10 results unless the librarian asks for up to 50, and writes the full result set to a file it can grep. A search that runs past its 15-second budget is an error that says how to narrow it, never a partial answer.

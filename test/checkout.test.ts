@@ -177,6 +177,17 @@ describe("bitbucket-server /scm/ prefix", () => {
       "git.example.com/proj/repo",
     );
   });
+
+  it("clones a personal repository, whose project is ~user, and nowhere else accepts ~", () => {
+    const { sources } = resolveLibrarianSettings(
+      { sources: [{ name: "bb", url: "https://git.example.com", kind: "bitbucket-server" }] },
+      {},
+    );
+    expect(parseRepoReference("~jdoe/scratch", sources, "bb").cloneUrls).toEqual([
+      "https://git.example.com/scm/~jdoe/scratch.git",
+    ]);
+    expect(() => parseRepoReference("PROJ/~scratch", sources, "bb")).toThrow(/Invalid repository/);
+  });
 });
 
 describe("repoCachePath", () => {

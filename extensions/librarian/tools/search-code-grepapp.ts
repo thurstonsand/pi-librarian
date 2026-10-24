@@ -1,6 +1,7 @@
 import { defineTool } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import {
+  clipLine,
   formatDigest,
   plural,
   type SearchArtifact,
@@ -36,7 +37,7 @@ function matchDetail(match: GrepCodeMatch): string | undefined {
       snippet.content
         .split("\n")
         .slice(0, 8)
-        .map((line, offset) => `${snippet.lineNumber + offset}: ${line.trimEnd()}`)
+        .map((line, offset) => `${snippet.lineNumber + offset}: ${clipLine(line)}`)
         .join("\n"),
     )
     .join("\n…\n");

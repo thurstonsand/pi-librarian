@@ -36,7 +36,8 @@ export function repoCachePath(cacheDir: string, repo: string): string {
 function normalizeRepoPath(rawPath: string, input: string): string {
   const repoPath = rawPath.replace(/^\/+/, "").replace(/\.git$/, "");
   const parts = repoPath.split("/");
-  if (parts.some((part) => !/^[\w.-]+$/.test(part))) {
+  // Bitbucket Server names a personal repository's project ~user.
+  if (parts.some((part, index) => !(index === 0 ? /^~?[\w.-]+$/ : /^[\w.-]+$/).test(part))) {
     throw invalidRepo(input);
   }
   return parts.join("/");

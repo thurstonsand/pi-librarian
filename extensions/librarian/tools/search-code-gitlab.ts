@@ -1,6 +1,7 @@
 import { defineTool } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import {
+  clipLine,
   formatDigest,
   plural,
   type SearchArtifact,
@@ -240,7 +241,7 @@ export function createSearchCodeGitLabTool(
         const lines = file.lines.slice(0, MATCHED_LINES_SHOWN);
         const detailLines = [
           ...(file.pathMatch ? ["(the path matches)"] : []),
-          ...lines.map((line) => `${line.lineNumber}: ${line.text.trimEnd()}`),
+          ...lines.map((line) => `${line.lineNumber}: ${clipLine(line.text)}`),
           ...(file.lines.length > lines.length
             ? [`… ${file.lines.length - lines.length} more matched lines`]
             : []),

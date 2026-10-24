@@ -5,10 +5,12 @@ import type { FindDefinitionDetails } from "./tools/find-definition.ts";
 import { REPO_TOOL_NAMES } from "./tools/names.ts";
 import type { ProvideResultsDetails } from "./tools/provide-results.ts";
 import type { ReadFileDetails } from "./tools/read-file.ts";
+import type { SearchCodeBitbucketDetails } from "./tools/search-code-bitbucket.ts";
 import type { SearchCodeGitHubDetails } from "./tools/search-code-github.ts";
 import type { SearchCodeGitLabDetails } from "./tools/search-code-gitlab.ts";
 import type { SearchCodeGrepAppDetails } from "./tools/search-code-grepapp.ts";
 import type { SearchCodeSourcegraphDetails } from "./tools/search-code-sourcegraph.ts";
+import type { SearchReposBitbucketDetails } from "./tools/search-repos-bitbucket.ts";
 import type { SearchReposGitHubDetails } from "./tools/search-repos-github.ts";
 import type { SearchReposGitLabDetails } from "./tools/search-repos-gitlab.ts";
 import type { SearchReposSourcegraphDetails } from "./tools/search-repos-sourcegraph.ts";
@@ -18,6 +20,8 @@ export type RepoToolDetails =
   | SearchCodeGrepAppDetails
   | SearchCodeSourcegraphDetails
   | SearchCodeGitLabDetails
+  | SearchCodeBitbucketDetails
+  | SearchReposBitbucketDetails
   | SearchReposGitLabDetails
   | SearchReposGitHubDetails
   | SearchReposSourcegraphDetails
@@ -82,10 +86,12 @@ export function summarizeRepoToolDetails(details: RepoToolDetails): string | und
     case "search_code_github":
     case "search_code_grepapp":
     case "search_code_sourcegraph":
+    case "search_code_bitbucket":
       return summarizeCodeSearch(details, true);
     case "search_code_gitlab":
       return summarizeCodeSearch(details, details.ranked);
     case "search_repos_gitlab":
+    case "search_repos_bitbucket":
     case "search_repos_github":
     case "search_repos_sourcegraph":
       return summarizeRepoSearch(details);

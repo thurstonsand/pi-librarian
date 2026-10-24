@@ -1,4 +1,5 @@
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
+import { BitbucketClient, createBitbucketFileReader } from "../bitbucket.ts";
 import { cloneSources } from "../checkout.ts";
 import {
   createGitHubClientProvider,
@@ -14,10 +15,12 @@ import { createCheckoutRepoTool } from "./checkout-repo.ts";
 import { createFindDefinitionTool } from "./find-definition.ts";
 import { LIBRARIAN_TOOL_NAMES } from "./names.ts";
 import { createReadFileTool } from "./read-file.ts";
+import { createSearchCodeBitbucketTool } from "./search-code-bitbucket.ts";
 import { createSearchCodeGitHubTool } from "./search-code-github.ts";
 import { createSearchCodeGitLabTool } from "./search-code-gitlab.ts";
 import { createSearchCodeGrepAppTool } from "./search-code-grepapp.ts";
 import { createSearchCodeSourcegraphTool } from "./search-code-sourcegraph.ts";
+import { createSearchReposBitbucketTool } from "./search-repos-bitbucket.ts";
 import { createSearchReposGitHubTool } from "./search-repos-github.ts";
 import { createSearchReposGitLabTool } from "./search-repos-gitlab.ts";
 import { createSearchReposSourcegraphTool } from "./search-repos-sourcegraph.ts";
@@ -28,6 +31,7 @@ export interface RepoClients {
   github: Map<string, GitHubClientProvider>;
   sourcegraph: Map<string, SourcegraphClient>;
   gitlab: Map<string, GitLabClient>;
+  bitbucket: Map<string, BitbucketClient>;
   readers: Map<string, RepoFileReader>;
 }
 
@@ -43,6 +47,7 @@ export function createRepoClients(settings: LibrarianSettings): RepoClients {
   const github = new Map<string, GitHubClientProvider>();
   const sourcegraph = new Map<string, SourcegraphClient>();
   const gitlab = new Map<string, GitLabClient>();
+  const bitbucket = new Map<string, BitbucketClient>();
   const readers = new Map<string, RepoFileReader>();
 
   for (const source of settings.sources) {
@@ -71,11 +76,16 @@ export function createRepoClients(settings: LibrarianSettings): RepoClients {
         }
         break;
       case "bitbucket-server":
+        if (source.token) {
+          const client = new BitbucketClient(source.url, source.token);
+          bitbucket.set(source.name, client);
+          readers.set(source.name, createBitbucketFileReader(client));
+        }
         break;
     }
   }
 
-  return { github, sourcegraph, gitlab, readers };
+  return { github, sourcegraph, gitlab, bitbucket, readers };
 }
 
 export function readableSources(
@@ -125,6 +135,12 @@ export function createRepoTools(settings: LibrarianSettings, clients: RepoClient
     implyWhenSingle(impliedSources, LIBRARIAN_TOOL_NAMES.searchCodeGitLab, gitlabCode);
   }
 
+  const bitbucketCode = sourcesWith(sources, "bitbucket-server", "code-search");
+  if (bitbucketCode.length > 0) {
+    tools.push(createSearchCodeBitbucketTool(bitbucketCode, clients.bitbucket, cacheDir, search));
+    implyWhenSingle(impliedSources, LIBRARIAN_TOOL_NAMES.searchCodeBitbucket, bitbucketCode);
+  }
+
   const clonable = cloneSources(sources);
   const sourcegraphCode = sourcesWith(sources, "sourcegraph", "code-search");
   if (sourcegraphCode.length > 0) {
@@ -151,6 +167,11 @@ export function createRepoTools(settings: LibrarianSettings, clients: RepoClient
   if (gitlabRepos.length > 0) {
     tools.push(createSearchReposGitLabTool(gitlabRepos, clients.gitlab, cacheDir, search));
     implyWhenSingle(impliedSources, LIBRARIAN_TOOL_NAMES.searchReposGitLab, gitlabRepos);
+  }
+  const bitbucketRepos = sourcesWith(sources, "bitbucket-server", "repo-search");
+  if (bitbucketRepos.length > 0) {
+    tools.push(createSearchReposBitbucketTool(bitbucketRepos, clients.bitbucket, cacheDir, search));
+    implyWhenSingle(impliedSources, LIBRARIAN_TOOL_NAMES.searchReposBitbucket, bitbucketRepos);
   }
   const sourcegraphRepos = sourcesWith(sources, "sourcegraph", "repo-search");
   if (sourcegraphRepos.length > 0) {

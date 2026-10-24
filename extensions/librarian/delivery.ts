@@ -40,6 +40,14 @@ export async function writeSearchArtifact(
   return { path: artifactPath, lineCount: records.length, byteCount: Buffer.byteLength(body) };
 }
 
+const MAX_LINE_CHARS = 200;
+
+// A matched line can be a whole paragraph of prose or minified code; the artifact keeps it whole.
+export function clipLine(text: string): string {
+  const trimmed = text.trimEnd();
+  return trimmed.length <= MAX_LINE_CHARS ? trimmed : `${trimmed.slice(0, MAX_LINE_CHARS)}…`;
+}
+
 export function formatCount(count: number): string {
   return count.toLocaleString("en-US");
 }
