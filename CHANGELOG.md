@@ -2,6 +2,18 @@
 
 # Changelog
 
+## 0.6.3
+
+Keeps `/librarian` attach state per session branch and builds against Pi 1.4.0.
+
+### Changed
+
+- Built and tested against Pi 1.4.0. Pi 1.0.2 remains the minimum supported version.
+
+### Fixed
+
+- `/librarian` attach state now follows the current session branch. It is restored when you navigate with `/tree` and when you resume a session where you toggled it before sending a message.
+
 ## 0.6.2
 
 Builds against Pi 1.3.0 and times the trace like Pi's own tool rows.
