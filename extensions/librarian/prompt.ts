@@ -1,4 +1,9 @@
-import { isCodeSearchTool, isRepoSearchTool, LIBRARIAN_TOOL_NAMES } from "./tools/names.ts";
+import {
+  isCodeSearchTool,
+  isRepoSearchTool,
+  LIBRARIAN_TOOL_NAMES,
+  WEB_TOOL_NAMES,
+} from "./tools/names.ts";
 
 export interface PromptTool {
   name: string;
@@ -21,9 +26,11 @@ function strategy(names: string[]): string[] {
   const lines = [
     "- Question about a SPECIFIC repo (behavior, implementation, flow): checkout_repo first, then grep/read/find/ls on the local clone. This is your workhorse. Use `git -C <path> log -S <term>` / blame / diff for history questions.",
   ];
+  const webSearch = has(WEB_TOOL_NAMES.webSearch);
+  const webFetch = has(WEB_TOOL_NAMES.webFetch);
   if (repoSearch.length > 0) {
     lines.push(
-      `- "What's out there / what's popular": ${list(repoSearch)}, plus web search when available for ecosystem context.`,
+      `- "What's out there / what's popular": ${list(repoSearch)}${webSearch ? ", plus web_search for ecosystem context" : ""}.`,
     );
   }
   if (codeSearch.length > 0) {
@@ -39,6 +46,16 @@ function strategy(names: string[]): string[] {
   if (read) {
     lines.push(
       `- Single-file peek (a package.json, one README): ${read} — don't clone for one file.`,
+    );
+  }
+  if (webFetch) {
+    lines.push(
+      "- Issues, pull requests, discussions, releases, CI runs: web_fetch on the GitHub URL. To learn whether a bug was fixed, fetch the issue and read its timeline: a closing commit or a merged cross-referenced PR is evidence of a fix, while closed as `completed` alone can mean the reporter was answered. Search one repository's issues with web_fetch on https://github.com/<owner>/<repo>/issues?q=<terms>.",
+    );
+  }
+  if (webSearch) {
+    lines.push(
+      `- Documentation, announcements, anything not in a repository: web_search${webFetch ? ", then web_fetch the most relevant sources" : ""}.`,
     );
   }
   return lines;

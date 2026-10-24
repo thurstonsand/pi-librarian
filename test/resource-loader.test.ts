@@ -26,7 +26,6 @@ describe("createLibrarianResourceLoader", () => {
     const loader = createLibrarianResourceLoader({
       cacheDir,
       agentDir,
-      extensionPaths: [],
       systemPromptOverride: () => "librarian prompt",
     });
     await loader.reload();

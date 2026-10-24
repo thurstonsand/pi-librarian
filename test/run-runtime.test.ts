@@ -69,9 +69,8 @@ describe("runLibrarian", () => {
     const settings: LibrarianSettings = {
       model: undefined,
       thinkingLevel: undefined,
-      extensions: [],
       search: { timeoutSeconds: 15, defaultLimit: 10 },
-      tools: { extra: ["search_web"], disabled: ["bash", "search_code_grepapp", "search_web"] },
+      tools: { disabled: ["bash", "search_code_grepapp"] },
       sources: [
         {
           name: "github",
@@ -82,6 +81,13 @@ describe("runLibrarian", () => {
           advancedSearch: false,
         },
       ],
+      web: {
+        parallel: { apiKey: undefined, apiKeyCommand: undefined },
+        fetch: {
+          browser: { executablePath: undefined, profileDir: "/tmp/profile" },
+          challenge: { escalation: "never", headlessWaitSecs: 1, headedWaitSecs: 1 },
+        },
+      },
       cacheDir,
       debug: { persistRuns: false },
     };
@@ -94,8 +100,7 @@ describe("runLibrarian", () => {
       model,
       thinkingLevel: "off",
       settings,
-      extraTools: { extensionPaths: [], toolNames: ["search_web"] },
-      repoTools: createRepoTools(
+      tools: createRepoTools(
         settings,
         createRepoClients(settings, async () => undefined),
       ).tools,

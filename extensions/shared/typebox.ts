@@ -27,5 +27,9 @@ function formatTypeBoxError(schema: TSchema, value: unknown, context: string): s
   }
 
   const path = firstError.instancePath.length > 0 ? firstError.instancePath : "/";
+  // TypeBox reports a key a strict object forbids as "schema is false", which names no cause.
+  if (firstError.schemaPath.endsWith("/additionalProperties")) {
+    return `${context}: ${path} is not a recognized key`;
+  }
   return `${context}: ${path} ${firstError.message}`;
 }

@@ -14,7 +14,6 @@ import {
   type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import { cloneSources } from "./checkout.ts";
-import { type ExtraToolsResolution, LIBRARIAN_BASELINE_TOOL_NAMES } from "./extra-tools.ts";
 import {
   buildLibrarianSystemPrompt,
   buildLibrarianUserPrompt,
@@ -29,7 +28,8 @@ import { asRepoToolDetails, summarizeToolResult } from "./trace.ts";
 import { appendSearchUsage } from "./usage.ts";
 
 const MAX_PROVIDE_RESULTS_REMINDERS = 3;
-const DEFAULT_EXCLUDED_TOOLS = ["write", "edit"];
+const INHERITED_TOOL_NAMES = ["read", "grep", "find", "ls", "bash"];
+const EXCLUDED_TOOL_NAMES = ["write", "edit"];
 
 class LibrarianRunError extends Error {}
 
@@ -71,8 +71,8 @@ export interface LibrarianRunOptions {
   model: Model<Api>;
   thinkingLevel: ThinkingLevel;
   settings: LibrarianSettings;
-  extraTools: ExtraToolsResolution;
-  repoTools: ToolDefinition[];
+  // Repo tools plus web tools; provide_results is added per run.
+  tools: ToolDefinition[];
   signal: AbortSignal | undefined;
   onUpdate: ((details: LibrarianRunDetails) => void) | undefined;
 }
@@ -155,8 +155,8 @@ export async function runLibrarian(
 
   let findings: Findings | undefined;
   const disabledTools = new Set(options.settings.tools.disabled);
-  const repoTools = [
-    ...options.repoTools,
+  const tools = [
+    ...options.tools,
     createProvideResultsTool(
       cloneSources(options.settings.sources).map((source) => source.name),
       (payload) => {
@@ -168,24 +168,9 @@ export async function runLibrarian(
   const resourceLoader = createLibrarianResourceLoader({
     cacheDir: options.settings.cacheDir,
     agentDir: getAgentDir(),
-    extensionPaths: options.extraTools.extensionPaths,
-    systemPromptOverride: () => buildLibrarianSystemPrompt(options.settings.cacheDir, repoTools),
+    systemPromptOverride: () => buildLibrarianSystemPrompt(options.settings.cacheDir, tools),
   });
   await resourceLoader.reload();
-
-  const extensionLoadErrors = resourceLoader.getExtensions().errors;
-  for (const [index, error] of extensionLoadErrors.entries()) {
-    const now = Date.now();
-    details.trace.push({
-      id: `extension-load-${index}`,
-      name: "load_extension",
-      args: { path: error.path },
-      startedAt: now,
-      endedAt: now,
-      isError: true,
-      resultSummary: error.error,
-    });
-  }
 
   emit(true);
 
@@ -201,19 +186,15 @@ export async function runLibrarian(
       modelRuntime: options.modelRuntime,
       model: options.model,
       thinkingLevel: options.thinkingLevel,
-      customTools: repoTools,
-      excludeTools: DEFAULT_EXCLUDED_TOOLS.filter(
-        (toolName) => !options.extraTools.toolNames.includes(toolName),
-      ),
+      customTools: tools,
+      excludeTools: EXCLUDED_TOOL_NAMES,
     });
     session = created.session;
 
     session.setActiveToolsByName(
-      [
-        ...LIBRARIAN_BASELINE_TOOL_NAMES,
-        ...repoTools.map((tool) => tool.name),
-        ...options.extraTools.toolNames,
-      ].filter((toolName) => !disabledTools.has(toolName)),
+      [...INHERITED_TOOL_NAMES, ...tools.map((tool) => tool.name)].filter(
+        (toolName) => !disabledTools.has(toolName),
+      ),
     );
 
     unsubscribe = session.subscribe((event: AgentSessionEvent) => {

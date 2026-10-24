@@ -15,7 +15,12 @@ import { formatArtifact, type ShownEntry } from "./delivery.ts";
 import { formatLocation, locationUrl } from "./results.ts";
 import type { LibrarianRunDetails, TraceCall } from "./run.ts";
 import type { LibrarianSource } from "./settings.ts";
-import { isCodeSearchTool, isRepoSearchTool, LIBRARIAN_TOOL_NAMES } from "./tools/names.ts";
+import {
+  isCodeSearchTool,
+  isRepoSearchTool,
+  LIBRARIAN_TOOL_NAMES,
+  WEB_TOOL_NAMES,
+} from "./tools/names.ts";
 import { asRepoToolDetails, summarizeRepoToolDetails } from "./trace.ts";
 
 const COLLAPSED_TRACE_CALLS = 3;
@@ -239,6 +244,15 @@ export function formatTraceLine(call: TraceCall, context: TraceContext): TraceLi
     }
     case LIBRARIAN_TOOL_NAMES.provideResults:
       return { verb: "results", subject: "" };
+    case WEB_TOOL_NAMES.webSearch:
+      return { verb: "search", subject: `web ${shorten(stringArg(args, "objective") ?? "", 80)}` };
+    case WEB_TOOL_NAMES.webFetch: {
+      const [first = "", ...rest] = stringArrayArg(args, "urls");
+      return {
+        verb: "fetch",
+        subject: `${shorten(first, 100)}${rest.length > 0 ? ` +${rest.length} more` : ""}`,
+      };
+    }
     default: {
       const subject = firstString(args, ["query", "url", "prompt", "objective"]);
       return { verb: call.name, subject: subject ? shorten(subject, 80) : "" };

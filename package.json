@@ -2,7 +2,7 @@
   "name": "@thurstonsand/pi-librarian",
   "version": "0.1.0",
   "type": "module",
-  "description": "GitHub research subagent for pi: deep-dive specific repos, discover across the ecosystem",
+  "description": "Code research subagent for pi: deep-dive repos and discover across GitHub, GitLab, Bitbucket Server, and Sourcegraph; plus web search and URL-native fetch",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -66,7 +66,14 @@
   },
   "dependencies": {
     "@octokit/request-error": "^7.1.0",
-    "@octokit/rest": "^22.0.1"
+    "@octokit/rest": "^22.0.1",
+    "playwright-core": "^1.64.1",
+    "rehype-parse": "^9.0.1",
+    "rehype-remark": "^10.0.1",
+    "remark-gfm": "^4.0.1",
+    "remark-stringify": "^11.0.0",
+    "unified": "^11.0.5",
+    "unist-util-visit": "^5.1.0"
   },
   "publishConfig": {
     "access": "public"

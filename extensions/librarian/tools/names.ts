@@ -14,6 +14,11 @@ export const LIBRARIAN_TOOL_NAMES = {
   provideResults: "provide_results",
 } as const;
 
+export const WEB_TOOL_NAMES = {
+  webSearch: "web_search",
+  webFetch: "web_fetch",
+} as const;
+
 export const REPO_TOOL_NAMES: readonly string[] = Object.values(LIBRARIAN_TOOL_NAMES);
 
 export function isCodeSearchTool(name: string): boolean {

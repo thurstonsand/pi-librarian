@@ -1,15 +1,18 @@
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { DEFAULT_CACHE_DIR, resolveLibrarianSettings } from "../extensions/librarian/settings.ts";
+import {
+  DEFAULT_CACHE_DIR,
+  parseSettings,
+  resolveLibrarianSettings,
+} from "../extensions/librarian/settings.ts";
 
 describe("resolveLibrarianSettings", () => {
   it("returns defaults for empty settings", () => {
     const settings = resolveLibrarianSettings({}, {});
     expect(settings.model).toBeUndefined();
     expect(settings.thinkingLevel).toBeUndefined();
-    expect(settings.extensions).toEqual([]);
-    expect(settings.tools).toEqual({ extra: [], disabled: [] });
+    expect(settings.tools).toEqual({ disabled: [] });
     expect(settings.sources).toEqual([
       {
         name: "github",
@@ -58,30 +61,62 @@ describe("resolveLibrarianSettings", () => {
     expect(resolveLibrarianSettings({ model: "trailing/" }, {}).model).toBeUndefined();
   });
 
-  it("expands home-relative extension paths and drops blanks", () => {
+  it("normalizes disabled tool names", () => {
     const settings = resolveLibrarianSettings(
-      {
-        extensions: ["~/exts/web-tools", "  ", "/abs/path"],
-      },
+      { tools: { disabled: ["write", " write ", ""] } },
       {},
     );
-    expect(settings.extensions).toEqual([path.join(os.homedir(), "exts/web-tools"), "/abs/path"]);
+    expect(settings.tools).toEqual({ disabled: ["write"] });
   });
 
-  it("normalizes extra and disabled tool names", () => {
-    const settings = resolveLibrarianSettings(
+  it("refuses keys it does not know, so a removed or misspelled one is not silently ignored", () => {
+    expect(() => parseSettings({ librarian: { extensions: ["/x"] } }, {})).toThrow(
+      "Invalid settings: /librarian/extensions is not a recognized key",
+    );
+    expect(() => parseSettings({ librarian: { tools: { extra: ["web_fetch"] } } }, {})).toThrow(
+      "Invalid settings: /librarian/tools/extra is not a recognized key",
+    );
+    expect(() => parseSettings({ librarian: { web: { fetch: { browsr: {} } } } }, {})).toThrow(
+      "Invalid settings: /librarian/web/fetch/browsr is not a recognized key",
+    );
+    expect(
+      parseSettings({ librarian: { tools: { disabled: ["bash"] } }, other: 1 }, {}).tools,
+    ).toEqual({ disabled: ["bash"] });
+  });
+
+  it.each(["", "  ", 42, ["command"]])("rejects the Parallel key command %j", (apiKeyCommand) => {
+    expect(() =>
+      parseSettings({ librarian: { web: { parallel: { apiKeyCommand } } } }, {}),
+    ).toThrow("Invalid settings: /librarian/web/parallel/apiKeyCommand");
+  });
+
+  it("resolves web settings, taking the Parallel key from the environment", () => {
+    const settings = parseSettings(
       {
-        tools: {
-          extra: [" search_web ", "", "fetch_web", "search_web"],
-          disabled: ["write", " write "],
+        librarian: {
+          web: {
+            parallel: { apiKeyCommand: "op read secret" },
+            fetch: { browser: { profileDir: "~/profile" }, challenge: { escalation: "never" } },
+          },
         },
       },
-      {},
+      { PARALLEL_API_KEY: " key-1 " },
     );
-    expect(settings.tools).toEqual({
-      extra: ["search_web", "fetch_web"],
-      disabled: ["write"],
+    expect(settings.web).toEqual({
+      parallel: { apiKey: "key-1", apiKeyCommand: "op read secret" },
+      fetch: {
+        browser: { executablePath: undefined, profileDir: path.join(os.homedir(), "profile") },
+        challenge: { escalation: "never", headlessWaitSecs: 10, headedWaitSecs: 20 },
+      },
     });
+    expect(() =>
+      parseSettings(
+        { librarian: { web: { fetch: { browser: { executablePath: "chrome" } } } } },
+        {},
+      ),
+    ).toThrow(
+      'librarian.web.fetch.browser.executablePath must be an absolute path or start with "~/".',
+    );
   });
 
   it("normalizes host declarations, keeping search roles only for sources with a credential", () => {

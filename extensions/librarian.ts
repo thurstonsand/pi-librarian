@@ -13,7 +13,6 @@ import {
   renderAttachEntry,
   setAttachState,
 } from "./librarian/attach.ts";
-import { collectExtraToolWarnings, resolveExtraTools } from "./librarian/extra-tools.ts";
 import { resolveGhCliToken } from "./librarian/github.ts";
 import { resolveLibrarianModel } from "./librarian/model.ts";
 import { createLibrarianModelRuntime } from "./librarian/model-runtime.ts";
@@ -29,6 +28,8 @@ import {
   shorten,
   type TraceContext,
 } from "./librarian/view.ts";
+import { createWebTools } from "./librarian/web/index.ts";
+import { getErrorMessage } from "./librarian/web/shared.ts";
 
 const LibrarianParams = Type.Object({
   query: Type.String({
@@ -57,10 +58,9 @@ const LibrarianParams = Type.Object({
 
 export default function librarianExtension(pi: ExtensionAPI): void {
   const settings = loadSettings();
-  const { tools: repoTools, impliedSources } = createRepoTools(
-    settings,
-    createRepoClients(settings, resolveGhCliToken),
-  );
+  const clients = createRepoClients(settings, resolveGhCliToken);
+  const { tools: repoTools, impliedSources } = createRepoTools(settings, clients);
+  const web = createWebTools(settings, clients.github);
   const repoToolNames = repoTools.map((tool) => tool.name);
   const traceContext: TraceContext = {
     cacheDir: settings.cacheDir,
@@ -99,6 +99,10 @@ export default function librarianExtension(pi: ExtensionAPI): void {
     });
   }
 
+  for (const tool of web.tools) {
+    pi.registerTool(tool);
+  }
+
   pi.registerTool<typeof LibrarianParams, LibrarianRunDetails>({
     name: "librarian",
     label: "Librarian",
@@ -124,8 +128,6 @@ export default function librarianExtension(pi: ExtensionAPI): void {
         ctx.ui.notify(resolution.warning, "warning");
       }
 
-      const extraTools = resolveExtraTools(pi.getAllTools(), settings);
-
       return runLibrarian({
         query: params.query,
         repos: params.repos ?? [],
@@ -135,8 +137,7 @@ export default function librarianExtension(pi: ExtensionAPI): void {
         model: resolution.model,
         thinkingLevel: resolution.thinkingLevel,
         settings,
-        extraTools,
-        repoTools,
+        tools: [...repoTools, ...web.tools],
         signal,
         onUpdate: onUpdate
           ? (details) => {
@@ -207,16 +208,43 @@ export default function librarianExtension(pi: ExtensionAPI): void {
     },
   });
 
+  pi.registerCommand("browser", {
+    description: "Fetch browser: `open` for interactive login, `restart` to apply settings",
+    getArgumentCompletions: (prefix) =>
+      ["open", "restart"]
+        .filter((option) => option.startsWith(prefix.trim()))
+        .map((option) => ({ value: option, label: option })),
+    async handler(args, ctx) {
+      try {
+        switch (args.trim() || "open") {
+          case "open":
+            await web.worker.openBrowser();
+            ctx.ui.notify(
+              "Interactive browser open — log in as needed, then quit Chrome to resume fetching",
+              "info",
+            );
+            break;
+          case "restart":
+            await web.worker.restart();
+            ctx.ui.notify(
+              "Fetch worker stopped — the next fetch relaunches it with current settings",
+              "info",
+            );
+            break;
+          default:
+            ctx.ui.notify("usage: /browser [open|restart]", "error");
+        }
+      } catch (error) {
+        ctx.ui.notify(`browser command failed: ${getErrorMessage(error)}`, "error");
+      }
+    },
+  });
+
   pi.on("session_tree", async (_event: SessionTreeEvent, ctx) => {
     applyAttachState(pi, readAttachState(ctx), repoToolNames);
   });
 
   pi.on("session_start", async (_event: SessionStartEvent, ctx) => {
     applyAttachState(pi, readAttachState(ctx), repoToolNames);
-
-    const warnings = await collectExtraToolWarnings(pi.getAllTools(), settings);
-    for (const warning of warnings) {
-      ctx.ui.notify(warning.message, "warning");
-    }
   });
 }

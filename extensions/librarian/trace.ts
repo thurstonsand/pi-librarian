@@ -14,6 +14,8 @@ import type { SearchReposBitbucketDetails } from "./tools/search-repos-bitbucket
 import type { SearchReposGitHubDetails } from "./tools/search-repos-github.ts";
 import type { SearchReposGitLabDetails } from "./tools/search-repos-gitlab.ts";
 import type { SearchReposSourcegraphDetails } from "./tools/search-repos-sourcegraph.ts";
+import type { WebFetchDetails } from "./web/fetch.ts";
+import type { WebSearchDetails } from "./web/search.ts";
 
 export type RepoToolDetails =
   | SearchCodeGitHubDetails
@@ -113,6 +115,25 @@ export function summarizeRepoToolDetails(details: RepoToolDetails): string | und
   }
 }
 
+function summarizeWebDetails(details: unknown): string | undefined {
+  if (!details || typeof details !== "object" || !("kind" in details)) {
+    return undefined;
+  }
+  switch (details.kind) {
+    case "web_fetch": {
+      const fetched = details as WebFetchDetails;
+      const documents = plural(fetched.count, "document");
+      return fetched.failed.length > 0
+        ? `${documents}, ${fetched.failed.length} failed`
+        : documents;
+    }
+    case "web_search":
+      return plural((details as WebSearchDetails).count, "result");
+    default:
+      return undefined;
+  }
+}
+
 export function summarizeToolResult(
   result: AgentToolResult<unknown> | ToolResultShape | undefined,
   isError: boolean,
@@ -132,6 +153,10 @@ export function summarizeToolResult(
   const details = asRepoToolDetails(result.details);
   if (details) {
     return summarizeRepoToolDetails(details);
+  }
+  const web = summarizeWebDetails(result.details);
+  if (web !== undefined) {
+    return web;
   }
 
   if (firstText !== undefined) {

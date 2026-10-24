@@ -178,8 +178,8 @@ describe("formatTraceLine", () => {
   });
 
   it("falls back to first string arg for unknown tools", () => {
-    const line = formatTraceLine(call("web_search", { objective: "orm comparison" }), CTX);
-    expect(line).toEqual({ verb: "web_search", subject: "orm comparison" });
+    const line = formatTraceLine(call("lookup_docs", { query: "orm comparison" }), CTX);
+    expect(line).toEqual({ verb: "lookup_docs", subject: "orm comparison" });
   });
 });
 
@@ -517,5 +517,44 @@ describe("summarizeToolResult", () => {
         false,
       ),
     ).toBe("1,204 matches · 63 repos");
+  });
+});
+
+describe("web tools in the run trace", () => {
+  const context: TraceContext = { cacheDir: "/tmp/c", impliedSources: new Map(), sources: [] };
+
+  it("reads as the repo tools do", () => {
+    const line = (name: string, args: unknown) =>
+      formatTraceLine({ id: "1", name, args, startedAt: 0 }, context);
+    expect(
+      line("web_fetch", { urls: ["https://github.com/a/b/issues/1", "https://x.dev"] }),
+    ).toEqual({
+      verb: "fetch",
+      subject: "https://github.com/a/b/issues/1 +1 more",
+    });
+    expect(line("web_search", { objective: "drizzle 1.0 release" })).toEqual({
+      verb: "search",
+      subject: "web drizzle 1.0 release",
+    });
+  });
+
+  it("summarizes documents and results", () => {
+    const fetched = {
+      content: [{ type: "text" as const, text: "1. Issue\n2. Page\nFailed:\n- x" }],
+      details: {
+        kind: "web_fetch",
+        count: 2,
+        outcomes: [],
+        resolved: [],
+        failed: [{}],
+        warnings: null,
+      },
+    };
+    expect(summarizeToolResult(fetched, false)).toBe("2 documents, 1 failed");
+    const searched = {
+      content: [{ type: "text" as const, text: "1. A\n   https://a" }],
+      details: { kind: "web_search", objective: "x", count: 1, results: [], warnings: [] },
+    };
+    expect(summarizeToolResult(searched, false)).toBe("1 result");
   });
 });
