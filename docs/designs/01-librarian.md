@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted. **Superseded in part** on repository references and cache identity — see `docs/wayfinding/beyond-github/tickets/05-reaching-a-repo-reference-forms-and-clone-resolution.md`. A bare `owner/repo` no longer resolves to GitHub implicitly; `checkout_repo` takes a `source` naming a declared host, and every clone is keyed by host. This document records the decision as it was taken, not current behaviour.
+Accepted. **Superseded in part** on repository references and cache identity — see `docs/wayfinding/beyond-github/tickets/05-reaching-a-repo-reference-forms-and-clone-resolution.md`. A bare `owner/repo` no longer resolves to GitHub implicitly; `checkout_repo` takes a `source` naming a declared host, and every clone is keyed by host. **Superseded on allowlisted extensions** by `docs/wayfinding/beyond-github/tickets/12-folding-pi-web-tools-into-the-librarian.md`: runs load no extensions, and the web tools are built in. This document records the decision as it was taken, not current behaviour.
 
 ## Decision Summary
 

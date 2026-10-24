@@ -4,7 +4,7 @@
 
 ## Unreleased
 
-Researches code beyond GitHub: declared GitLab, Bitbucket Server, and Sourcegraph instances, one search tool per engine.
+Researches code beyond GitHub: declared GitLab, Bitbucket Server, and Sourcegraph instances, one search tool per engine. Absorbs pi-web-tools: `web_search` and `web_fetch` ship here, in your session and in every librarian run.
 
 ### Breaking
 
@@ -14,6 +14,9 @@ Researches code beyond GitHub: declared GitLab, Bitbucket Server, and Sourcegrap
 - `gitlab.com` is no longer a source by default; switch it on with `librarian.builtInSources`.
 - `provide_results` locations require a `source`.
 - Librarian runs no longer load the user's `AGENTS.md` or `APPEND_SYSTEM.md`.
+- Extra tools are gone: `librarian.tools.extra` and `librarian.extensions` are removed, and runs load no extensions. The web tools they existed for are built in.
+- Every key under `librarian` is checked; an unknown or removed one is an error instead of being ignored.
+- pi-web-tools is deprecated in favour of this package; uninstall it, since both register `web_search` and `web_fetch`. Its `webTools.*` settings move to `librarian.web.*`, the `~/.pi/agent/github-token` file is no longer read, and Parallel is called over its REST API, so the optional `parallel-web` SDK is not needed.
 
 ### Added
 
@@ -25,6 +28,7 @@ Researches code beyond GitHub: declared GitLab, Bitbucket Server, and Sourcegrap
 - Findings name each location's source and link it at the commit that was read, on any declared host.
 - Runs that search append how they used the results to `<cacheDir>/usage.jsonl`.
 - `checkout_repo` takes a shorthand `repo` without `source` when only one source can clone.
+- `web_search` and `web_fetch`, with the `/browser` command, from pi-web-tools 0.4.3. `web_fetch` writes bodies under `<cacheDir>/fetches/<call-id>/`, resolves GitHub URLs on any declared `github` source, and gives an issue its timeline filtered to closes, reopens, and references, with the commit that closed it.
 
 ### Changed
 

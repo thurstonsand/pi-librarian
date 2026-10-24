@@ -33,10 +33,11 @@ No build/compile step — the pi framework loads extensions directly from TypeSc
 
 ## Project structure
 
-- **Entrypoint**: `extensions/librarian.ts` — registers the `librarian` tool and `/librarian` command.
+- **Entrypoint**: `extensions/librarian.ts` — registers the `librarian` tool, the web tools, and the `/librarian` and `/browser` commands.
 - **Research tools**: `extensions/librarian/tools/` — one `search_code_<engine>` / `search_repos_<engine>` file per engine, plus `read-file.ts`, `checkout-repo.ts`, `provide-results.ts`. `tools/index.ts` builds the set and the per-source clients from settings; `tools/shared.ts` holds the `limit` and `source` arguments and edge validation.
 - **Delivery**: `extensions/librarian/delivery.ts` — the artifact every search writes and the digest it returns; `budget.ts` — the search time limit as an error, cancelling the request.
-- **Clients**: `extensions/librarian/github.ts` (REST + gh auth), `extensions/librarian/grep-app.ts` (public code search).
+- **Clients**: `extensions/librarian/github.ts` (Octokit behind `get`/`getRaw`/`graphql`, each validated with TypeBox; gh auth), `grep-app.ts`, `gitlab.ts`, `bitbucket.ts`, `sourcegraph.ts`.
+- **Web tools**: `extensions/librarian/web/` — `index.ts` builds `web_search` and `web_fetch`; `router.ts` runs the fetcher chain; `fetchers/github/` resolves GitHub URLs through `github.ts`; `parallel.ts` is the Parallel REST client; `fetchers/local/` is the browser fallback, run in a separate worker process so the host never imports `playwright-core`.
 - **Checkout cache**: `extensions/librarian/checkout.ts` — blob-less partial clones under `/tmp/pi-librarian/repos/` by default.
 - **Runtime**: `extensions/librarian/run.ts` — nested agent session, `provide_results` enforcement.
 - **Presentation**: `extensions/librarian/view.ts` — tool-call trace and findings rendering.

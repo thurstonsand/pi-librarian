@@ -196,53 +196,38 @@ behavior issue, not a continuation failure.
 
 ## 7. Librarian extra tools by name
 
-Configuration under test:
+Removed: the web tools they existed for are built in (section 8), and runs load no extensions. The evidence that was here is in git history before the pi-web-tools fold.
 
-```jsonc
-{
-  "librarian": {
-    "tools": ["search_web", "fetch_web", "not_a_real_librarian_tool"]
-  }
-}
-```
+## 8. Web tools
 
-Coverage:
+Carried from pi-web-tools 0.4.3's smoke checklist, against `pi -e ./extensions/librarian.ts`:
 
-- `search_web` / `fetch_web` resolve by name to their providing extension path when present in the main pi tool registry.
-- Escape-hatch extensions can be dry-loaded to prove unresolved names before warning.
-- An incorrect name such as `not_a_real_librarian_tool` produces a startup warning instead of failing librarian runs.
-- Runs activate only the fixed baseline, librarian repo tools, and names from `librarian.tools`; extension hooks are stripped.
-
-Evidence:
-
-```text
-$ npm run check
-
-Checked 39 files in 8ms. No fixes applied.
-
- RUN  v4.1.9 /Users/thurstonsand/Develop/pi-librarian
-
- Test Files  12 passed (12)
-      Tests  63 passed (63)
-```
-
-The `test/extra-tools.test.ts` dry-load smoke registers `search_web` and `fetch_web` tools from an escape-hatch extension and verifies both names are discovered with hooks stripped. The same test suite verifies typo warning selection with `missing_tool` and load-error warning selection with a broken extension.
-
-Live smoke command shape:
-
-```bash
-PI_CODING_AGENT_DIR="$tmp" pi -p --mode json --no-session \
-  -e ./extensions/librarian.ts \
-  -e ~/.pi/agent/extensions/parallel-web-tools \
-  'Call the librarian tool. Query: Use the search_web tool to find the GitHub repository page for thurstonsand/pi-librarian, then call provide_results with a concise summary and any web location you found. Do not clone repositories.'
-```
-
-The successful run `019f2f9a-7d22-7b39-8234-610e2066f199` activated the real Parallel web tools inside the nested librarian run and traced:
-
-```text
-search_web   Find the GitHub repository page for thurstonsand/pi-librarian
-fetch_web    https://github.com/thurstonsand/pi-librarian
-provide_results 1 location
-```
-
-A previous attempt failed before any nested tool call because `read_github_file.range` used a tuple schema that Anthropic rejected as invalid draft 2020-12 JSON Schema. That is covered by `test/read-github-file.test.ts`; the schema now uses a fixed-length array (`minItems: 2`, `maxItems: 2`) instead of TypeBox tuple `items: [...]` / `additionalItems`.
+- `web_fetch` a GitHub README URL.
+- `web_fetch` a GitHub file URL.
+- `web_fetch` a GitHub directory URL.
+- `web_fetch` a GitHub issue URL.
+- `web_fetch` a GitHub pull request URL.
+- `web_fetch` a GitHub commit and confirm `commit.md` and `diff.patch` are written.
+- `web_fetch` a GitHub commit `.patch` URL and a pull request `.diff` URL and confirm each resolves to the structured document rather than falling through to Parallel.
+- `web_fetch` a GitHub commits URL scoped to a ref and file path and confirm `commits.md` lists that file's history.
+- `web_fetch` tagged, latest, and repository release URLs and confirm release assets and listings.
+- `web_fetch` GitHub tag and branch listing URLs.
+- `web_fetch` a GitHub Actions listing and individual run; confirm jobs and steps are present without downloaded logs.
+- With GitHub authentication available, `web_fetch` a Discussion and confirm its comments and replies.
+- `web_fetch` `https://github.com/{owner}/{repo}/issues` and confirm an open issue listing.
+- `web_fetch` `https://github.com/{owner}/{repo}/pulls?q=is:merged` and confirm a merged PR listing.
+- `web_fetch` an issue search with full-text `?q=`.
+- `web_fetch` a listing with `sort:created-asc` in `?q=` and confirm ascending order.
+- `web_fetch` a zero-match issue search and confirm a valid `0 matches` document.
+- `web_fetch` an invalid GitHub issue query and confirm the failure trail falls through.
+- `web_search` a current web query.
+- `web_fetch` a non-GitHub page through Parallel.
+- With Parallel unavailable, fetch a non-GitHub page through the local browser fallback.
+- With Parallel unavailable, fetch a docs page with code (e.g. Cloudflare Workers secrets) locally and confirm fenced, language-tagged code blocks in `content.md`.
+- With Parallel unavailable, fetch an MDN reference page locally and confirm its example code blocks survive (shadow piercing).
+- With Parallel unavailable, fetch `https://www.npmjs.com/package/turndown` on a cold profile and confirm it succeeds headless without a visible browser window.
+- With `librarian.web.fetch.challenge.escalation: "never"` and a page that keeps challenging, confirm the per-URL failure names the bot wall and points at `/browser open`.
+- Send more than six local URLs in one batch and confirm only six report `started` before a page slot is released; all results complete.
+- Keep a worker connection open for at least 10 seconds and confirm heartbeats arrive about every 5 seconds.
+- `/browser restart` waits for the old worker to exit; the next fetch respawns it with current settings and a different PID.
+- Inside a librarian run, ask whether a GitHub issue was fixed and confirm the trace shows `fetch <issue url>` and the findings cite the closing commit or PR.

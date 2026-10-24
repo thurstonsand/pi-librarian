@@ -1,5 +1,5 @@
 ---
-status: open
+status: closed
 type: grilling
 blocked-by: []
 ---
@@ -52,3 +52,22 @@ Three overlaps need a decision rather than a merge:
 5. **The overlaps above**, one by one.
 6. **Where Firecrawl's Developer Index goes**, now that the delivery model it matches — `web_search`'s — lives in the same package.
 7. **The `downgrade` branch.** `parallel-web` is not on at least one corporate registry mirror at any version; web-tools carried an uncommitted local patch so it would typecheck without the SDK. Whether that becomes a real fix or a pin is part of the move.
+
+## Decisions
+
+Settled with the user on 2026-10-24 ("do the prefactor, and otherwise complete ticket 12") from the positions proposed in the session, then built on `beyond-github`.
+
+1. **Packaging.** Everything ships as a normal dependency: `playwright-core` (no browser download; it drives the user's Chrome), the unified/rehype/remark stack. `parallel-web` is gone rather than optional — Parallel is two `POST`s with an `x-api-key` header (`/v1/search`, `/v1/extract`, confirmed against the docs and the SDK's `src/resources/top-level.ts`), so `parallel.ts` calls them with `fetch` and validates the responses with TypeBox. That also settles question 7.
+2. **Runs get the web tools by default.** `web_fetch` always, `web_search` when a Parallel key is configured, both removable through `librarian.tools.disabled`. Extra tools existed for exactly this and are removed with it: `librarian.tools.extra`, `librarian.extensions`, `extra-tools.ts`, `stripExtensionHooks`, and extension loading in runs. In the main session the web tools are registered and active, independent of `/librarian`.
+3. **Settings move to `librarian.web.*`**: `web.parallel.apiKeyCommand`, `web.fetch.browser.{executablePath,profileDir}`, `web.fetch.challenge.{escalation,headlessWaitSecs,headedWaitSecs}`. The whole `librarian` block is now strict, so a leftover `extensions` or `tools.extra` is an error naming the key, not silently ignored.
+4. **Names stay `web_search` and `web_fetch`.**
+5. **The overlaps:**
+   - **One GitHub client.** The prefactor gave `GitHubClient` validated `get`/`getRaw`/`graphql` primitives and rebuilt the repo tools' calls on them; the GitHub fetcher takes the same per-source client providers, so one token resolution (`GITHUB_TOKEN`/`GH_TOKEN`, then `gh auth token`) and one error path serve both, and Octokit's derived response types are replaced by TypeBox schemas. The `~/.pi/agent/github-token` file web-tools also read is dropped. As a consequence `web_fetch` resolves URLs on any declared `github` source, GHE included.
+   - **Files.** `read_file` (repo + path) and `web_fetch` (a URL) both stay; they now share the client, so the duplication is one of entry points, not of implementations.
+   - **Commit history** stays in `web_fetch` for URLs; the prompt still prefers a clone and `git log`.
+   - **Issues get no new tools.** The issue fetcher reads the timeline, keeps only `closed`, `reopened`, `cross-referenced`, `referenced`, and `connected`, renders them in `conversation.md`, and states `closed by commit <sha>` as a fact. Listings show `[state/state_reason]` per row. The prompt tells runs that `completed` alone is not evidence of a fix.
+   - **Authentication**: as above.
+6. **Firecrawl's Developer Index** stays out of this fold: an evaluation for the personal machine (`PERSONAL_TASKS.md`), as a possible `web_search` backend later.
+7. **The `downgrade` branch** needs nothing for `parallel-web`, which is no longer a dependency. `playwright-core` resolved at 1.64.1 on the constrained mirror, so web-tools' 1.63.0 pin does not carry over.
+
+pi-web-tools itself gets a final release whose README points here, then `npm deprecate`; installing both makes pi report a tool-name clash at startup.
