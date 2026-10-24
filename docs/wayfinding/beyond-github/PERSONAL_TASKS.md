@@ -38,6 +38,15 @@ No GHE instance was reachable. A declared `kind: "github"` source other than git
 - [ ] **Search and read against a GHE instance.** Declare it with `tokenEnv`, run one code search, one repo search, and one `read_file`, and check the `source` enum offers both instances and each call reaches the right host.
 - [ ] **Web URLs.** Check that blob and repository links in digests and findings resolve on the GHE host.
 
+## Parallel
+
+To be used on personal machines only, like Firecrawl. Ticket 12 replaced the `parallel-web` SDK with two `POST`s; the request shapes are confirmed against Parallel's docs and SDK source and covered by stubbed tests, but the live checks belong here.
+
+- [ ] **`web_search` end to end** with `PARALLEL_API_KEY`, then again with only `librarian.web.parallel.apiKeyCommand`. Confirm results, `after_date`, and that a rotated key takes effect without restarting pi.
+- [ ] **The Parallel fetcher**: `web_fetch` a non-GitHub page with and without `objective`, and confirm `highlights` appear only with one.
+- [ ] **An error response**: an invalid key, and confirm the message carries Parallel's own `error.message`.
+- [ ] **A librarian run** asking a documentation question, and confirm the trace shows `search web …` then `fetch …`.
+
 ## Firecrawl Developer Index
 
 Blocked on the corporate network at the proxy, and to be used on personal machines only. The open question is placement — see _Firecrawl's Developer Index is not code search_ — and these answers settle it.
