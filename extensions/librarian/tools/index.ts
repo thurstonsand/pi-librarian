@@ -6,6 +6,7 @@ import {
   type GitHubClientProvider,
   resolveGitHubToken,
 } from "../github.ts";
+import { createGitLabFileReader, GitLabClient } from "../gitlab.ts";
 import type { RepoFileReader } from "../repo-entry.ts";
 import type { LibrarianSettings, LibrarianSource, SourceKind, SourceRole } from "../settings.ts";
 import { SourcegraphClient } from "../sourcegraph.ts";
@@ -14,9 +15,11 @@ import { createFindDefinitionTool } from "./find-definition.ts";
 import { LIBRARIAN_TOOL_NAMES } from "./names.ts";
 import { createReadFileTool } from "./read-file.ts";
 import { createSearchCodeGitHubTool } from "./search-code-github.ts";
+import { createSearchCodeGitLabTool } from "./search-code-gitlab.ts";
 import { createSearchCodeGrepAppTool } from "./search-code-grepapp.ts";
 import { createSearchCodeSourcegraphTool } from "./search-code-sourcegraph.ts";
 import { createSearchReposGitHubTool } from "./search-repos-github.ts";
+import { createSearchReposGitLabTool } from "./search-repos-gitlab.ts";
 import { createSearchReposSourcegraphTool } from "./search-repos-sourcegraph.ts";
 
 // One explicit client per source. Each kind's clients share nothing with another kind's, so there
@@ -24,6 +27,7 @@ import { createSearchReposSourcegraphTool } from "./search-repos-sourcegraph.ts"
 export interface RepoClients {
   github: Map<string, GitHubClientProvider>;
   sourcegraph: Map<string, SourcegraphClient>;
+  gitlab: Map<string, GitLabClient>;
   readers: Map<string, RepoFileReader>;
 }
 
@@ -38,6 +42,7 @@ export function sourcesWith(
 export function createRepoClients(settings: LibrarianSettings): RepoClients {
   const github = new Map<string, GitHubClientProvider>();
   const sourcegraph = new Map<string, SourcegraphClient>();
+  const gitlab = new Map<string, GitLabClient>();
   const readers = new Map<string, RepoFileReader>();
 
   for (const source of settings.sources) {
@@ -59,12 +64,18 @@ export function createRepoClients(settings: LibrarianSettings): RepoClients {
         }
         break;
       case "gitlab":
+        if (source.token) {
+          const client = new GitLabClient(source.url, source.token, Date.now);
+          gitlab.set(source.name, client);
+          readers.set(source.name, createGitLabFileReader(client));
+        }
+        break;
       case "bitbucket-server":
         break;
     }
   }
 
-  return { github, sourcegraph, readers };
+  return { github, sourcegraph, gitlab, readers };
 }
 
 export function readableSources(
@@ -108,6 +119,12 @@ export function createRepoTools(settings: LibrarianSettings, clients: RepoClient
   }
   tools.push(createSearchCodeGrepAppTool(cacheDir, search));
 
+  const gitlabCode = sourcesWith(sources, "gitlab", "code-search");
+  if (gitlabCode.length > 0) {
+    tools.push(createSearchCodeGitLabTool(gitlabCode, clients.gitlab, cacheDir, search));
+    implyWhenSingle(impliedSources, LIBRARIAN_TOOL_NAMES.searchCodeGitLab, gitlabCode);
+  }
+
   const clonable = cloneSources(sources);
   const sourcegraphCode = sourcesWith(sources, "sourcegraph", "code-search");
   if (sourcegraphCode.length > 0) {
@@ -129,6 +146,11 @@ export function createRepoTools(settings: LibrarianSettings, clients: RepoClient
   if (githubRepos.length > 0) {
     tools.push(createSearchReposGitHubTool(githubRepos, clients.github, cacheDir, search));
     implyWhenSingle(impliedSources, LIBRARIAN_TOOL_NAMES.searchReposGitHub, githubRepos);
+  }
+  const gitlabRepos = sourcesWith(sources, "gitlab", "repo-search");
+  if (gitlabRepos.length > 0) {
+    tools.push(createSearchReposGitLabTool(gitlabRepos, clients.gitlab, cacheDir, search));
+    implyWhenSingle(impliedSources, LIBRARIAN_TOOL_NAMES.searchReposGitLab, gitlabRepos);
   }
   const sourcegraphRepos = sourcesWith(sources, "sourcegraph", "repo-search");
   if (sourcegraphRepos.length > 0) {

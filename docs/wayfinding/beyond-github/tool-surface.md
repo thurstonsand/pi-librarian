@@ -1127,7 +1127,7 @@ GitLab's default order is `created_at`, which answers no research question, so t
 
 Date filtering uses `last_activity_after`. The previous draft said `updated_after` would be silently ignored under another sort; it is a loud `400`, so the choice is about meaning rather than safety — activity is what "changed recently" means. But `last_activity_after` is the lenient one, and it misreads `10/01/2026` without complaint, so **the tool validates `YYYY-MM-DD` at the edge** before sending.
 
-The tool always sends `search_namespaces=true` and `simple=true`, and `archived=false` unless `include_archived` is set — which both restores GitHub-like defaults and makes `simple`'s missing `archived` field irrelevant.
+The tool always sends `simple=true`, and `archived=false` unless `include_archived` is set — which both restores GitHub-like defaults and makes `simple`'s missing `archived` field irrelevant. **`search_namespaces=true` only when `name` contains a `/`**, corrected during implementation: it is what makes a group path like `platform/widget` match (1 result with it, 0 without), and it switches off the exact-name match GitLab falls back to when every word is under three characters (`wt`: 1 result without it, 0 with). The spike's "always send it" never tried a short name.
 
 ```ts
 const Params = Type.Object({
