@@ -2,6 +2,33 @@
 
 # Changelog
 
+## Unreleased
+
+Researches code beyond GitHub: declared GitLab, Bitbucket Server, and Sourcegraph instances, one search tool per engine.
+
+### Breaking
+
+- The search tools are renamed by family and engine: `search_code` is `search_code_grepapp`, `search_github_code` is `search_code_github`, and `search_repos` is `search_repos_github`. `read_github_file` is replaced by `read_file`, which takes `repo` as `owner/repo` and reads from any declared code host.
+- `search_code_github` takes `owner` plus bare `repos` instead of `repos: [{owner, repo}]` and `owners`, and refuses a bare `OR`, parentheses, unbalanced quotes, and qualifiers in `pattern`, which GitHub silently misreads.
+- `search_repos_github` takes typed filters (`text`, `language`, `topics`, `min_stars`, `pushed_after`, …) instead of a raw query, and sorts by best match unless asked for stars.
+- `gitlab.com` is no longer a source by default; switch it on with `librarian.builtInSources`.
+- `provide_results` locations require a `source`.
+- Librarian runs no longer load the user's `AGENTS.md` or `APPEND_SYSTEM.md`.
+
+### Added
+
+- `search_code_sourcegraph`, `search_repos_sourcegraph`, and `find_definition` for a declared Sourcegraph; `search_code_gitlab` and `search_repos_gitlab` for a declared GitLab; `search_code_bitbucket` and `search_repos_bitbucket` for a declared Bitbucket Server.
+- Every search writes its full results to `<cacheDir>/searches/<call-id>/results.jsonl` and returns a digest saying what was found, whether the search was complete, and what is shown. `limit` takes up to 50 results, 10 by default (`librarian.search.defaultLimit`).
+- A search running past `librarian.search.timeoutSeconds` (15 by default) is an error that cancels the request and says how to narrow it.
+- Sources read API tokens from the variable `tokenEnv` names, or their kind's usual one; a source without a token still clones. `advancedSearch` marks a GitLab with advanced search.
+- Attached tools render their results: a summary and the first entries collapsed, metadata and matched lines expanded.
+- Findings name each location's source and link it at the commit that was read, on any declared host.
+- Runs that search append how they used the results to `<cacheDir>/usage.jsonl`.
+
+### Changed
+
+- The librarian's prompt is composed from the tools a run actually has.
+
 ## 0.6.3
 
 Keeps `/librarian` attach state per session branch and builds against Pi 1.4.0.
@@ -13,6 +40,7 @@ Keeps `/librarian` attach state per session branch and builds against Pi 1.4.0.
 ### Fixed
 
 - `/librarian` attach state now follows the current session branch. It is restored when you navigate with `/tree` and when you resume a session where you toggled it before sending a message.
+||||||| parent of ed53f6e (docs: record the beyond-GitHub implementation and what is left to test)
 
 ## 0.6.2
 

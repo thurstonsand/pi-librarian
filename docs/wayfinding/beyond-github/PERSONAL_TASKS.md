@@ -1,6 +1,6 @@
 # Personal tasks
 
-Measurements for the beyond-GitHub work that cannot be taken from the machine where the rest was done: the engine is blocked on that network, or the measurement needs a personal account. Each task says what to run, what to record, and where the answer goes. Results go back into [`tool-surface.md`](tool-surface.md); tick the task here when they have.
+Measurements and verification for the beyond-GitHub work that cannot be done from the machine where the rest was built: the engine is blocked on that network, the measurement needs a personal account, or no instance of the right kind was reachable. Each task says what to run, what to record, and where the answer goes. Results go back into [`tool-surface.md`](tool-surface.md); tick the task here when they have.
 
 Nothing in this file is a decision. Every task feeds one.
 
@@ -13,6 +13,8 @@ Unreachable from the corporate network, so its column in the code-search capabil
 - [ ] **Rate limit.** Note the response headers, and run calls back to back until one is refused, if one is.
 - [ ] **Results per call.** The librarian reaches grep.app through its MCP server's `searchGitHub` tool. Record how many hits one call returns, and whether any argument raises it — that number is `search_code_grepapp`'s `limit` ceiling, since the tool does not paginate.
 
+- [ ] **The renamed tool works end to end.** `search_code_grepapp` was rebuilt on the shared digest and artifact, but grep.app was unreachable, so it has unit coverage only. Run `node_modules/.bin/jiti local-files/smoke/run-tools.ts <settings> <calls>` (the scratch harness; any script that calls the tool's `execute` will do) with a regex search and a `repo` prefix search, and check the digest names files, line numbers, and `grep.app`.
+
 Answers go in the `_grepapp` column of the matrix under _The `search_code_*` family_.
 
 ## gitlab.com advanced search
@@ -24,7 +26,17 @@ Decides whether the built-in `gitlab.com` source sets `advancedSearch: true`. Ne
 - [ ] **Filter syntax.** If global search works, try `defineConfig filename:*.ts` and `defineConfig path:src/` and record whether each narrows results or is ignored.
 - [ ] **Pattern semantics.** A substring of an identifier, a quoted phrase, and a `/regex/`, the way GitHub's were measured in _`search_code_github`_.
 
+- [ ] **The advanced-search path of `search_code_gitlab`.** With `advancedSearch: true` and no `project`, the tool calls `GET /search?scope=blobs` and resolves each result's `project_id` to a path. The instance it was built against has no advanced search, so this path has unit coverage only. On gitlab.com, with `builtInSources: { "gitlab.com": true }` and `GITLAB_ACCESS_TOKEN` set, run an unscoped search and check the digest groups files under the right project paths.
+- [ ] **Two GitLab tokens.** The built-in `gitlab.com` and a declared GitLab without `tokenEnv` both read `GITLAB_ACCESS_TOKEN`. Check what a user with both sees, and whether the built-in should get its own variable.
+
 Answers go under _`search_code_gitlab`_, and set the built-in default in _Source values, concretely_.
+
+## GitHub Enterprise Server
+
+No GHE instance was reachable. A declared `kind: "github"` source other than github.com builds an Octokit client at `<url>/api/v3`, reads its token from `tokenEnv` or `GITHUB_TOKEN`, and becomes a second instance of `search_code_github`, `search_repos_github`, and `read_file`, all of which then take `source`.
+
+- [ ] **Search and read against a GHE instance.** Declare it with `tokenEnv`, run one code search, one repo search, and one `read_file`, and check the `source` enum offers both instances and each call reaches the right host.
+- [ ] **Web URLs.** Check that blob and repository links in digests and findings resolve on the GHE host.
 
 ## Firecrawl Developer Index
 
