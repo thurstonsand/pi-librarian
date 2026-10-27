@@ -1,5 +1,5 @@
 ---
-status: open
+status: closed
 type: grilling
 blocked-by: []
 ---
@@ -37,3 +37,16 @@ A `hints` field on a source, holding prose, surfaced to the agent:
 - **Staleness, and who notices.** The measured coverage gap is exactly the kind of fact that gets fixed without telling anyone. A stale hint is worse than no hint, because it actively steers the agent away from a source that now works. Whether anything can be done about that, or whether it is simply the operator's problem, is worth stating out loud rather than leaving implied.
 - **The relationship to never promising completeness.** Ticket 09 holds the rule that the librarian must not report absence as proof. A hint is a *specific* instance of that general humility, and if the general rule is stated well the hint may be redundant — or the hint may be the only thing that makes the general rule actionable, since "results may be incomplete" is advice an agent cannot act on and "this backend does not index that host" is.
 - **Length, and what stops it becoming a second prompt.** Free text with no limit invites a paragraph of operator lore per source. Whether there is a cap, and whether it is enforced or merely documented, decides whether this feature stays small.
+
+## Resolution
+
+**Built: a free-text `description` on a source**, at most 300 characters, trimmed, and refused when blank or longer.
+
+- **Prose, not a structured coverage field.** Coverage is the case we measured, not the only one an operator knows ("holds the services not yet migrated"). A coverage field would route searches only for the one case we happened to find first.
+- **Read where every mode reads.** The note ends the description of every tool that reaches that source (its search tools, `read_file`, and `checkout_repo`) as `Notes on its sources:` followed by `- <name>: <description>`. Tool descriptions reach both librarian runs and attach mode; the librarian's system prompt reaches only runs.
+- **Per source, not per relationship.** The operator writes the note on whichever source the agent should be warned at, usually the backend, and may name the other source in it, since names are what the agent passes as `source`.
+- **Staleness is the operator's problem.** Nothing can detect that a coverage gap was fixed; the README says the field is for what the agent cannot discover.
+- **Against the general rule**: the prompt now says that no results on one source is not absence. The note is what makes that rule actionable, by naming where else to look.
+- **Length** is enforced by the schema at 300 characters, enough for a gap and a pointer.
+
+Verified in a real run against a declared Sourcegraph whose note says it indexes none of the declared GitLab: the librarian quoted the note from all three Sourcegraph tools and chose `search_code_gitlab` for GitLab code because of it.

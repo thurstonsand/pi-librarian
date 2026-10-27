@@ -1,5 +1,5 @@
 ---
-status: open
+status: closed
 type: grilling
 blocked-by: [6, 7, 10]
 ---
@@ -60,3 +60,14 @@ Two cautions. That text belongs to its author and this repo is public, so what i
 ## Output
 
 A single review artifact containing the literal text for the whole surface, linked from the resolution. Read as prose, marked up, then implemented from.
+
+## Resolution
+
+**The output is [the tool surface](../tool-surface.md) itself**, reviewed as prose and then implemented from: the final names are in [The surface at a glance](../tool-surface.md#the-surface-at-a-glance), and each tool's literal text is in its own section.
+
+- **Names**: family first, engine last (`search_code_github`, `search_repos_gitlab`); `read_github_file` became `read_file`, not `read_remote`, because it is the only reader and pi's `read` sits beside it unambiguously.
+- **"Do not use when" clauses** are not a convention. A cross-tool contrast cannot know whether the other tool is registered, so the prompt builder owns it, emitting it only when both tools are active. See [Where guidance goes](../tool-surface.md#where-guidance-goes) and [Where tool guidance lives](../tool-guidance.md).
+- **The dynamic surface** reads correctly because descriptions name no sibling tools, `source` appears only with two or more instances ([Zero, one, or many](../tool-surface.md#zero-one-or-many)), and the librarian's strategy is composed from the tools a run has.
+- **Prompt versus descriptions**: [What reaches the model](../tool-surface.md#what-reaches-the-model) found that a run drops `promptGuidelines`; the prompt now renders them, so each fact has one owner.
+- **Never promising completeness**: the digest says whether each search was complete, the prompt says that no results on one source is not absence, and a source's `description` ([ticket 11](11-user-supplied-hints-about-a-source.md)) names a known coverage gap.
+- **Search ordering** is a source's `disabled`, declared, plus the strategy lines in the prompt.

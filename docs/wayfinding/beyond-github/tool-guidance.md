@@ -330,6 +330,8 @@ B costs one change elsewhere: `stripExtensionHooks` (`resource-loader.ts:7-15`) 
 
 Choose A if the escape-hatch extras' guidelines are judged not to matter; choose B otherwise. I would choose B: it is the one where "what the librarian is told" and "what the librarian has" cannot disagree, which is the whole point of the exercise.
 
+**As built: A.** Extra tools were removed ([ticket 12](tickets/12-folding-pi-web-tools-into-the-librarian.md)), so every tool a run can have is known at startup, and the gap B closes no longer exists.
+
 Do not render snippets in the composer. Inside a run the declarations are already present, and a tool index would be the duplicate Rule 0 forbids.
 
 One judgment call either way: composing every active tool's guidelines brings in `bash`'s "You can inspect PI_* environment variables…" (smoke output). It is harmless, and filtering it would mean a hand-kept exclusion list, which is a second owner again. I would accept it.

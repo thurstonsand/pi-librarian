@@ -1,5 +1,5 @@
 ---
-status: open
+status: closed
 type: grilling
 blocked-by: []
 ---
@@ -59,3 +59,15 @@ The `pi-web-tools` fetch tools remain worth reading for the second act — `exte
 - **Whether counts can be shown at all.** Result units differ across every remote path: the backend counts files, one host counts files *usually*, the other counts matches, and a host's `total: 10000` is a saturation sentinel rather than a number. Any shared "N of M" phrasing would be wrong somewhere.
 - **Whether attached tools behave the same.** In attach mode the main agent is the consumer, its context is more valuable, and it already has `read` and `grep`. The same shape probably works; the budget arguably should not be the same.
 - **What the trace renderer shows.** `view.ts` renders one line per call; "12 repos" and "88 files" and "wrote 240 matches to disk" are three different lines.
+
+## Resolution
+
+**Answered by building the [delivery contract](../tool-surface.md#the-delivery-contract).** Every search writes all it fetched to an artifact and returns a digest; each question above has a section there.
+
+- **How the ladder is exposed**: explicitly, as `detail` (`repos`, `files`, `matches`) where an engine has the rungs, and `limit` for how many come back. See [`detail` changes what comes back](../tool-surface.md#detail-changes-what-comes-back-not-how-long-the-search-takes) and [The agent chooses how many](../tool-surface.md#the-agent-chooses-how-many-limit).
+- **The second act** is `read_file` or `checkout_repo` on the hit's commit, never a narrowed re-search.
+- **The artifact survives**, unconditionally: [Writing is unconditional](../tool-surface.md#writing-is-unconditional), under `<cacheDir>/searches/<call-id>/` per [Where artifacts live](../tool-surface.md#where-artifacts-live).
+- **Native paths have fewer rungs**, stated per engine in the [capability matrix](../tool-surface.md#capability-matrix), rather than synthesised.
+- **A capped result set** is reported by an allowlist: a search is complete only when its engine says so. See [Completeness is an allowlist](../tool-surface.md#completeness-is-an-allowlist-not-a-denylist).
+- **Counts** separate what the engine says exists, what was fetched, and what is shown, each in the engine's own unit. See [Three numbers, not two](../tool-surface.md#three-numbers-not-two).
+- **Attach mode** uses the same shape; whether attach should carry fewer tools is deferred until the usage log has evidence.

@@ -4,6 +4,8 @@
 
 An accepted design doc in `docs/designs/` that takes the librarian from GitHub-only research to any code the user can reach — search backends, code hosts, the tool surface they expose, and how results are delivered — complete enough to hand to `/grill-me` Gate 3 for execution planning.
 
+**Reached**: [Research beyond GitHub](../../designs/12-beyond-github.md) records what was built. Every ticket is closed; what remains is in [Personal tasks](PERSONAL_TASKS.md).
+
 ## Notes
 
 **Domain**: the librarian's research toolset.
@@ -16,9 +18,9 @@ An accepted design doc in `docs/designs/` that takes the librarian from GitHub-o
 
 **Standing preference**: prefer what the librarian can already do. `checkout_repo` plus git covers single-repo history, blame, and diffs better than any API. A new tool earns its place by enabling something otherwise impossible or infeasible, not by being available.
 
-**Working artifact**: [Tool surface: inputs, outputs, and wording](tool-surface.md) — full tool definitions under review, including the shared delivery contract. It is ticket 09's output arriving early, because the shapes are needed to argue about ticket 06. Draft; nothing in it is decided.
+**Working artifact**: [Tool surface: inputs, outputs, and wording](tool-surface.md) — full tool definitions under review, including the shared delivery contract. It began as ticket 09's output arriving early, because the shapes were needed to argue about ticket 06, and became the literal text the tools were built from.
 
-**Personal tasks**: [Personal tasks](PERSONAL_TASKS.md) — measurements that need a personal machine or account: grep.app, gitlab.com advanced search, and the Firecrawl Developer Index.
+**Personal tasks**: [Personal tasks](PERSONAL_TASKS.md) — measurements that need a personal machine or account: grep.app, gitlab.com advanced search, GitHub Enterprise, Parallel, and the Firecrawl Developer Index.
 
 ## Decisions so far
 
@@ -33,24 +35,26 @@ An accepted design doc in `docs/designs/` that takes the librarian from GitHub-o
 `source` was specified as required and never implemented; hostname-shape guessing grew in its place, and two reviews missed it because both checked the code against itself rather than against the decided forms. Everything downstream — Bitbucket's `/scm/` prefix missing from derived URLs, a two-segment repo path being inexpressible, an ambiguity error for references that were never ambiguous — was a symptom. The correction is a net deletion.
 
 - [Does history search earn its place?](tickets/07-does-history-search-earn-its-place.md) — **no.** Technically viable, one streaming call covers the instance in 180s and names its gap, so this is a rejection on demand rather than feasibility. Every history question is either about current state (`search_code`), one repository (git wins outright), or a handful (narrow with `search_repos`, then clone). That leaves only "what used to be true, across repositories you cannot enumerate" — real, otherwise impossible, and rare enough that nobody could name a second instance. The findings that outlive it: **completeness is an allowlist**, not a denylist, since `shard-match-limit` made a truncated search look complete; `repositoriesCount` counts repos *with matches*, so coverage is inexpressible; repo-set filters reduce work while commit-attribute filters (`after:`, `author:`, `message:`) only filter results; and predicate arguments are **unquoted** where `before:`/`after:` are quoted.
+- [Delivering search results without drowning the context](tickets/06-delivering-search-results-without-drowning-the-context.md) — answered by building the delivery contract: every search writes an artifact and returns a digest; `detail` and `limit` are explicit; completeness is an allowlist; the second act is a read, not a re-search.
+- [Tool exposure: wording and arguments](tickets/09-tool-exposure-wording-and-arguments.md) — the tool surface is the output; names are family first, engine last; no "do not use when" clauses, since the prompt builder owns cross-tool contrast; the prompt says no results on one source is not absence.
+- [Forks, vendored code, and duplicate results](tickets/10-forks-vendored-code-and-duplicate-results.md) — **not building it**: verification by reading already corrects the ranking it would improve; collapsing identical hits is the first step if the usage log ever says otherwise.
+- [User-supplied hints about a source](tickets/11-user-supplied-hints-about-a-source.md) — a `description` on a source, at most 300 characters, ending the description of every tool that reaches it, so attach mode carries it too.
 - [Folding pi-web-tools into the librarian](tickets/12-folding-pi-web-tools-into-the-librarian.md) — the web tools ship here and every run gets them; extra tools are removed; one GitHub client per source serves the repo tools and `web_fetch`, validated with TypeBox; Parallel over REST with no SDK; issues carry a timeline filtered to closes, reopens, and references, so "was this fixed" has evidence; settings under `librarian.web.*`, the whole block strict.
 
 ## Built
 
 The [tool surface](tool-surface.md) is implemented on `beyond-github`: settings for built-in sources, tokens, and the search budget; runs isolated from the user's prompt files; one search tool per engine for GitHub, grep.app, Sourcegraph, GitLab, and Bitbucket Server, on a shared digest, artifact, and budget; `read_file` on every code host; a composed prompt; the attach renderer; and a usage log for tuning the default result count. Each engine was smoke-tested live where it was reachable. Deviations found while building are recorded in the tool surface where they apply. What could not be tested from here is in [`PERSONAL_TASKS.md`](PERSONAL_TASKS.md). Ticket 12 then folded pi-web-tools in: `web_search` and `web_fetch` ship here, granted to every run; the GitHub fetcher shares the repo tools' client; issues carry their filtered timeline; and extra tools are removed.
 
-## Not yet specified
+## Settled while building, or deferred
 
 - **Rendering symbol results** is settled by building it: `find_definition` lists each definition with its kind and container, grouped by clone source; context lines cost a raw read of 2–7s per file, so they were left out.
-- **Attach-mode weight.** `/librarian` pushes every repo tool into the main session. The surface is about to grow. Whether that stays acceptable, or attach needs its own narrower set, is a question for after the toolset settles.
-- **Caching backend responses.** Clones are cached; search responses are not. Whether repeated searches within a run should be, and where the cache would live, is unexamined.
-- **Scoping the librarian tool itself.** The `librarian` tool takes `repos` and `owners`. With multiple code hosts, `owners` is ambiguous and `repos` may need a source. Not sharp until repo references are settled.
+- **Attach-mode weight** is deferred: `/librarian` pushes every repo tool into the main session, and whether attach needs a narrower set waits on the usage log.
+- **Caching backend responses** is deferred. Clones are cached; search responses are not, and nothing has measured repeated searches within a run.
+- **Scoping the librarian tool itself** is settled by removal: `repos` and `owners` could not say which host they meant and were never enforced, so the `query` description asks for the repositories and their source instead.
 - **The staleness window** is settled by reading the code: an explicit `ref` always fetches from the origin regardless of `FETCH_DEBOUNCE_MS`, so a search hit's commit is checked out exactly, and only a default-branch checkout can be up to 15 minutes old. `checkout_repo`'s and `read_file`'s `ref` descriptions now say to pass the hit's commit; see the [tool surface](tool-surface.md).
 - **Testing without a live instance** is settled: tests stub `fetch` at the network boundary, so the real clients, query building, and response parsing run, and assert the request each engine receives and the digest the agent gets.
-- [User-supplied hints about a source](tickets/11-user-supplied-hints-about-a-source.md) — whether a declaration carries operator prose about local truths the librarian cannot discover, chief among them what a backend actually indexes.
-
 - **Converging with `pi-web-tools`** is done: [Folding pi-web-tools into the librarian](tickets/12-folding-pi-web-tools-into-the-librarian.md) records each decision. Firecrawl's Developer Index stays a personal-machine evaluation.
-- **Dependencies.** No backend has an official TypeScript search client. `@sourcegraph/src` is a Go CLI shipped through npm; both surveyed Bitbucket packages lack any search method. `@gitbeaker/rest` is credible and available through the internal mirror, and this package already depends on `@octokit/rest` in `github.ts`, so the precedent for a first-party client exists. Whether GitLab work grows enough to earn the dependency is open; one search request is a single authenticated GET.
+- **Dependencies** are settled by building: GitLab, Bitbucket Server, Sourcegraph, and Parallel are each a few authenticated requests over `fetch`, validated with TypeBox. Only GitHub keeps a first-party client, `@octokit/rest`, behind `github.ts`'s validated `get`, `getRaw`, and `graphql`.
 
 ## Out of scope
 

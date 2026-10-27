@@ -1,5 +1,5 @@
 ---
-status: open
+status: closed
 type: grilling
 blocked-by: []
 ---
@@ -32,3 +32,13 @@ So this is not "add a filter", it is "decide who gets to decide", and that is a 
 - **Duplicate suppression as a separate concern.** The same file appearing twice from two copies of one repository is not a fork problem, it is a deduplication problem, and it is solvable without knowing anything about forks — identical path plus identical content is a duplicate. Cheaper and less contestable than fork filtering, and possibly the whole answer.
 - **What gets reported.** Whatever is suppressed has to be countable and mentioned, or the agent cannot tell a clean result set from a heavily filtered one. This is the same failure mode as silent truncation in [Delivering search results without drowning the context](06-delivering-search-results-without-drowning-the-context.md), and probably wants the same treatment.
 - **Whether this is configuration or prompt.** How polluted a given host is varies by instance — one measured instance was badly polluted, and that is not a property of Bitbucket Server, it is a property of how that organisation uses it. Which argues for configuration. But the agent also needs to know, at the point of reading results, that ranking on a native path is less trustworthy than on a backend.
+
+## Resolution
+
+**Not building it.** No duplicate collapsing, vendored-path flags, or fork filtering on native search.
+
+The failure this ticket fears is an agent citing a stale copy, and the librarian already guards against it: search hits are candidates, never evidence, and are verified by reading the file before being cited. A vendored copy that survives being read at its commit is, for the question asked, a correct citation of that copy; one that does not survive is discarded. Every mechanism considered here would add per-engine heuristics, a new argument or digest field, and ecosystem-specific path lists, all to improve ranking that verification already corrects.
+
+What already holds: Sourcegraph leaves forks out of its searches by default, and `find_definition` leaves out code under `vendor/` unless asked for it with `include_vendored`. A user whose native host is badly polluted can declare a Sourcegraph and disable the host's `code-search` role.
+
+If the usage log shows runs repeatedly spending reads on duplicates, collapsing identical hits (same path, same matched lines) is the cheapest first step: it needs no fork data and no heuristics.
