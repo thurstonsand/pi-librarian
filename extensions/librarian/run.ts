@@ -14,11 +14,7 @@ import {
   type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import { cloneSources } from "./checkout.ts";
-import {
-  buildLibrarianSystemPrompt,
-  buildLibrarianUserPrompt,
-  buildProvideResultsReminder,
-} from "./prompt.ts";
+import { buildLibrarianSystemPrompt, buildProvideResultsReminder } from "./prompt.ts";
 import { createLibrarianResourceLoader } from "./resource-loader.ts";
 import { renderFindingsMarkdown } from "./results.ts";
 import type { LibrarianSettings } from "./settings.ts";
@@ -64,8 +60,6 @@ export interface LibrarianRunDetails {
 
 export interface LibrarianRunOptions {
   query: string;
-  repos: string[];
-  owners: string[];
   continueFrom: string | undefined;
   modelRuntime: ModelRuntime;
   model: Model<Api>;
@@ -247,7 +241,7 @@ export async function runLibrarian(
     };
     options.signal?.addEventListener("abort", onAbort);
 
-    await session.prompt(buildLibrarianUserPrompt(options.query, options.repos, options.owners), {
+    await session.prompt(`Research query: ${options.query}`, {
       expandPromptTemplates: false,
     });
 

@@ -79,6 +79,8 @@ export function buildLibrarianSystemPrompt(cacheDir: string, tools: PromptTool[]
             "",
             "Search results are CANDIDATES, not evidence. Never cite a search hit you have not verified by reading the file.",
             "",
+            "No results means that source has no match, not that the code does not exist: a source covers only what it hosts or indexes. Before reporting something absent, say which sources you searched.",
+            "",
             "Every search stores its full results in the file its digest names. To look further into a result set, read or grep that file rather than searching again.",
           ]
         : []),
@@ -99,22 +101,6 @@ export function buildLibrarianSystemPrompt(cacheDir: string, tools: PromptTool[]
     ].join("\n"),
   ];
   return sections.join("\n\n");
-}
-
-export function buildLibrarianUserPrompt(query: string, repos: string[], owners: string[]): string {
-  const lines = [`Research query: ${query}`];
-  if (repos.length > 0) {
-    lines.push(`Repository scope: ${repos.join(", ")}`);
-  }
-  if (owners.length > 0) {
-    lines.push(`Owner scope: ${owners.join(", ")}`);
-  }
-  if (repos.length > 0 || owners.length > 0) {
-    lines.push(
-      "Treat the scope as the grounding point for the research, not a hard boundary. Start there, but go beyond it when outside repositories or owners are useful to answer the question accurately.",
-    );
-  }
-  return lines.join("\n");
 }
 
 export function buildProvideResultsReminder(): string {

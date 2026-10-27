@@ -105,14 +105,15 @@ export interface RepoToolSet {
   impliedSources: Map<string, string>;
 }
 
-function implyWhenSingle(
-  impliedSources: Map<string, string>,
-  toolName: string,
-  instances: LibrarianSource[],
-): void {
-  if (instances.length === 1 && instances[0]) {
-    impliedSources.set(toolName, instances[0].name);
-  }
+// Operator notes ride in the tool description rather than the librarian's prompt, so attached
+// tools carry them too.
+function withSourceNotes(tool: ToolDefinition, instances: LibrarianSource[]): ToolDefinition {
+  const notes = instances.flatMap((instance) =>
+    instance.description === undefined ? [] : [`- ${instance.name}: ${instance.description}`],
+  );
+  return notes.length === 0
+    ? tool
+    : { ...tool, description: `${tool.description}\n\nNotes on its sources:\n${notes.join("\n")}` };
 }
 
 // The repository tools a session can use, built from configuration: an engine with no instance
@@ -123,30 +124,36 @@ export function createRepoTools(settings: LibrarianSettings, clients: RepoClient
   const impliedSources = new Map<string, string>([
     [LIBRARIAN_TOOL_NAMES.searchCodeGrepApp, "grep.app"],
   ]);
+  const add = (tool: ToolDefinition, instances: LibrarianSource[]) => {
+    tools.push(withSourceNotes(tool, instances));
+    if (instances.length === 1 && instances[0]) {
+      impliedSources.set(tool.name, instances[0].name);
+    }
+  };
 
   const githubCode = sourcesWith(sources, "github", "code-search");
   if (githubCode.length > 0) {
-    tools.push(createSearchCodeGitHubTool(githubCode, clients.github, cacheDir, search));
-    implyWhenSingle(impliedSources, LIBRARIAN_TOOL_NAMES.searchCodeGitHub, githubCode);
+    add(createSearchCodeGitHubTool(githubCode, clients.github, cacheDir, search), githubCode);
   }
   tools.push(createSearchCodeGrepAppTool(cacheDir, search));
 
   const gitlabCode = sourcesWith(sources, "gitlab", "code-search");
   if (gitlabCode.length > 0) {
-    tools.push(createSearchCodeGitLabTool(gitlabCode, clients.gitlab, cacheDir, search));
-    implyWhenSingle(impliedSources, LIBRARIAN_TOOL_NAMES.searchCodeGitLab, gitlabCode);
+    add(createSearchCodeGitLabTool(gitlabCode, clients.gitlab, cacheDir, search), gitlabCode);
   }
 
   const bitbucketCode = sourcesWith(sources, "bitbucket-server", "code-search");
   if (bitbucketCode.length > 0) {
-    tools.push(createSearchCodeBitbucketTool(bitbucketCode, clients.bitbucket, cacheDir, search));
-    implyWhenSingle(impliedSources, LIBRARIAN_TOOL_NAMES.searchCodeBitbucket, bitbucketCode);
+    add(
+      createSearchCodeBitbucketTool(bitbucketCode, clients.bitbucket, cacheDir, search),
+      bitbucketCode,
+    );
   }
 
   const clonable = cloneSources(sources);
   const sourcegraphCode = sourcesWith(sources, "sourcegraph", "code-search");
   if (sourcegraphCode.length > 0) {
-    tools.push(
+    add(
       createSearchCodeSourcegraphTool(
         sourcegraphCode,
         clients.sourcegraph,
@@ -154,30 +161,32 @@ export function createRepoTools(settings: LibrarianSettings, clients: RepoClient
         cacheDir,
         search,
       ),
-      createFindDefinitionTool(sourcegraphCode, clients.sourcegraph, clonable, cacheDir, search),
+      sourcegraphCode,
     );
-    implyWhenSingle(impliedSources, LIBRARIAN_TOOL_NAMES.searchCodeSourcegraph, sourcegraphCode);
-    implyWhenSingle(impliedSources, LIBRARIAN_TOOL_NAMES.findDefinition, sourcegraphCode);
+    add(
+      createFindDefinitionTool(sourcegraphCode, clients.sourcegraph, clonable, cacheDir, search),
+      sourcegraphCode,
+    );
   }
 
   const githubRepos = sourcesWith(sources, "github", "repo-search");
   if (githubRepos.length > 0) {
-    tools.push(createSearchReposGitHubTool(githubRepos, clients.github, cacheDir, search));
-    implyWhenSingle(impliedSources, LIBRARIAN_TOOL_NAMES.searchReposGitHub, githubRepos);
+    add(createSearchReposGitHubTool(githubRepos, clients.github, cacheDir, search), githubRepos);
   }
   const gitlabRepos = sourcesWith(sources, "gitlab", "repo-search");
   if (gitlabRepos.length > 0) {
-    tools.push(createSearchReposGitLabTool(gitlabRepos, clients.gitlab, cacheDir, search));
-    implyWhenSingle(impliedSources, LIBRARIAN_TOOL_NAMES.searchReposGitLab, gitlabRepos);
+    add(createSearchReposGitLabTool(gitlabRepos, clients.gitlab, cacheDir, search), gitlabRepos);
   }
   const bitbucketRepos = sourcesWith(sources, "bitbucket-server", "repo-search");
   if (bitbucketRepos.length > 0) {
-    tools.push(createSearchReposBitbucketTool(bitbucketRepos, clients.bitbucket, cacheDir, search));
-    implyWhenSingle(impliedSources, LIBRARIAN_TOOL_NAMES.searchReposBitbucket, bitbucketRepos);
+    add(
+      createSearchReposBitbucketTool(bitbucketRepos, clients.bitbucket, cacheDir, search),
+      bitbucketRepos,
+    );
   }
   const sourcegraphRepos = sourcesWith(sources, "sourcegraph", "repo-search");
   if (sourcegraphRepos.length > 0) {
-    tools.push(
+    add(
       createSearchReposSourcegraphTool(
         sourcegraphRepos,
         clients.sourcegraph,
@@ -185,16 +194,15 @@ export function createRepoTools(settings: LibrarianSettings, clients: RepoClient
         cacheDir,
         search,
       ),
+      sourcegraphRepos,
     );
-    implyWhenSingle(impliedSources, LIBRARIAN_TOOL_NAMES.searchReposSourcegraph, sourcegraphRepos);
   }
 
   const readable = readableSources(settings, clients);
   if (readable.length > 0) {
-    tools.push(createReadFileTool(readable, clients.readers));
-    implyWhenSingle(impliedSources, LIBRARIAN_TOOL_NAMES.readFile, readable);
+    add(createReadFileTool(readable, clients.readers), readable);
   }
-  tools.push(createCheckoutRepoTool(cacheDir, sources));
+  tools.push(withSourceNotes(createCheckoutRepoTool(cacheDir, sources), clonable));
 
   return { tools, impliedSources };
 }

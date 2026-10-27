@@ -34,20 +34,8 @@ import { getErrorMessage } from "./librarian/web/shared.ts";
 const LibrarianParams = Type.Object({
   query: Type.String({
     description:
-      "The research question. Include everything you already know: symbols, error messages, desired output shape. Do not guess unknown details — say what is uncertain and let the librarian discover it.",
+      "The research question. Include everything you already know: symbols, error messages, the repositories involved and the source they live on, desired output shape. Do not guess unknown details — say what is uncertain and let the librarian discover it.",
   }),
-  repos: Type.Optional(
-    Type.Array(Type.String(), {
-      description: "Optional owner/repo scope for the research.",
-      maxItems: 20,
-    }),
-  ),
-  owners: Type.Optional(
-    Type.Array(Type.String(), {
-      description: "Optional owner/org scope for the research.",
-      maxItems: 20,
-    }),
-  ),
   continue_from: Type.Optional(
     Type.String({
       description:
@@ -130,8 +118,6 @@ export default function librarianExtension(pi: ExtensionAPI): void {
 
       return runLibrarian({
         query: params.query,
-        repos: params.repos ?? [],
-        owners: params.owners ?? [],
         continueFrom: params.continue_from,
         modelRuntime,
         model: resolution.model,

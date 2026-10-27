@@ -41,6 +41,9 @@ const SOURCE_ROLE_SCHEMA = StringEnum(SOURCE_ROLES);
 // Strict throughout, so a misspelled or removed key fails loudly instead of being ignored.
 const STRICT = { additionalProperties: false };
 
+// Long enough for a coverage gap or a pointer elsewhere; short enough not to become a second prompt.
+const MAX_SOURCE_DESCRIPTION = 300;
+
 const SOURCE_SCHEMA = Type.Object(
   {
     name: Type.String({ minLength: 1 }),
@@ -49,6 +52,7 @@ const SOURCE_SCHEMA = Type.Object(
     disabled: Type.Optional(Type.Array(SOURCE_ROLE_SCHEMA, { uniqueItems: true })),
     tokenEnv: Type.Optional(Type.String({ minLength: 1 })),
     advancedSearch: Type.Optional(Type.Boolean()),
+    description: Type.Optional(Type.String({ pattern: "\\S", maxLength: MAX_SOURCE_DESCRIPTION })),
   },
   STRICT,
 );
@@ -157,6 +161,7 @@ export interface LibrarianSource {
   roles: SourceRole[];
   token: string | undefined;
   advancedSearch: boolean;
+  description: string | undefined;
 }
 
 export interface CloneSource {
@@ -166,6 +171,7 @@ export interface CloneSource {
   roles: SourceRole[];
   token: string | undefined;
   advancedSearch: boolean;
+  description: string | undefined;
 }
 
 export interface SearchSettings {
@@ -436,6 +442,7 @@ function builtInSources(
       roles: rolesWithCredential(source.kind, SOURCE_ROLES, token),
       token,
       advancedSearch: false,
+      description: undefined,
     };
   });
 }
@@ -491,6 +498,7 @@ function normalizeSources(
       roles: rolesWithCredential(value.kind, roles, token),
       token,
       advancedSearch: value.advancedSearch ?? false,
+      description: value.description?.trim(),
     });
   }
 

@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  buildLibrarianSystemPrompt,
-  buildLibrarianUserPrompt,
-} from "../extensions/librarian/prompt.ts";
+import { buildLibrarianSystemPrompt } from "../extensions/librarian/prompt.ts";
 
 describe("buildLibrarianSystemPrompt", () => {
   it("points at the cache layout", () => {
@@ -20,6 +17,9 @@ describe("buildLibrarianSystemPrompt", () => {
 
     expect(prompt).toContain(
       '- "Who does X across repos": search_code_github or search_code_grepapp to gather candidates, then verify the promising ones with checkout_repo.',
+    );
+    expect(prompt).toContain(
+      "No results means that source has no match, not that the code does not exist",
     );
     expect(prompt).not.toContain("What's out there");
     expect(prompt).not.toContain("Single-file peek");
@@ -52,6 +52,7 @@ describe("buildLibrarianSystemPrompt", () => {
     const prompt = buildLibrarianSystemPrompt("/tmp/pi-librarian", [{ name: "checkout_repo" }]);
 
     expect(prompt).not.toContain("CANDIDATES");
+    expect(prompt).not.toContain("No results means");
     expect(prompt).not.toContain("Callers of a symbol");
   });
 
@@ -64,15 +65,5 @@ describe("buildLibrarianSystemPrompt", () => {
     expect(prompt).toContain(
       "## Tool rules\n\n- Do not clone repositories with git directly.\n- Call provide_results last.",
     );
-  });
-});
-
-describe("buildLibrarianUserPrompt", () => {
-  it("explains that repository and owner scopes are grounding, not hard limits", () => {
-    const prompt = buildLibrarianUserPrompt("Find implementations", ["a/b"], ["org"]);
-
-    expect(prompt).toContain("Repository scope: a/b");
-    expect(prompt).toContain("Owner scope: org");
-    expect(prompt).toContain("not a hard boundary");
   });
 });

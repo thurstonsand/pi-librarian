@@ -79,6 +79,7 @@ describe("runLibrarian", () => {
           roles: ["clone", "code-search", "repo-search"],
           token: undefined,
           advancedSearch: false,
+          description: undefined,
         },
       ],
       web: {
@@ -93,8 +94,6 @@ describe("runLibrarian", () => {
     };
     const result = await runLibrarian({
       query: "Verify runtime propagation",
-      repos: [],
-      owners: [],
       continueFrom: undefined,
       modelRuntime,
       model,

@@ -13,6 +13,7 @@ Researches code beyond GitHub: declared GitLab, Bitbucket Server, and Sourcegrap
 - `search_repos_github` takes typed filters (`text`, `language`, `topics`, `min_stars`, `pushed_after`, …) instead of a raw query, and sorts by best match unless asked for stars.
 - `gitlab.com` is no longer a source by default; switch it on with `librarian.builtInSources`.
 - `provide_results` locations require a `source`.
+- The `librarian` tool drops `repos` and `owners`, which could not say which code host they meant; name repositories and their source in `query`.
 - Librarian runs no longer load the user's `AGENTS.md` or `APPEND_SYSTEM.md`.
 - Extra tools are gone: `librarian.tools.extra` and `librarian.extensions` are removed, and runs load no extensions. The web tools they existed for are built in.
 - Every key under `librarian` is checked; an unknown or removed one is an error instead of being ignored.
@@ -27,6 +28,7 @@ Researches code beyond GitHub: declared GitLab, Bitbucket Server, and Sourcegrap
 - Attached tools render their results: a summary and the first entries collapsed, metadata and matched lines expanded.
 - Findings name each location's source and link it at the commit that was read, on any declared host.
 - Runs that search append how they used the results to `<cacheDir>/usage.jsonl`.
+- A source's `description` tells the agent what it cannot discover, such as what a Sourcegraph does not index, at the end of every tool that reaches that source.
 - `checkout_repo` takes a shorthand `repo` without `source` when only one source can clone.
 - `web_search` and `web_fetch`, with the `/browser` command, from pi-web-tools 0.4.3. `web_fetch` writes bodies under `<cacheDir>/fetches/<call-id>/`, resolves GitHub URLs on any declared `github` source, and gives an issue its timeline filtered to closes, reopens, and references, with the commit that closed it.
 

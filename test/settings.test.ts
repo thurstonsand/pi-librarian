@@ -84,6 +84,13 @@ describe("resolveLibrarianSettings", () => {
     ).toEqual({ disabled: ["bash"] });
   });
 
+  it.each(["", "  ", "x".repeat(301)])("rejects the source description %j", (description) => {
+    const source = { name: "gl", url: "https://gitlab.example.com", kind: "gitlab", description };
+    expect(() => parseSettings({ librarian: { sources: [source] } }, {})).toThrow(
+      "Invalid settings: /librarian/sources/0/description",
+    );
+  });
+
   it.each(["", "  ", 42, ["command"]])("rejects the Parallel key command %j", (apiKeyCommand) => {
     expect(() =>
       parseSettings({ librarian: { web: { parallel: { apiKeyCommand } } } }, {}),
@@ -135,6 +142,7 @@ describe("resolveLibrarianSettings", () => {
             kind: "gitlab",
             tokenEnv: "EXAMPLE_GL_TOKEN",
             advancedSearch: true,
+            description: "  Nothing here is mirrored to example-bb.  ",
           },
         ],
       },
@@ -149,6 +157,7 @@ describe("resolveLibrarianSettings", () => {
         roles: ["clone"],
         token: undefined,
         advancedSearch: false,
+        description: undefined,
       },
       {
         name: "example-gl",
@@ -157,6 +166,7 @@ describe("resolveLibrarianSettings", () => {
         roles: ["clone", "code-search", "repo-search"],
         token: "secret-gl",
         advancedSearch: true,
+        description: "Nothing here is mirrored to example-bb.",
       },
     ]);
   });
