@@ -59,3 +59,12 @@ Blocked on the corporate network at the proxy, and to be used on personal machin
 - [ ] **Scope echo.** Scope a search with `repos` to one indexed and one unindexed repository, and confirm the response's `indexed` flag tells them apart — the docs say it does, and it is the completeness signal this engine would have.
 
 Answers go under _Firecrawl's Developer Index is not code search_.
+
+## After the checks above: release
+
+`main` holds everything; these wait until the checks above pass.
+
+- [ ] **Release 0.7.0** with the `npm-release` skill. The CHANGELOG's _Unreleased_ entry is the release note.
+- [ ] **Rebase `downgrade`** onto the tag with the `downgrade-rebase` skill. The fold adds runtime dependencies (`playwright-core` and the unified/rehype/remark stack) that the pins have not yet been checked against.
+- [ ] **Retire pi-web-tools**: release its deprecation notice, already on its `main`, then `npm deprecate` it.
+- [ ] **Migrate your own configuration on each host**: remove the `librarian.tools` array, which 0.7.0 refuses; move `webTools.parallel.apiKeyCommand` to `librarian.web.parallel.apiKeyCommand` where Parallel is allowed; and replace the pi-web-tools package with pi-librarian.
