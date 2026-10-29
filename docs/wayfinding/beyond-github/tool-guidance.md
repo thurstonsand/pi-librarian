@@ -42,24 +42,24 @@ Two things the draft did not say, both confirmed by that output:
 
 Yes, through three APIs:
 
-| API | gives | where |
-| --- | --- | --- |
-| `pi.getAllTools()` / `AgentSession.getAllTools()` | `ToolInfo` with `promptGuidelines` (raw, unnormalized), for every **registered** tool | `ca/core/extensions/types.ts:1769,2122-2131`; `ca/core/agent-session.ts:1499-1511` |
-| `ToolLoadout.getPromptGuidelines(name)` | normalized guidelines, inside a tool's `prepareLoadout` hook | `types.ts:551-563`; `agent-session.ts:1598` |
+| API                                                | gives                                                                                                                       | where                                                                                        |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `pi.getAllTools()` / `AgentSession.getAllTools()`  | `ToolInfo` with `promptGuidelines` (raw, unnormalized), for every **registered** tool                                       | `ca/core/extensions/types.ts:1769,2122-2131`; `ca/core/agent-session.ts:1499-1511`           |
+| `ToolLoadout.getPromptGuidelines(name)`            | normalized guidelines, inside a tool's `prepareLoadout` hook                                                                | `types.ts:551-563`; `agent-session.ts:1598`                                                  |
 | `before_agent_start` → `event.systemPromptOptions` | the full mutable prompt input: `customPrompt`, `selectedTools`, `hiddenTools`, `toolSnippets`, `toolGuidelines`, `sections` | `types.ts:932-938`; `ca/core/system-prompt.ts:9-36`; applied at `agent-session.ts:1899-1938` |
 
 pi itself uses this: `codemode` renders each listed tool's guidelines into its own description because "the system prompt only has [them] for declared tools" (`ca/extensions/codemode/tool.ts:142-155,315,338`). The docs say the same for orchestrators: "the orchestrating tool should present their guidelines itself" (`docs/extensions.md`, _Tool exposure_). That is the precedent for `buildLibrarianSystemPrompt` doing it.
 
 ### How each field travels
 
-| field | normalisation | default prompt (attach / main session) | librarian run | provider |
-| --- | --- | --- | --- | --- |
-| `name` | none | listed in `tools` only if it has a snippet | declaration only | `name` of the tool definition |
-| `description` | none in pi; may be **replaced** by another tool's `prepareLoadout` (`agent-session.ts:1600-1622`) | declaration | declaration | `description`, verbatim, no truncation (Anthropic `ai/api/anthropic-messages.ts:1653-1655`; OpenAI Responses `ai/api/openai-responses-shared.ts:411-414`; Chat Completions `ai/api/openai-completions.ts:1509-1514`) |
-| parameter schema + descriptions | none | declaration | declaration | Anthropic (non-strict): **only root `properties` and `required` are kept** (`anthropic-messages.ts:1639-1651`), so a root-level `Type.Object({...}, { description })` is dropped; nested property descriptions survive. OpenAI: schema passed whole. Strict mode only when `constrainedSampling` is set (`ai/api/constrained-sampling.ts:142-145,225-249`), which wraps optional props as `anyOf[prop, null]` but keeps their descriptions (`:116-121`). |
-| `promptSnippet` | collapsed to one line (`agent-session.ts:1681-1688`) | `- name: snippet` in `<tools>`, followed by "In addition to the tools above, you may have access to other custom tools" (`system-prompt.ts:157-160`) | **dropped** | n/a (system text) |
-| `promptGuidelines` | trimmed, exact-duplicate removal per tool (`agent-session.ts:1690-1703`), then across all tools (`system-prompt.ts:95-100`) | one **flat** `<rules>` list: pi's bash fallback rule, then each active tool's bullets in `selectedTools` order, then extension `promptGuidelines`, then "Be concise…" (`system-prompt.ts:108-125`). Bullets carry **no** tool heading. | **dropped** | n/a |
-| `label` | none | nowhere | nowhere | stripped |
+| field                           | normalisation                                                                                                               | default prompt (attach / main session)                                                                                                                                                                                                 | librarian run    | provider                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`                          | none                                                                                                                        | listed in `tools` only if it has a snippet                                                                                                                                                                                             | declaration only | `name` of the tool definition                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `description`                   | none in pi; may be **replaced** by another tool's `prepareLoadout` (`agent-session.ts:1600-1622`)                           | declaration                                                                                                                                                                                                                            | declaration      | `description`, verbatim, no truncation (Anthropic `ai/api/anthropic-messages.ts:1653-1655`; OpenAI Responses `ai/api/openai-responses-shared.ts:411-414`; Chat Completions `ai/api/openai-completions.ts:1509-1514`)                                                                                                                                                                                                                                     |
+| parameter schema + descriptions | none                                                                                                                        | declaration                                                                                                                                                                                                                            | declaration      | Anthropic (non-strict): **only root `properties` and `required` are kept** (`anthropic-messages.ts:1639-1651`), so a root-level `Type.Object({...}, { description })` is dropped; nested property descriptions survive. OpenAI: schema passed whole. Strict mode only when `constrainedSampling` is set (`ai/api/constrained-sampling.ts:142-145,225-249`), which wraps optional props as `anyOf[prop, null]` but keeps their descriptions (`:116-121`). |
+| `promptSnippet`                 | collapsed to one line (`agent-session.ts:1681-1688`)                                                                        | `- name: snippet` in `<tools>`, followed by "In addition to the tools above, you may have access to other custom tools" (`system-prompt.ts:157-160`)                                                                                   | **dropped**      | n/a (system text)                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `promptGuidelines`              | trimmed, exact-duplicate removal per tool (`agent-session.ts:1690-1703`), then across all tools (`system-prompt.ts:95-100`) | one **flat** `<rules>` list: pi's bash fallback rule, then each active tool's bullets in `selectedTools` order, then extension `promptGuidelines`, then "Be concise…" (`system-prompt.ts:108-125`). Bullets carry **no** tool heading. | **dropped**      | n/a                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `label`                         | none                                                                                                                        | nowhere                                                                                                                                                                                                                                | nowhere          | stripped                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 
 Further mechanics that affect "when the model reads it":
 
@@ -229,7 +229,9 @@ const Params = Type.Object({
       maxItems: 20,
     }),
   ),
-  path: Type.Optional(Type.String({ description: "Restrict to file paths matching this pattern." })),
+  path: Type.Optional(
+    Type.String({ description: "Restrict to file paths matching this pattern." }),
+  ),
   language: Type.Optional(Type.String({ description: "Restrict to a language, e.g. typescript." })),
 });
 
@@ -245,15 +247,15 @@ defineTool({
 
 What moved, and why:
 
-| fact | from | to | rule |
-| --- | --- | --- | --- |
-| reach: GitHub, private with token | description | description (kept) | tool-level corpus fact, step 5 |
-| 10 searches a minute | description | description (kept) | whole-call limit, step 5. The reset time goes in the rate-limit **error** (step 4). |
-| substring, quoted phrase, no regex | draft prose says "the description states the regex failure", draft code has it on `pattern` | `pattern` only, plus edge rejection mentioned so the model knows it is enforced | one argument, step 3; one owner |
-| result shape (excerpts, not whole files) | absent | description | Anthropic: say what it returns; it is also what makes "read before citing" sensible |
-| `repos` requires `owner` | `repos` description | kept, **plus** edge validation | cross-argument, step 3 |
-| "Prefer … over search_code_grepapp when private" | guideline | **deleted** | derivable: this description says "including private", grepapp's says "public code only" (step 7). As a guideline it would also name a tool that may be absent. |
-| snippet | absent | absent | step 9: not an entry point |
+| fact                                             | from                                                                                        | to                                                                              | rule                                                                                                                                                           |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| reach: GitHub, private with token                | description                                                                                 | description (kept)                                                              | tool-level corpus fact, step 5                                                                                                                                 |
+| 10 searches a minute                             | description                                                                                 | description (kept)                                                              | whole-call limit, step 5. The reset time goes in the rate-limit **error** (step 4).                                                                            |
+| substring, quoted phrase, no regex               | draft prose says "the description states the regex failure", draft code has it on `pattern` | `pattern` only, plus edge rejection mentioned so the model knows it is enforced | one argument, step 3; one owner                                                                                                                                |
+| result shape (excerpts, not whole files)         | absent                                                                                      | description                                                                     | Anthropic: say what it returns; it is also what makes "read before citing" sensible                                                                            |
+| `repos` requires `owner`                         | `repos` description                                                                         | kept, **plus** edge validation                                                  | cross-argument, step 3                                                                                                                                         |
+| "Prefer … over search_code_grepapp when private" | guideline                                                                                   | **deleted**                                                                     | derivable: this description says "including private", grepapp's says "public code only" (step 7). As a guideline it would also name a tool that may be absent. |
+| snippet                                          | absent                                                                                      | absent                                                                          | step 9: not an entry point                                                                                                                                     |
 
 ### `search_repos_sourcegraph`
 
@@ -268,7 +270,9 @@ const Params = Type.Object({
   name: Type.Optional(Type.String({ description: "Regex matched against repository names." })),
   topic: Type.Optional(Type.String({ description: "Restrict to a topic." })),
   contains_path: Type.Optional(
-    Type.String({ description: "Only repos with a file whose path matches this regex, e.g. ^go\\.mod$." }),
+    Type.String({
+      description: "Only repos with a file whose path matches this regex, e.g. ^go\\.mod$.",
+    }),
   ),
   contains_content: Type.Optional(
     Type.String({
@@ -283,7 +287,9 @@ const Params = Type.Object({
     }),
   ),
   include_forks: Type.Optional(Type.Boolean({ description: "Include forks. Default: false." })),
-  include_archived: Type.Optional(Type.Boolean({ description: "Include archived repos. Default: false." })),
+  include_archived: Type.Optional(
+    Type.Boolean({ description: "Include archived repos. Default: false." }),
+  ),
 });
 
 defineTool({
@@ -298,15 +304,15 @@ defineTool({
 
 What moved, and why:
 
-| fact | placement | rule |
-| --- | --- | --- |
-| which instances exist and what each name means | `source` enum (machine) + `sourceLabels` in its description (meaning) | schema first, then the meaning the enum cannot carry; step 2–3 |
-| `contains_content` is file text, not names | `contains_content` | one argument |
-| `changed_after` walks history, tens of seconds, narrow by `name` first | `changed_after` only, as approved | cost on the argument that incurs it, only on the engine where it is true; naming a sibling **argument** is fine, it is always present |
-| no sort, no limit, unranked | description | a result-shape fact the model would otherwise get wrong (it expects top-N by stars from `search_repos_github`); step 5 |
-| reaches private repos | description | corpus fact; lets the model derive "prefer this over `search_repos_github` for internal code" without a guideline |
-| `contains_path` + `contains_content` compile to one predicate | nowhere model-facing | implementation detail; the model's call is the same either way |
-| "path and topic are cheap" | nowhere | approved: do not advertise cheap filters |
+| fact                                                                   | placement                                                             | rule                                                                                                                                  |
+| ---------------------------------------------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| which instances exist and what each name means                         | `source` enum (machine) + `sourceLabels` in its description (meaning) | schema first, then the meaning the enum cannot carry; step 2–3                                                                        |
+| `contains_content` is file text, not names                             | `contains_content`                                                    | one argument                                                                                                                          |
+| `changed_after` walks history, tens of seconds, narrow by `name` first | `changed_after` only, as approved                                     | cost on the argument that incurs it, only on the engine where it is true; naming a sibling **argument** is fine, it is always present |
+| no sort, no limit, unranked                                            | description                                                           | a result-shape fact the model would otherwise get wrong (it expects top-N by stars from `search_repos_github`); step 5                |
+| reaches private repos                                                  | description                                                           | corpus fact; lets the model derive "prefer this over `search_repos_github` for internal code" without a guideline                     |
+| `contains_path` + `contains_content` compile to one predicate          | nowhere model-facing                                                  | implementation detail; the model's call is the same either way                                                                        |
+| "path and topic are cheap"                                             | nowhere                                                               | approved: do not advertise cheap filters                                                                                              |
 
 The same procedure applied to the draft's `search_code_sourcegraph` guidelines, as a check: "Start with detail:repos or detail:files…; detail:matches on a broad pattern can return megabytes" is about one argument, so it moves to `detail`'s description. "Prefer search_code_sourcegraph over the code-host searches when it is available; it is the only one that reports completeness" is a non-derivable ranking across optional tools, so it moves to the composer (step 7). That tool ends with no guidelines either.
 

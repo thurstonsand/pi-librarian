@@ -17,7 +17,7 @@ Blocked on delivery, history search, and fork handling, because all three change
 Host and backend configuration moved into [Reaching a repo](05-reaching-a-repo-reference-forms-and-clone-resolution.md), which decides the settings shape by implementing it. Two of its questions were wording rather than configuration and land here:
 
 - **Never promising completeness.** A backend that indexes part of a code host is the normal case, not an edge case — one measured instance indexed 13 repositories of an entire host, and did not contain repositories its own users owned. An agent told "a search backend is available" will assume it is authoritative. Since coverage cannot be declared usefully or discovered cheaply, the tool descriptions and prompt must simply never claim a backend sees everything.
-- **Search ordering.** Largely dissolved: a source excluded from a role by `disabled` *is* the ordering preference, stated declaratively. What remains is ordering among whatever is left enabled, and the head-to-head spike found that part is not instance-dependent — so it belongs in the prompt, here, rather than in settings.
+- **Search ordering.** Largely dissolved: a source excluded from a role by `disabled` _is_ the ordering preference, stated declaratively. What remains is ordering among whatever is left enabled, and the head-to-head spike found that part is not instance-dependent — so it belongs in the prompt, here, rather than in settings.
 
 ## Hard constraints from the head-to-head spike
 
@@ -25,7 +25,7 @@ These are settled facts that the wording must honour, not open questions:
 
 - **Regex must be refused at the tool boundary** for any native path. A code host given a regex does not error — it returns a **silent zero**, which reads as "no such code exists". The parameter has to be rejected before the request, naming a path that supports it.
 - **No naive `limit` parameter.** The backend's count directive is a match budget, not a file budget: asking for 20 returned one file and lost the answer. Whatever bounds results is not a passed-through limit, and no parameter should imply otherwise.
-- **"Showing N of M" cannot be shared wording.** Result units differ across every remote path — the backend counts files, one host counts files *usually* (an extension-filtered query returned the same file twice in a page), another counts matches. Each path needs its own phrasing, and the unit has to be named.
+- **"Showing N of M" cannot be shared wording.** Result units differ across every remote path — the backend counts files, one host counts files _usually_ (an extension-filtered query returned the same file twice in a page), another counts matches. Each path needs its own phrasing, and the unit has to be named.
 - **A saturation sentinel is not a count.** A host returns `total: 10000` for any common term. That number must never reach the model as a total.
 - **Truncation is only detectable from a reason string.** Skip entries carry `severity: "info"` even for real caps, so any "results were trimmed" wording has to key off the reason, never the severity.
 - **A capability refusal must be actionable.** A `400` telling the reader to ask an administrator is useless to an agent; it has to be translated into a next step it can actually take. (Moved here from [Handling uneven GitLab search capability](03-handling-uneven-gitlab-search-capability.md).)

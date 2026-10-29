@@ -70,11 +70,11 @@ Scoped to a repo, backend and host and ripgrep return **the same file set**. So 
 
 What works instead is asking for a coarser resolution of the same search. Measured:
 
-| resolution | returns | cost |
-| --- | --- | --- |
-| `select:repo` | which repositories match | **2,952 bytes** instance-wide, 12 repos, 1.2s |
-| `select:file` | which files, ranked, with commit shas | **7,472 bytes** at project scope; 8% of full |
-| full | matched lines | scales with volume, unbounded |
+| resolution    | returns                               | cost                                          |
+| ------------- | ------------------------------------- | --------------------------------------------- |
+| `select:repo` | which repositories match              | **2,952 bytes** instance-wide, 12 repos, 1.2s |
+| `select:file` | which files, ranked, with commit shas | **7,472 bytes** at project scope; 8% of full  |
+| full          | matched lines                         | scales with volume, unbounded                 |
 
 `select:file` returns the **identical file list in identical rank order** — verified by diff on both modes — retaining `repository`, `path`, `commit`, `language`, `branches`. Everything a pinnable citation needs, for 8% of the bytes. This should be the default response shape, with full snippets fetched deliberately for a shortlist.
 
@@ -88,7 +88,7 @@ An earlier reading of this data concluded that a repo scope should be **required
 - The backend at project-prefix scope, selective symbol: 19 files, 3 repos, 30,980 bytes full / **7,472 with `select:file`**, no caps.
 - The **same project scope**, stemmed, common terms: 1,834 files, 70 repos, **753,636 bytes even with `select:file`**.
 
-Identical scope, a hundredfold difference. The axis is **result volume, which is selectivity times breadth** — scoping to one repo merely happened to bound volume. What is broken is an unbounded *full-resolution* search, not a wide one. The tool's job is to make coarse resolutions the natural default and full snippets a deliberate act, not to demand a scope.
+Identical scope, a hundredfold difference. The axis is **result volume, which is selectivity times breadth** — scoping to one repo merely happened to bound volume. What is broken is an unbounded _full-resolution_ search, not a wide one. The tool's job is to make coarse resolutions the natural default and full snippets a deliberate act, not to demand a scope.
 
 Cross-repo search is therefore untouched, at any width. `select:repo` answers "which repositories use this" across an entire instance for 3 KB.
 
@@ -117,7 +117,7 @@ Nothing measured was weak enough to drop.
 
 ### Incidental constraints for later tickets
 
-- **Result units differ across all three remote paths and none documents it.** The backend is per-file; one host is per-file *usually* (an extension-filtered query returned the same file twice in a page); the other is per-match. Counts are not comparable without normalising, and "showing N of M" wording cannot be shared.
+- **Result units differ across all three remote paths and none documents it.** The backend is per-file; one host is per-file _usually_ (an extension-filtered query returned the same file twice in a page); the other is per-match. Counts are not comparable without normalising, and "showing N of M" wording cannot be shared.
 - A host's `total: 10000` for a common term is a **saturation sentinel, not a count**. It must never reach the model as a number.
 - **`https://user:token@host/…` clone URLs are unreliable** against a Bitbucket Server instance: one repo failed authentication that way and cloned immediately with `git -c http.extraHeader="Authorization: Bearer …"`. Use the header form only.
 - A host's repo modifier alone returns a **null code entity rather than an error**; the project modifier must lead. Encode in the query builder.

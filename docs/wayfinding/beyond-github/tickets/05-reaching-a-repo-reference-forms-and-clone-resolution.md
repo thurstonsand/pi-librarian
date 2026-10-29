@@ -46,21 +46,21 @@ The fix is a net deletion.
       {
         "name": "work-gl",
         "url": "https://gitlab.example.com",
-        "kind": "gitlab",
+        "kind": "gitlab"
       },
       {
         "name": "work-bb",
         "url": "https://git.example.com",
-        "kind": "bitbucket-server",
+        "kind": "bitbucket-server"
       },
       {
         "name": "sg",
         "url": "https://search.example.com",
         "kind": "sourcegraph",
-        "disabled": ["repo-search"],
-      },
-    ],
-  },
+        "disabled": ["repo-search"]
+      }
+    ]
+  }
 }
 ```
 
@@ -145,8 +145,8 @@ One open consequence: `/tmp` is POSIX-only, so a published extension needs a pla
 
 Derived from `kind` plus `url`, deterministically. No lookup call, and **no SSH derivation for the shorthand form** — an SSH port cannot be known without asking, and SSH users pass a URL.
 
-| kind               | derived HTTPS                   |
-| ------------------ | ------------------------------- |
+| kind               | derived HTTPS                       |
+| ------------------ | ----------------------------------- |
 | `github`           | `https://{hostname}/{path}.git`     |
 | `gitlab`           | `https://{hostname}/{path}.git`     |
 | `bitbucket-server` | `https://{hostname}/scm/{path}.git` |

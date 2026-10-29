@@ -6,21 +6,21 @@
 
 What the agent can call, and the one-line result summary the user sees, which follows a subject naming the source — every rendered state is in [What the user sees](#what-the-user-sees). `[source]` appears only when two or more instances of that engine are declared; a tool with no instances is not registered.
 
-| tool | arguments | user-facing summary |
-| --- | --- | --- |
-| `search_code_github` | `pattern`, `owner?`, `repos?`, `path?`, `filename?`, `extension?`, `language?`, `limit?` | `412 files · 63 repos` |
-| `search_code_grepapp` | `pattern`, `regex?`, `repo?`, `language?`, `path?`, `limit?` | same shape |
-| `search_code_sourcegraph` | `[source]`, `pattern`, `pattern_type?`, `detail?`, `repos?`, `path?`, `language?`, `limit?` | same shape, `, incomplete` when short |
-| `search_code_gitlab` | `[source]`, `pattern`, `project` (optional with advanced search), `ref?`, `filename?`, `path?`, `extension?`, `limit?` | same shape |
-| `search_code_bitbucket` | `[source]`, `pattern`, `project?`, `repo?`, `limit?` | same shape |
-| `search_repos_github` | `text?`, `in_readme?`, `language?`, `topics?`, `min_stars?`, `pushed_after?`, `include_forks?`, `include_archived?`, `sort?`, `limit?` | `10 of 1,284 repos` |
-| `search_repos_sourcegraph` | `[source]`, `name?`, `topics?`, `contains_path?`, `changed_after?`, `include_forks?`, `include_archived?`, `limit?` | same shape |
-| `search_repos_gitlab` | `[source]`, `name?`, `topics?`, `changed_after?`, `include_archived?`, `sort?`, `limit?` | same shape |
-| `search_repos_bitbucket` | `[source]`, `name?`, `project?`, `limit?` | same shape |
-| `find_definition` | `[source]`, `symbol`, `kind?`, `repos?`, `language?`, `include_vendored?`, `limit?` | `2 definitions` |
-| `read_file` | `source`, `repo`, `path`, `ref?`, `offset?`, `limit?` | none on success |
-| `checkout_repo` | `repo`, `source?`, `ref?` | `1117 files @ a1b2c3d` |
-| `provide_results` | `summary`, `locations[{source, repo, file, lines?, note}]`, `description?` | the findings block |
+| tool                       | arguments                                                                                                                              | user-facing summary                   |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| `search_code_github`       | `pattern`, `owner?`, `repos?`, `path?`, `filename?`, `extension?`, `language?`, `limit?`                                               | `412 files · 63 repos`                |
+| `search_code_grepapp`      | `pattern`, `regex?`, `repo?`, `language?`, `path?`, `limit?`                                                                           | same shape                            |
+| `search_code_sourcegraph`  | `[source]`, `pattern`, `pattern_type?`, `detail?`, `repos?`, `path?`, `language?`, `limit?`                                            | same shape, `, incomplete` when short |
+| `search_code_gitlab`       | `[source]`, `pattern`, `project` (optional with advanced search), `ref?`, `filename?`, `path?`, `extension?`, `limit?`                 | same shape                            |
+| `search_code_bitbucket`    | `[source]`, `pattern`, `project?`, `repo?`, `limit?`                                                                                   | same shape                            |
+| `search_repos_github`      | `text?`, `in_readme?`, `language?`, `topics?`, `min_stars?`, `pushed_after?`, `include_forks?`, `include_archived?`, `sort?`, `limit?` | `10 of 1,284 repos`                   |
+| `search_repos_sourcegraph` | `[source]`, `name?`, `topics?`, `contains_path?`, `changed_after?`, `include_forks?`, `include_archived?`, `limit?`                    | same shape                            |
+| `search_repos_gitlab`      | `[source]`, `name?`, `topics?`, `changed_after?`, `include_archived?`, `sort?`, `limit?`                                               | same shape                            |
+| `search_repos_bitbucket`   | `[source]`, `name?`, `project?`, `limit?`                                                                                              | same shape                            |
+| `find_definition`          | `[source]`, `symbol`, `kind?`, `repos?`, `language?`, `include_vendored?`, `limit?`                                                    | `2 definitions`                       |
+| `read_file`                | `source`, `repo`, `path`, `ref?`, `offset?`, `limit?`                                                                                  | none on success                       |
+| `checkout_repo`            | `repo`, `source?`, `ref?`                                                                                                              | `1117 files @ a1b2c3d`                |
+| `provide_results`          | `summary`, `locations[{source, repo, file, lines?, note}]`, `description?`                                                             | the findings block                    |
 
 The rules every search tool shares, each argued in its own section:
 
@@ -85,14 +85,14 @@ The single place for every user-facing shape: the librarian run block, then each
 
 **Every subject names its source**, so a row says which engine answered while it is still running, and the summary does not repeat it. `incomplete` and `unranked` append to the summary in the warning colour.
 
-| tool | verb | subject | summary |
-| --- | --- | --- | --- |
-| `search_code_*` | `search` | `code {pattern} in {source}[:{scope}]` | `{n} files · {r} repos` — `repos` or `matches` per `detail` |
-| `search_repos_*` | `search` | `repos {filters} in {source}` | `{fetched} of {total} repos`, or `{n} repos` when all are fetched |
-| `find_definition` | `definition` | `[{kind}] {symbol} in {source}` | `{n} definitions` |
-| `read_file` | `read` | `{source}:{repo}/{path}[@{ref}][:{lines}]` | none on success; the error's first line on failure |
-| `checkout_repo` | `checkout` | `{source}:{repo}[@{ref}]`, or the URL | `{files} files @ {sha7}` |
-| `provide_results` | `results` | — | `{n} locations` |
+| tool              | verb         | subject                                    | summary                                                           |
+| ----------------- | ------------ | ------------------------------------------ | ----------------------------------------------------------------- |
+| `search_code_*`   | `search`     | `code {pattern} in {source}[:{scope}]`     | `{n} files · {r} repos` — `repos` or `matches` per `detail`       |
+| `search_repos_*`  | `search`     | `repos {filters} in {source}`              | `{fetched} of {total} repos`, or `{n} repos` when all are fetched |
+| `find_definition` | `definition` | `[{kind}] {symbol} in {source}`            | `{n} definitions`                                                 |
+| `read_file`       | `read`       | `{source}:{repo}/{path}[@{ref}][:{lines}]` | none on success; the error's first line on failure                |
+| `checkout_repo`   | `checkout`   | `{source}:{repo}[@{ref}]`, or the URL      | `{files} files @ {sha7}`                                          |
+| `provide_results` | `results`    | —                                          | `{n} locations`                                                   |
 
 `{scope}` is whatever narrowed the search — `owner/repos`, `project`, `repos` patterns — shortened to 40 characters. `{filters}` are the arguments given, as `key:value`. The `source:` prefix is display only; the agent never reads it, and `checkout_repo` never parses it.
 
@@ -396,14 +396,14 @@ Never attached — it exists only inside runs. Its trace line is the last one in
 
 Asked in review: `label`, `description`, `promptSnippet`, and `promptGuidelines` overlap — how does each actually show up? Read off pi 1.3's source, the answer is that **it depends on the mode, and in a librarian run two of the four are dropped entirely.**
 
-| field                  | librarian run                  | attach mode                                 |
-| ---------------------- | ------------------------------ | ------------------------------------------- |
-| `name`                 | tool definition sent to the provider | same                                  |
-| `description`          | tool definition                | tool definition                             |
-| parameter descriptions | tool definition                | tool definition                             |
-| `promptSnippet`        | **dropped**                    | `- name: snippet` under the tools list      |
-| `promptGuidelines`     | **dropped**                    | bullets in the guidelines section           |
-| `label`                | nowhere                        | nowhere I could find                        |
+| field                  | librarian run                        | attach mode                            |
+| ---------------------- | ------------------------------------ | -------------------------------------- |
+| `name`                 | tool definition sent to the provider | same                                   |
+| `description`          | tool definition                      | tool definition                        |
+| parameter descriptions | tool definition                      | tool definition                        |
+| `promptSnippet`        | **dropped**                          | `- name: snippet` under the tools list |
+| `promptGuidelines`     | **dropped**                          | bullets in the guidelines section      |
+| `label`                | nowhere                              | nowhere I could find                   |
 
 The mechanism: `run.ts` gives the nested session a `systemPromptOverride`, which pi passes on as `customPrompt`. `buildSystemPromptSections` in pi's `system-prompt.ts` builds the tools list and the guidelines only in the branch where there is _no_ `customPrompt`. So inside a run, the librarian sees each tool's name, description, and parameter schema, and nothing else.
 
@@ -449,20 +449,20 @@ A single tool spanning engines has three bad options for every argument: present
 
 ### The inventory
 
-| family      | engine           | tool                                 | split?                 |
-| ----------- | ---------------- | ------------------------------------ | ---------------------- |
-| code search | GitHub REST      | `search_code_github`                 | yes                    |
-|             | grep.app         | `search_code_grepapp`                | yes                    |
-|             | Sourcegraph      | `search_code_sourcegraph`            | yes                    |
-|             | GitLab           | `search_code_gitlab`                 | yes                    |
-|             | Bitbucket Server | `search_code_bitbucket`              | yes                    |
-| repo search | GitHub REST      | `search_repos_github`                | yes                    |
-|             | Sourcegraph      | `search_repos_sourcegraph`           | yes                    |
-|             | GitLab           | `search_repos_gitlab`                | yes                    |
-|             | Bitbucket Server | `search_repos_bitbucket`             | yes                    |
-| symbols     | Sourcegraph      | `find_definition`                    | no engine to split from |
-| file read   | any              | `read_file`                          | **no**                 |
-| clone       | any clone source | `checkout_repo`                      | **no**                 |
+| family      | engine           | tool                       | split?                  |
+| ----------- | ---------------- | -------------------------- | ----------------------- |
+| code search | GitHub REST      | `search_code_github`       | yes                     |
+|             | grep.app         | `search_code_grepapp`      | yes                     |
+|             | Sourcegraph      | `search_code_sourcegraph`  | yes                     |
+|             | GitLab           | `search_code_gitlab`       | yes                     |
+|             | Bitbucket Server | `search_code_bitbucket`    | yes                     |
+| repo search | GitHub REST      | `search_repos_github`      | yes                     |
+|             | Sourcegraph      | `search_repos_sourcegraph` | yes                     |
+|             | GitLab           | `search_repos_gitlab`      | yes                     |
+|             | Bitbucket Server | `search_repos_bitbucket`   | yes                     |
+| symbols     | Sourcegraph      | `find_definition`          | no engine to split from |
+| file read   | any              | `read_file`                | **no**                  |
+| clone       | any clone source | `checkout_repo`            | **no**                  |
 
 `read_file` and `checkout_repo` do not split, and the rule says why: **there is no query language in a file read.** A path is a path on every engine, so those two keep a `source` argument spanning kinds, as `checkout_repo` does today. A rule that gives different answers for a stated reason is a rule rather than a preference.
 
@@ -516,9 +516,9 @@ Given these settings:
     "sources": [
       { "name": "example-gl", "url": "https://gitlab.example.com", "kind": "gitlab" },
       { "name": "example-bb", "url": "https://git.example.com", "kind": "bitbucket-server" },
-      { "name": "example-sg", "url": "https://search.example.com", "kind": "sourcegraph" },
-    ],
-  },
+      { "name": "example-sg", "url": "https://search.example.com", "kind": "sourcegraph" }
+    ]
+  }
 }
 ```
 
@@ -582,10 +582,10 @@ So "showing 10 of 13,055" shows the best 10 — on this engine; see the caveats.
 
 Where `detail` exists it is Sourcegraph's `select:` projection, and ticket 07 measured it as **not work-reducing**: the engine finds every match first and projects afterwards, so `detail: "repos"` takes as long as `detail: "matches"`. What it changes is the bytes:
 
-| detail    | what each result carries   | size, measured                                                                      |
-| --------- | -------------------------- | ----------------------------------------------------------------------------------- |
-| `repos`   | a repository name          | ~3 KB for an instance-wide repo list                                                |
-| `files`   | repository, path, revision | 13% smaller than `matches` on a saturating query, 92% smaller on a dense one        |
+| detail    | what each result carries          | size, measured                                                               |
+| --------- | --------------------------------- | ---------------------------------------------------------------------------- |
+| `repos`   | a repository name                 | ~3 KB for an instance-wide repo list                                         |
+| `files`   | repository, path, revision        | 13% smaller than `matches` on a saturating query, 92% smaller on a dense one |
 | `matches` | the above plus every matched line | 27 MB at its worst, instance-wide `count:all`                                |
 
 So `files` is a modest saving when each file matches once and a large one when files match many times; `repos` is the rung that is always cheap. Going finer is a **second call**, narrowed by what the first returned — or `read_file` and `checkout_repo`, which read files better than a search API does.
@@ -596,18 +596,18 @@ So `files` is a modest saving when each file matches once and a large one when f
 
 Every search tool takes `limit`: **how many results come back to the agent**. Default 10, from `librarian.search.defaultLimit`; maximum 50, or lower where the engine's single request returns fewer. No pagination is added to reach the maximum — where one request returns fewer than 50, that is the ceiling.
 
-| tool | one request returns at most | `limit` maximum |
-| --- | --- | --- |
-| `search_code_github` | 100 (`per_page`) | 50 |
-| `search_repos_github` | 100 (`per_page`) | 50 |
-| `search_code_grepapp` | whatever its MCP server's `searchGitHub` returns, unmeasured | that, up to 50 |
-| `search_code_sourcegraph` | no limit; `count:` is ours to set | 50 |
-| `search_repos_sourcegraph` | no limit | 50 |
-| `find_definition` | no limit | 50 |
-| `search_code_gitlab` | 99 — `per_page=100` can stop at exactly 100 with no next page | 50 |
-| `search_repos_gitlab` | 100 | 50 |
-| `search_code_bitbucket` | unmeasured; the window is 1,000 | 50, pending measurement |
-| `search_repos_bitbucket` | unmeasured | 50, pending measurement |
+| tool                       | one request returns at most                                   | `limit` maximum         |
+| -------------------------- | ------------------------------------------------------------- | ----------------------- |
+| `search_code_github`       | 100 (`per_page`)                                              | 50                      |
+| `search_repos_github`      | 100 (`per_page`)                                              | 50                      |
+| `search_code_grepapp`      | whatever its MCP server's `searchGitHub` returns, unmeasured  | that, up to 50          |
+| `search_code_sourcegraph`  | no limit; `count:` is ours to set                             | 50                      |
+| `search_repos_sourcegraph` | no limit                                                      | 50                      |
+| `find_definition`          | no limit                                                      | 50                      |
+| `search_code_gitlab`       | 99 — `per_page=100` can stop at exactly 100 with no next page | 50                      |
+| `search_repos_gitlab`      | 100                                                           | 50                      |
+| `search_code_bitbucket`    | unmeasured; the window is 1,000                               | 50, pending measurement |
+| `search_repos_bitbucket`   | unmeasured                                                    | 50, pending measurement |
 
 Fifty because the cost is context: 50 file entries are about 5 KB, and 50 entries with matched lines run 25–50 KB, half of what pi lets a `bash` call return before spilling to a file. The argument's description says so, since it is the one place the model decides how much to pay:
 
@@ -648,10 +648,10 @@ The librarian exists to collect context faster than the main agent could, so a s
 
 Fifteen holds up under measurement. The Sourcegraph spike timed 36 realistic research queries twice each, cold and warm:
 
-| | p50 | p90 | p95 | max | over 15s |
-| --- | --- | --- | --- | --- | --- |
-| all 72 samples | 1.34s | 3.56s | 11.1s | 59.8s | 2 |
-| excluding `repo:has.commit.after` | — | ~2.2s | — | 6.8s, cold | 0 |
+|                                   | p50   | p90   | p95   | max        | over 15s |
+| --------------------------------- | ----- | ----- | ----- | ---------- | -------- |
+| all 72 samples                    | 1.34s | 3.56s | 11.1s | 59.8s      | 2        |
+| excluding `repo:has.commit.after` | —     | ~2.2s | —     | 6.8s, cold | 0        |
 
 Every sample over 5 seconds but one involves the history predicate, whose cost is linear — about 10 ms per repository in scope. A 905-repository project took 9.6–14.6s; the whole instance, about 57s. GitHub never came within five seconds of the budget across 280 requests, because it stops code searches itself at about 9.2 seconds with a `408`. So 15 seconds is roughly ten times a typical search and twice the worst cold one, and it fires on exactly one class of query, which gets its own handling in `search_repos_sourcegraph`. It is a setting, `librarian.search.timeoutSeconds`, defaulting to 15; the client deadline is always three seconds past it.
 
@@ -695,19 +695,19 @@ Every one takes `limit` — see _The agent chooses how many_. The digest header 
 
 The honest reason for five tools. **Measured** marks what was tested against a live engine for this document; `?` is unverified and must be measured before it ships.
 
-|                    | `_github`                                  | `_grepapp`       | `_sourcegraph`                        | `_gitlab`                        | `_bitbucket`        |
-| ------------------ | ------------------------------------------ | ---------------- | ------------------------------------- | -------------------------------- | ------------------- |
-| pattern            | substring, words ANDed, quoted phrase      | literal or regex | literal, keyword, regex — always encoded | exact string of the whole query, measured | whole tokens, words ANDed, OR/NOT, phrases, measured |
-| substring match    | **yes**, measured                          | yes              | yes                                   | yes | **no**, measured    |
-| regex              | **no**; `/…/` is literal text, `OR` is silently AND, measured | yes         | yes                                   | no                               | no                  |
-| path filter        | `path:`                                    | yes              | `file:`                               | `path:`, `filename:`, `extension:` — project scope, measured             | `path:`, `ext:`, measured |
-| language filter    | `language:`                                | yes              | `lang:`                               | no; `extension:`             | `lang:`, measured   |
-| repo scope         | `repo:`, `user:` = `org:`, measured        | repo prefix      | `repo:` regex                         | one project unless advanced, measured | project, repo       |
-| projection         | no                                         | no               | **yes**                               | no                               | no                  |
-| private repos      | yes, with auth                             | **no**           | yes                                   | yes                              | yes                 |
-| completeness       | `incomplete_results` = scope unsearchable  | none             | `skipped` allowlist                   | none                             | 1,000-result window |
-| result ceiling     | 1,000                                      | `?`              | match budget                          | none; `x-total` a lower bound | **1,000, hard**     |
-| rate limit         | 10/min, measured by hitting it             | `?`              | none in 311 requests                  | **30/min per user**, measured | none seen in 40 requests |
+|                 | `_github`                                                     | `_grepapp`       | `_sourcegraph`                           | `_gitlab`                                                    | `_bitbucket`                                         |
+| --------------- | ------------------------------------------------------------- | ---------------- | ---------------------------------------- | ------------------------------------------------------------ | ---------------------------------------------------- |
+| pattern         | substring, words ANDed, quoted phrase                         | literal or regex | literal, keyword, regex — always encoded | exact string of the whole query, measured                    | whole tokens, words ANDed, OR/NOT, phrases, measured |
+| substring match | **yes**, measured                                             | yes              | yes                                      | yes                                                          | **no**, measured                                     |
+| regex           | **no**; `/…/` is literal text, `OR` is silently AND, measured | yes              | yes                                      | no                                                           | no                                                   |
+| path filter     | `path:`                                                       | yes              | `file:`                                  | `path:`, `filename:`, `extension:` — project scope, measured | `path:`, `ext:`, measured                            |
+| language filter | `language:`                                                   | yes              | `lang:`                                  | no; `extension:`                                             | `lang:`, measured                                    |
+| repo scope      | `repo:`, `user:` = `org:`, measured                           | repo prefix      | `repo:` regex                            | one project unless advanced, measured                        | project, repo                                        |
+| projection      | no                                                            | no               | **yes**                                  | no                                                           | no                                                   |
+| private repos   | yes, with auth                                                | **no**           | yes                                      | yes                                                          | yes                                                  |
+| completeness    | `incomplete_results` = scope unsearchable                     | none             | `skipped` allowlist                      | none                                                         | 1,000-result window                                  |
+| result ceiling  | 1,000                                                         | `?`              | match budget                             | none; `x-total` a lower bound                                | **1,000, hard**                                      |
+| rate limit      | 10/min, measured by hitting it                                | `?`              | none in 311 requests                     | **30/min per user**, measured                                | none seen in 40 requests                             |
 
 Three rows deserve attention. **grep.app reaches no private code**, which makes it the wrong choice for anyone with declared sources and the only choice for anyone without. **Three of five engines give no completeness signal**, so their digests can report what they found and must stay silent about what they missed — not fixable from our side. And **GitHub reads `OR` as AND without saying so**, the worst kind of failure, handled below.
 
@@ -717,25 +717,25 @@ The grep.app cells are `?` because grep.app is unreachable from the network this
 
 Measured by a dedicated spike — 284 logged requests against public repositories. The findings that shape the tool:
 
-| behaviour | measured |
-| --- | --- |
-| matching | case-insensitive substring; `neConf` finds `defineConfig` |
-| several words | **all must appear** in the file — AND |
-| `OR` | **silently read as AND**: `defineConfig OR drizzleKit` returns 0, same as without `OR` |
-| quotes | exact phrase |
-| `-word`, `NOT word` | exclusion works |
-| parentheses, unbalanced quotes | `422 unable to parse query!` |
-| `/…/` | **literal text**, not a failed regex — `/node_modules/` finds 4 files |
-| special characters `.` `(` `::` `.*` | literal |
-| `path:` | directory prefix **anchored at the repository root**; no globs, no file names — `path:src` misses `drizzle-kit/src/` |
-| `filename:`, `extension:` | substring/suffix of the file name; `ts` and `.ts` both work |
-| unknown `word:value` in the pattern | silent zero |
-| indexed | default branch only; files under about 350 KiB; forks only if GitHub chose to index them |
-| fragments | 1–2 per file, no line numbers |
-| `incomplete_results: true` with 0 items | **the scope could not be searched** — missing, private, renamed (GitHub does not follow the rename), or an unindexed fork |
-| server time limit | GitHub returns `408` itself at about 9.2s |
-| ceiling | 1,000 results; page 11 is a `422` |
-| rate limit | 10 a minute, `403` with no `retry-after`; reset is `x-ratelimit-reset` minus the response's `Date`; `408`s and `422`s count against it |
+| behaviour                               | measured                                                                                                                               |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| matching                                | case-insensitive substring; `neConf` finds `defineConfig`                                                                              |
+| several words                           | **all must appear** in the file — AND                                                                                                  |
+| `OR`                                    | **silently read as AND**: `defineConfig OR drizzleKit` returns 0, same as without `OR`                                                 |
+| quotes                                  | exact phrase                                                                                                                           |
+| `-word`, `NOT word`                     | exclusion works                                                                                                                        |
+| parentheses, unbalanced quotes          | `422 unable to parse query!`                                                                                                           |
+| `/…/`                                   | **literal text**, not a failed regex — `/node_modules/` finds 4 files                                                                  |
+| special characters `.` `(` `::` `.*`    | literal                                                                                                                                |
+| `path:`                                 | directory prefix **anchored at the repository root**; no globs, no file names — `path:src` misses `drizzle-kit/src/`                   |
+| `filename:`, `extension:`               | substring/suffix of the file name; `ts` and `.ts` both work                                                                            |
+| unknown `word:value` in the pattern     | silent zero                                                                                                                            |
+| indexed                                 | default branch only; files under about 350 KiB; forks only if GitHub chose to index them                                               |
+| fragments                               | 1–2 per file, no line numbers                                                                                                          |
+| `incomplete_results: true` with 0 items | **the scope could not be searched** — missing, private, renamed (GitHub does not follow the rename), or an unindexed fork              |
+| server time limit                       | GitHub returns `408` itself at about 9.2s                                                                                              |
+| ceiling                                 | 1,000 results; page 11 is a `422`                                                                                                      |
+| rate limit                              | 10 a minute, `403` with no `retry-after`; reset is `x-ratelimit-reset` minus the response's `Date`; `408`s and `422`s count against it |
 
 Two of my earlier claims were wrong, in opposite directions. I first said GitHub tokenizes, so substrings fail — they match. Then I said `/…/` is a regex that silently returns zero, and proposed rejecting it — it is literal text, and rejecting it would have blocked a real search for `/node_modules/`. What _is_ silently wrong is `OR`, which the model's training on GitHub's web search will reach for.
 
@@ -755,23 +755,27 @@ Each rejection names the argument that does the job instead.
 const Params = Type.Object({
   pattern: Type.String({
     description:
-      'Text to find, matched case-insensitively as a substring. Space-separated words must all appear in the file; quote a phrase to match it exactly; -word excludes. No regex, no OR, no parentheses.',
+      "Text to find, matched case-insensitively as a substring. Space-separated words must all appear in the file; quote a phrase to match it exactly; -word excludes. No regex, no OR, no parentheses.",
   }),
   owner: Type.Optional(
     Type.String({ description: "Restrict to repositories owned by this user or organization." }),
   ),
   repos: Type.Optional(
     Type.Array(Type.String(), {
-      description: "Restrict to these repositories under owner, by bare name, e.g. drizzle-orm. Requires owner.",
+      description:
+        "Restrict to these repositories under owner, by bare name, e.g. drizzle-orm. Requires owner.",
       maxItems: 20,
     }),
   ),
   path: Type.Optional(
     Type.String({
-      description: "Directory from the repository root, e.g. drizzle-kit/src. Not a glob and not a file name.",
+      description:
+        "Directory from the repository root, e.g. drizzle-kit/src. Not a glob and not a file name.",
     }),
   ),
-  filename: Type.Optional(Type.String({ description: "File name or suffix, e.g. drizzle.config.ts." })),
+  filename: Type.Optional(
+    Type.String({ description: "File name or suffix, e.g. drizzle.config.ts." }),
+  ),
   extension: Type.Optional(Type.String({ description: "File extension, e.g. ts." })),
   language: Type.Optional(Type.String({ description: "Restrict to a language, e.g. typescript." })),
 });
@@ -808,21 +812,21 @@ The only tool with `detail`, and the only one that can report coverage. A dedica
 
 **The query parser is a trap, so the agent's text never reaches it raw.** Measured:
 
-| mode | behaviour |
-| --- | --- |
-| standard — **the default** with no pattern type | literal text, plus `/…/` as an RE2 regex |
-| `patternType:regexp` | whitespace becomes `.*?`: `retry backoff jitter` means "those three, in that order, on one line" — 264 files where the literal found 0. A `[ ]` character class is silently split; an unbalanced `(` is silently made literal |
-| `patternType:keyword` | every term somewhere in the file, any order, matching substrings; quotes keep a phrase; `NOT` and `OR` work; **a leading `-term` searches for the text `-term`** |
-| every mode | `and`, `or`, `not`, in any case, are boolean operators — so a literal phrase containing "and" becomes two terms |
-| literal mode | quotes are literal characters |
+| mode                                            | behaviour                                                                                                                                                                                                                     |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| standard — **the default** with no pattern type | literal text, plus `/…/` as an RE2 regex                                                                                                                                                                                      |
+| `patternType:regexp`                            | whitespace becomes `.*?`: `retry backoff jitter` means "those three, in that order, on one line" — 264 files where the literal found 0. A `[ ]` character class is silently split; an unbalanced `(` is silently made literal |
+| `patternType:keyword`                           | every term somewhere in the file, any order, matching substrings; quotes keep a phrase; `NOT` and `OR` work; **a leading `-term` searches for the text `-term`**                                                              |
+| every mode                                      | `and`, `or`, `not`, in any case, are boolean operators — so a literal phrase containing "and" becomes two terms                                                                                                               |
+| literal mode                                    | quotes are literal characters                                                                                                                                                                                                 |
 
 Two forms parse a pattern atomically, and the tool uses only those:
 
-| `pattern_type` | sent as | effect |
-| --- | --- | --- |
-| `literal` | `content:"…"`, escaping `\` and `"` | the exact text, spaces and "and" included, under any mode |
-| `regexp` | `/…/` under standard, escaping `/` | RE2 with real spaces; an invalid regex is a loud alert instead of a silent literal |
-| `keyword` | the pattern as given | the keyword semantics above |
+| `pattern_type` | sent as                             | effect                                                                             |
+| -------------- | ----------------------------------- | ---------------------------------------------------------------------------------- |
+| `literal`      | `content:"…"`, escaping `\` and `"` | the exact text, spaces and "and" included, under any mode                          |
+| `regexp`       | `/…/` under standard, escaping `/`  | RE2 with real spaces; an invalid regex is a loud alert instead of a silent literal |
+| `keyword`      | the pattern as given                | the keyword semantics above                                                        |
 
 `patternType:regexp` is never sent. The previous draft said the default was literal; it is standard, which is why the encoding matters even when no type is chosen. And `structural` stays dropped.
 
@@ -832,15 +836,15 @@ Two forms parse a pattern atomically, and the tool uses only those:
 
 **Errors, and the silent zeros the tool prevents:**
 
-| input | engine's response | the tool |
-| --- | --- | --- |
-| bad token | `401`, plain text | raises |
-| invalid `/regex/` | alert | raises with the alert's text |
-| `repos` matching nothing, or an unknown predicate | alert "No repositories found" | raises — the actionable form of a typo |
-| a result set with an alert | results and an alert | keeps the results, attaches the warning |
-| invalid `repo:` or `file:` regex | **silent zero** | validates `repos` and `path` locally first |
-| unknown filter, e.g. `lnag:go` | **silent zero** — searched as text | never passes agent text unencoded |
-| quoted predicate argument | silent zero, or an error event | builds predicates from typed arguments |
+| input                                             | engine's response                  | the tool                                   |
+| ------------------------------------------------- | ---------------------------------- | ------------------------------------------ |
+| bad token                                         | `401`, plain text                  | raises                                     |
+| invalid `/regex/`                                 | alert                              | raises with the alert's text               |
+| `repos` matching nothing, or an unknown predicate | alert "No repositories found"      | raises — the actionable form of a typo     |
+| a result set with an alert                        | results and an alert               | keeps the results, attaches the warning    |
+| invalid `repo:` or `file:` regex                  | **silent zero**                    | validates `repos` and `path` locally first |
+| unknown filter, e.g. `lnag:go`                    | **silent zero** — searched as text | never passes agent text unencoded          |
+| quoted predicate argument                         | silent zero, or an error event     | builds predicates from typed arguments     |
 
 Every `progress` event also carries an internal trace URL, stripped before anything reaches the model. No rate limiting was seen in 311 requests.
 
@@ -866,7 +870,9 @@ const Params = Type.Object({
       maxItems: 20,
     }),
   ),
-  path: Type.Optional(Type.String({ description: "Restrict to file paths matching this RE2 pattern." })),
+  path: Type.Optional(
+    Type.String({ description: "Restrict to file paths matching this RE2 pattern." }),
+  ),
   language: Type.Optional(Type.String({ description: "Restrict to a language, e.g. go." })),
 });
 ```
@@ -889,28 +895,33 @@ That guideline is the rule set's conduct rule — it names only its own tool —
 
 A dedicated spike — 743 sequential reads against a self-hosted instance without advanced search — measured the project-scoped search this tool rests on:
 
-| behaviour | measured |
-| --- | --- |
-| matching | case-insensitive **fixed string of the whole query** — no AND, quotes are literal characters, no regex |
-| a one-character pattern | silent `200 []` |
-| ordering | **none**: files whose path matches come first, then content chunks in path order |
-| each hit | the match plus two lines either side; `startline` is the first _context_ line, not the match |
-| `filename:`, `path:`, `extension:` | **work without advanced search**, at project scope |
-| `extension:.go`, with the dot | silent zero |
-| filters, cost | applied after a full scan: 0.4–0.8s on an ordinary project; 20–56s on a 13.7 GB one, where they can end in a `500` |
-| unfiltered, cost | 0.3–0.4s on ordinary projects; 8–10s for a rare term on the 13.7 GB one |
-| `per_page=100` | can stop at exactly 100 hits with no next page; `x-total` is a lower bound until the last page |
-| rate limit | **30 a minute per user, across all projects**; every page and every `400` counts; the `429` carries `Retry-After: 60` whatever is left |
-| renamed project | lookup follows a `301`, but search under the old path redirects to a broken URL that `404`s |
-| `200 []` that is not "no matches" | a missing ref; a project whose repository is restricted to you |
-| advanced-search refusal, group or global scope | `400 Scope supported only with advanced search or exact code search` |
+| behaviour                                      | measured                                                                                                                               |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| matching                                       | case-insensitive **fixed string of the whole query** — no AND, quotes are literal characters, no regex                                 |
+| a one-character pattern                        | silent `200 []`                                                                                                                        |
+| ordering                                       | **none**: files whose path matches come first, then content chunks in path order                                                       |
+| each hit                                       | the match plus two lines either side; `startline` is the first _context_ line, not the match                                           |
+| `filename:`, `path:`, `extension:`             | **work without advanced search**, at project scope                                                                                     |
+| `extension:.go`, with the dot                  | silent zero                                                                                                                            |
+| filters, cost                                  | applied after a full scan: 0.4–0.8s on an ordinary project; 20–56s on a 13.7 GB one, where they can end in a `500`                     |
+| unfiltered, cost                               | 0.3–0.4s on ordinary projects; 8–10s for a rare term on the 13.7 GB one                                                                |
+| `per_page=100`                                 | can stop at exactly 100 hits with no next page; `x-total` is a lower bound until the last page                                         |
+| rate limit                                     | **30 a minute per user, across all projects**; every page and every `400` counts; the `429` carries `Retry-After: 60` whatever is left |
+| renamed project                                | lookup follows a `301`, but search under the old path redirects to a broken URL that `404`s                                            |
+| `200 []` that is not "no matches"              | a missing ref; a project whose repository is restricted to you                                                                         |
+| advanced-search refusal, group or global scope | `400 Scope supported only with advanced search or exact code search`                                                                   |
 
 So the previous draft was wrong in its main claim: filters are not an advanced-search feature. **The flag decides only whether `project` is required.**
 
 **Where the setting lives: on the source, not under a global `gitlab.*` key.** Two GitLab instances can differ, and a source declaration is where per-instance facts already live. GitLab's own name for the feature is what an operator will recognise:
 
 ```jsonc
-{ "name": "example-gl", "url": "https://gitlab.example.com", "kind": "gitlab", "advancedSearch": true }
+{
+  "name": "example-gl",
+  "url": "https://gitlab.example.com",
+  "kind": "gitlab",
+  "advancedSearch": true
+}
 ```
 
 Valid only on `kind: "gitlab"`; anywhere else it is rejected at load. **Default `false`, including for `gitlab.com` until measured.** Both wrong answers are loud — the `400` above — so the choice is about cost: wrong at `false` means naming a project that need not be named; wrong at `true` means a `400` on every unscoped search, each one counting against the 30-a-minute limit. Whether gitlab.com offers advanced search to an ordinary account decides its built-in value, and is in [`PERSONAL_TASKS.md`](PERSONAL_TASKS.md).
@@ -961,31 +972,40 @@ Correct, cheap, and not growing — Bitbucket Server is being replaced by self-h
 
 It rests on an **undocumented** REST endpoint, `POST /rest/search/latest/search`. Measured during implementation against a 9.4 instance, 40 requests:
 
-| behaviour | measured |
-| --- | --- |
-| matching | **whole tokens**, case-insensitive: `etryBacko` finds 0; punctuation is ignored, so `retryBackoff(` finds what `retryBackoff` does |
-| several words | ANDed: 835 and 7,536 become 119 |
-| `OR`, `NOT`, `-word`, parentheses | all work: 8,252 for `OR`, 716 for `NOT` and `-word` |
-| quotes | an exact phrase |
-| `*`, `/…/` | no wildcard and no regex; `retryBack*` finds 0 |
-| `lang:`, `ext:`, `path:` | work |
-| unknown modifier, or an unknown `project:` key | **silent zero** |
-| `repo:` without `project:` | a loud `400` |
-| `count` | exact up to 10,000, then stops at 10,000 |
-| the window | a page reaching past about 1,000 results is a `400`, "Unable to display more results" |
-| hit lines | 1-based, HTML-escaped, the matched text wrapped in `<em>` |
-| latency | 0.3–0.9s |
+| behaviour                                      | measured                                                                                                                           |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| matching                                       | **whole tokens**, case-insensitive: `etryBacko` finds 0; punctuation is ignored, so `retryBackoff(` finds what `retryBackoff` does |
+| several words                                  | ANDed: 835 and 7,536 become 119                                                                                                    |
+| `OR`, `NOT`, `-word`, parentheses              | all work: 8,252 for `OR`, 716 for `NOT` and `-word`                                                                                |
+| quotes                                         | an exact phrase                                                                                                                    |
+| `*`, `/…/`                                     | no wildcard and no regex; `retryBack*` finds 0                                                                                     |
+| `lang:`, `ext:`, `path:`                       | work                                                                                                                               |
+| unknown modifier, or an unknown `project:` key | **silent zero**                                                                                                                    |
+| `repo:` without `project:`                     | a loud `400`                                                                                                                       |
+| `count`                                        | exact up to 10,000, then stops at 10,000                                                                                           |
+| the window                                     | a page reaching past about 1,000 results is a `400`, "Unable to display more results"                                              |
+| hit lines                                      | 1-based, HTML-escaped, the matched text wrapped in `<em>`                                                                          |
+| latency                                        | 0.3–0.9s                                                                                                                           |
 
 So the tool takes `language`, `extension`, and `path` as arguments beside `project` and `repo`, refuses modifiers and wildcards in the pattern, and checks the project exists when a search scoped to one finds nothing. With `limit` at most 50, one request at offset 0 is all it ever makes, so the window never bites; the earlier plan to page up to it predates `limit`.
 
 ```ts
 const Params = Type.Object({
-  pattern: Type.String({ description: "Whole words to find, case-insensitively; words must all appear in the file. Quote a phrase to keep it together, join alternatives with OR, exclude with NOT or -word, group with parentheses. Matches whole tokens only — no substrings, no wildcards, no regex — and ignores punctuation." }),
+  pattern: Type.String({
+    description:
+      "Whole words to find, case-insensitively; words must all appear in the file. Quote a phrase to keep it together, join alternatives with OR, exclude with NOT or -word, group with parentheses. Matches whole tokens only — no substrings, no wildcards, no regex — and ignores punctuation.",
+  }),
   project: Type.Optional(Type.String({ description: "Restrict to a project key, e.g. PROJ." })),
-  repo: Type.Optional(Type.String({ description: "Restrict to one repository slug in project. Requires project." })),
+  repo: Type.Optional(
+    Type.String({ description: "Restrict to one repository slug in project. Requires project." }),
+  ),
   language: Type.Optional(Type.String({ description: "Restrict to a language, e.g. go." })),
-  extension: Type.Optional(Type.String({ description: "File extension without the dot, e.g. go." })),
-  path: Type.Optional(Type.String({ description: "Restrict to paths containing this directory, e.g. internal." })),
+  extension: Type.Optional(
+    Type.String({ description: "File extension without the dot, e.g. go." }),
+  ),
+  path: Type.Optional(
+    Type.String({ description: "Restrict to paths containing this directory, e.g. internal." }),
+  ),
 });
 ```
 
@@ -1009,18 +1029,18 @@ What we give up is anything the arguments do not model: boolean `OR` between qua
 
 ### No filter is universal
 
-| filter           | `_github`                            | `_sourcegraph`                  | `_gitlab`                          | `_bitbucket` |
-| ---------------- | ------------------------------------ | ------------------------------- | ---------------------------------- | ------------ |
-| name / free text | terms over name, description, readme | `repo:` regex                   | substring over path, name, description | substring |
-| language         | `language:`                          | no                              | no                                 | no           |
-| stars            | `stars:>N`                           | no                              | sort only                          | no           |
-| topic            | `topic:`                             | `repo:has.topic()`              | `topic=`                           | no           |
-| contains path    | no                                   | `repo:has.path()`               | no                                 | no           |
-| contains content | no                                   | `repo:has.content()`            | no                                 | no           |
-| both at once     | no                                   | `repo:has.file(path: content:)` | no                                 | no           |
-| changed after    | `pushed:>date`                       | `repo:has.commit.after()`       | `last_activity_after`              | no           |
-| archived / fork  | `archived:`, `fork:`                 | `archived:`, `fork:`            | `archived=`                        | no           |
-| sort             | best-match, stars, updated           | **none**                        | see below                          | none         |
+| filter           | `_github`                            | `_sourcegraph`                  | `_gitlab`                              | `_bitbucket` |
+| ---------------- | ------------------------------------ | ------------------------------- | -------------------------------------- | ------------ |
+| name / free text | terms over name, description, readme | `repo:` regex                   | substring over path, name, description | substring    |
+| language         | `language:`                          | no                              | no                                     | no           |
+| stars            | `stars:>N`                           | no                              | sort only                              | no           |
+| topic            | `topic:`                             | `repo:has.topic()`              | `topic=`                               | no           |
+| contains path    | no                                   | `repo:has.path()`               | no                                     | no           |
+| contains content | no                                   | `repo:has.content()`            | no                                     | no           |
+| both at once     | no                                   | `repo:has.file(path: content:)` | no                                     | no           |
+| changed after    | `pushed:>date`                       | `repo:has.commit.after()`       | `last_activity_after`                  | no           |
+| archived / fork  | `archived:`, `fork:`                 | `archived:`, `fork:`            | `archived=`                            | no           |
+| sort             | best-match, stars, updated           | **none**                        | see below                              | none         |
 
 `changed_after` exists on three engines and is a cheap index lookup on two of them and a git history walk on the third, so its cost warning belongs on one tool's argument and would be a lie on the others. The warning goes on the argument, only on the slow one; naming what is fast is noise.
 
@@ -1037,16 +1057,16 @@ Best-match answers "find me the thing called X"; stars answers "what is popular"
 
 **What GitHub validates loudly, and what it does not**, measured:
 
-| input | result |
-| --- | --- |
-| malformed date: `garbage`, `2026-13-45`, `1 month ago`, `01/02/2026` | `422` with an ISO 8601 hint — relayed as is |
-| malformed star count | `422` |
-| unknown owner | `422` |
-| **unknown language** | **silently dropped** — the search widens to every language |
-| unknown qualifier | silent zero |
-| unknown sort | silently best-match |
-| **whitespace in a value**: `pushed_after: "2026-01-01 stars:>5"` | **a second qualifier, silently applied** — 6,007 results become 302 |
-| the same value quoted | silent zero |
+| input                                                                | result                                                              |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| malformed date: `garbage`, `2026-13-45`, `1 month ago`, `01/02/2026` | `422` with an ISO 8601 hint — relayed as is                         |
+| malformed star count                                                 | `422`                                                               |
+| unknown owner                                                        | `422`                                                               |
+| **unknown language**                                                 | **silently dropped** — the search widens to every language          |
+| unknown qualifier                                                    | silent zero                                                         |
+| unknown sort                                                         | silently best-match                                                 |
+| **whitespace in a value**: `pushed_after: "2026-01-01 stars:>5"`     | **a second qualifier, silently applied** — 6,007 results become 302 |
+| the same value quoted                                                | silent zero                                                         |
 
 So the tool relays GitHub's date errors and does no date parsing, but **rejects whitespace and quotes in every value it interpolates** — escaping by quoting turns injection into a silent zero, so there is no safe escaping. And `language` is **validated before sending** against GitHub's language list, because an unknown one silently returns results in every language. That list is Linguist's, which GitHub publishes; how to vendor it is an implementation detail.
 
@@ -1058,20 +1078,34 @@ So the tool relays GitHub's date errors and does no date parsing, but **rejects 
 
 ```ts
 const Params = Type.Object({
-  text: Type.Optional(Type.String({ description: "Terms matched against name, description, and topics." })),
+  text: Type.Optional(
+    Type.String({ description: "Terms matched against name, description, and topics." }),
+  ),
   in_readme: Type.Optional(
-    Type.Boolean({ description: "Search README text instead of name and description — far broader. Default: false." }),
+    Type.Boolean({
+      description:
+        "Search README text instead of name and description — far broader. Default: false.",
+    }),
   ),
-  language: Type.Optional(Type.String({ description: "Restrict to a primary language, e.g. typescript." })),
+  language: Type.Optional(
+    Type.String({ description: "Restrict to a primary language, e.g. typescript." }),
+  ),
   topics: Type.Optional(
-    Type.Array(Type.String(), { description: "Only repos tagged with every one of these topics.", maxItems: 10 }),
+    Type.Array(Type.String(), {
+      description: "Only repos tagged with every one of these topics.",
+      maxItems: 10,
+    }),
   ),
-  min_stars: Type.Optional(Type.Number({ minimum: 0, description: "Only repos with at least this many stars." })),
+  min_stars: Type.Optional(
+    Type.Number({ minimum: 0, description: "Only repos with at least this many stars." }),
+  ),
   pushed_after: Type.Optional(
     Type.String({ description: "Only repos pushed to after this ISO 8601 date, e.g. 2026-01-01." }),
   ),
   include_forks: Type.Optional(Type.Boolean({ description: "Include forks. Default: false." })),
-  include_archived: Type.Optional(Type.Boolean({ description: "Include archived repos. Default: true." })),
+  include_archived: Type.Optional(
+    Type.Boolean({ description: "Include archived repos. Default: true." }),
+  ),
   sort: Type.Optional(
     StringEnum(["best-match", "stars", "updated"], {
       description: "Ordering. Use stars to find what is popular. Default: best-match.",
@@ -1091,10 +1125,15 @@ Every field is optional, so an empty call would ask for all of GitHub; the tool 
 const Params = Type.Object({
   name: Type.Optional(Type.String({ description: "Regex matched against repository names." })),
   topics: Type.Optional(
-    Type.Array(Type.String(), { description: "Only repos with every one of these topics.", maxItems: 10 }),
+    Type.Array(Type.String(), {
+      description: "Only repos with every one of these topics.",
+      maxItems: 10,
+    }),
   ),
   contains_path: Type.Optional(
-    Type.String({ description: "Only repos with a file whose path matches this regex, e.g. ^go\\.mod$." }),
+    Type.String({
+      description: "Only repos with a file whose path matches this regex, e.g. ^go\\.mod$.",
+    }),
   ),
   changed_after: Type.Optional(
     Type.String({
@@ -1103,7 +1142,9 @@ const Params = Type.Object({
     }),
   ),
   include_forks: Type.Optional(Type.Boolean({ description: "Include forks. Default: false." })),
-  include_archived: Type.Optional(Type.Boolean({ description: "Include archived repos. Default: false." })),
+  include_archived: Type.Optional(
+    Type.Boolean({ description: "Include archived repos. Default: false." }),
+  ),
 });
 ```
 
@@ -1121,20 +1162,20 @@ What stays is what code search cannot ask. `contains_path` needs no pattern — 
 
 Measured by the same spike:
 
-| behaviour | measured |
-| --- | --- |
-| `search=` | substring, case-insensitive; **all terms must match in the same field** — path, name, or description — so one term in each finds nothing |
-| short words | words under three characters are dropped; a query of only short words becomes an exact-name match |
-| `search_namespaces=true` | adds group-path matching, so `platform/widget` works, at no extra cost |
-| `simple=true` | 21% of the bytes and about 2.6 times faster, but drops `archived` and `empty_repo` |
-| `archived` absent | **archived projects included** |
-| `sort` | **descending by default for every order**, so name ordering runs Z to A |
-| `order_by=similarity` | exactly the projects you are a member of — confirmed, 102 projects became 6 |
-| `updated_after` without `order_by=updated_at` | a loud `400 … must be paired` |
-| `last_activity_after: 10/01/2026` | **accepted and read as 10 January** — lenient, and silently wrong for US-style dates |
-| `topic=` | exact, case-sensitive; several are ANDed |
-| latency | under 2s throughout |
-| rate limit | none on project search |
+| behaviour                                     | measured                                                                                                                                 |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `search=`                                     | substring, case-insensitive; **all terms must match in the same field** — path, name, or description — so one term in each finds nothing |
+| short words                                   | words under three characters are dropped; a query of only short words becomes an exact-name match                                        |
+| `search_namespaces=true`                      | adds group-path matching, so `platform/widget` works, at no extra cost                                                                   |
+| `simple=true`                                 | 21% of the bytes and about 2.6 times faster, but drops `archived` and `empty_repo`                                                       |
+| `archived` absent                             | **archived projects included**                                                                                                           |
+| `sort`                                        | **descending by default for every order**, so name ordering runs Z to A                                                                  |
+| `order_by=similarity`                         | exactly the projects you are a member of — confirmed, 102 projects became 6                                                              |
+| `updated_after` without `order_by=updated_at` | a loud `400 … must be paired`                                                                                                            |
+| `last_activity_after: 10/01/2026`             | **accepted and read as 10 January** — lenient, and silently wrong for US-style dates                                                     |
+| `topic=`                                      | exact, case-sensitive; several are ANDed                                                                                                 |
+| latency                                       | under 2s throughout                                                                                                                      |
+| rate limit                                    | none on project search                                                                                                                   |
 
 **GitLab does have a best-match sort, and it is a trap.** `similarity` is the relevance ordering, and it **silently shrinks the result set to projects you belong to**. A sort that is secretly a filter does not go in the enum.
 
@@ -1161,7 +1202,9 @@ const Params = Type.Object({
   changed_after: Type.Optional(
     Type.String({ description: "Only projects with activity after this date, YYYY-MM-DD." }),
   ),
-  include_archived: Type.Optional(Type.Boolean({ description: "Include archived projects. Default: false." })),
+  include_archived: Type.Optional(
+    Type.Boolean({ description: "Include archived projects. Default: false." }),
+  ),
   sort: Type.Optional(
     StringEnum(["activity", "stars", "updated", "created", "name"], {
       description: "Ordering. Default: activity, most recently active first.",
@@ -1176,7 +1219,9 @@ Measured: `name` matches the **start** of a repository name, case-insensitively 
 
 ```ts
 const Params = Type.Object({
-  name: Type.Optional(Type.String({ description: "Repositories whose name starts with this, case-insensitively." })),
+  name: Type.Optional(
+    Type.String({ description: "Repositories whose name starts with this, case-insensitively." }),
+  ),
   project: Type.Optional(Type.String({ description: "Restrict to a project key." })),
 });
 ```
@@ -1329,12 +1374,29 @@ Revisit if precise cross-repository references are ever configured.
 const Params = Type.Object({
   symbol: Type.String({ description: "Exact symbol name, e.g. NewClient." }),
   kind: Type.Optional(
-    StringEnum(["function", "method", "class", "struct", "interface", "enum", "variable", "constant", "field", "property"], {
-      description: "Only definitions of this kind.",
-    }),
+    StringEnum(
+      [
+        "function",
+        "method",
+        "class",
+        "struct",
+        "interface",
+        "enum",
+        "variable",
+        "constant",
+        "field",
+        "property",
+      ],
+      {
+        description: "Only definitions of this kind.",
+      },
+    ),
   ),
   repos: Type.Optional(
-    Type.Array(Type.String(), { description: "Restrict to repositories matching these RE2 patterns.", maxItems: 20 }),
+    Type.Array(Type.String(), {
+      description: "Restrict to repositories matching these RE2 patterns.",
+      maxItems: 20,
+    }),
   ),
   language: Type.Optional(Type.String({ description: "Restrict to a language." })),
   include_vendored: Type.Optional(
@@ -1412,17 +1474,17 @@ Generalises `read_github_file`, which is otherwise the only tool that cannot rea
 
 **What the hosts actually return**, from the spikes:
 
-| case | GitHub contents API | GitLab files and tree APIs |
-| --- | --- | --- |
-| file over 1 MB | JSON gives `200` with **empty content**; the raw media type works | raw works; ignores `Range`, so a 19 MB file is downloaded whole, 2.1s |
-| binary file | arrives with a text content type | non-`text/plain` content type |
-| submodule | raw is ignored; JSON says `submodule` | raw is an empty `200`, **identical to an empty file** |
-| symlink | a directory symlink returns its target path as content | raw returns the target path as text |
-| directory | JSON listing; raw ignored | tree endpoint, uncapped `per_page`, keyset pagination |
-| bad ref | its own `404` message | empty result or `404` |
-| missing or private | **identical `404`** | `404`; a project with a restricted repository gives `403` |
-| renamed repository | `301`, followed | lookup follows a `301`; resolve to a numeric id first |
-| latency | p50 164 ms | 0.3–2.1s |
+| case               | GitHub contents API                                               | GitLab files and tree APIs                                            |
+| ------------------ | ----------------------------------------------------------------- | --------------------------------------------------------------------- |
+| file over 1 MB     | JSON gives `200` with **empty content**; the raw media type works | raw works; ignores `Range`, so a 19 MB file is downloaded whole, 2.1s |
+| binary file        | arrives with a text content type                                  | non-`text/plain` content type                                         |
+| submodule          | raw is ignored; JSON says `submodule`                             | raw is an empty `200`, **identical to an empty file**                 |
+| symlink            | a directory symlink returns its target path as content            | raw returns the target path as text                                   |
+| directory          | JSON listing; raw ignored                                         | tree endpoint, uncapped `per_page`, keyset pagination                 |
+| bad ref            | its own `404` message                                             | empty result or `404`                                                 |
+| missing or private | **identical `404`**                                               | `404`; a project with a restricted repository gives `403`             |
+| renamed repository | `301`, followed                                                   | lookup follows a `301`; resolve to a numeric id first                 |
+| latency            | p50 164 ms                                                        | 0.3–2.1s                                                              |
 
 So the tool **learns what an entry is before reading it**: GitHub's JSON response carries `type`, and on GitLab the parent directory's tree entry carries the mode — one extra call, needed because GitLab's raw body cannot tell a submodule from an empty file or a symlink from a one-line text file. Then:
 
@@ -1445,7 +1507,9 @@ const Params = Type.Object({
         "Branch, tag, or commit. To check a search result, pass its commit so line numbers agree. Default: the default branch.",
     }),
   ),
-  offset: Type.Optional(Type.Number({ minimum: 1, description: "Line number to start reading from, 1-based." })),
+  offset: Type.Optional(
+    Type.Number({ minimum: 1, description: "Line number to start reading from, 1-based." }),
+  ),
   limit: Type.Optional(
     Type.Number({ minimum: 1, description: "Maximum number of lines to read. Default: 2000." }),
   ),

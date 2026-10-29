@@ -47,7 +47,7 @@ Keeps `/librarian` attach state per session branch and builds against Pi 1.4.0.
 ### Fixed
 
 - `/librarian` attach state now follows the current session branch. It is restored when you navigate with `/tree` and when you resume a session where you toggled it before sending a message.
-||||||| parent of ed53f6e (docs: record the beyond-GitHub implementation and what is left to test)
+  ||||||| parent of ed53f6e (docs: record the beyond-GitHub implementation and what is left to test)
 
 ## 0.6.2
 

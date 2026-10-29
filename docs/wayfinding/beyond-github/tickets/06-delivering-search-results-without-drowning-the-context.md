@@ -16,11 +16,11 @@ The numbers are in [Native search versus a search backend, head to head](02-nati
 
 **There is a resolution ladder, and each rung is cheap enough to inform the next.**
 
-| resolution | returns | cost |
-| --- | --- | --- |
-| repo-level | which repositories match | **2,952 bytes** instance-wide, 12 repos, 1.2s |
-| file-level | which files, ranked, with commit shas | **7,472 bytes** at project scope; 8% of full |
-| full | matched lines | scales with volume, unbounded |
+| resolution | returns                               | cost                                          |
+| ---------- | ------------------------------------- | --------------------------------------------- |
+| repo-level | which repositories match              | **2,952 bytes** instance-wide, 12 repos, 1.2s |
+| file-level | which files, ranked, with commit shas | **7,472 bytes** at project scope; 8% of full  |
+| full       | matched lines                         | scales with volume, unbounded                 |
 
 File-level returns the **identical file list in identical rank order** as full — verified by diff — keeping `repository`, `path`, `commit`, `language`, `branches`. Everything a pinnable citation needs, at 8% of the cost.
 
@@ -56,7 +56,7 @@ The `pi-web-tools` fetch tools remain worth reading for the second act — `exte
 - **Where artifacts live and how they are cleaned**, if they survive. Clones live under `cacheDir` at a stable `/tmp/pi-librarian` — deliberately reclaimable by the system rather than durable, so a one-off research repo does not occupy disk forever. Search output is per-run and shorter-lived still. Whether that argues for a different subtree, a different lifetime, or nothing at all is this ticket's call, inherited from the deleted configuration ticket.
 - **How native paths join the ladder.** Neither host offers a repo-level or file-level projection; both return matches and page crudely. Whether the tool synthesises the rungs by post-processing, or whether native paths simply have fewer rungs and say so.
 - **How a capped result set is signalled.** The backend reports skip reasons, but `severity` is useless — a real truncation carries `severity: "info"`, so only the `reason` string distinguishes a complete search from a trimmed one. A silently truncated search reads as evidence of absence, which is the worst possible failure for a research agent.
-- **Whether counts can be shown at all.** Result units differ across every remote path: the backend counts files, one host counts files *usually*, the other counts matches, and a host's `total: 10000` is a saturation sentinel rather than a number. Any shared "N of M" phrasing would be wrong somewhere.
+- **Whether counts can be shown at all.** Result units differ across every remote path: the backend counts files, one host counts files _usually_, the other counts matches, and a host's `total: 10000` is a saturation sentinel rather than a number. Any shared "N of M" phrasing would be wrong somewhere.
 - **Whether attached tools behave the same.** In attach mode the main agent is the consumer, its context is more valuable, and it already has `read` and `grep`. The same shape probably works; the budget arguably should not be the same.
 - **What the trace renderer shows.** `view.ts` renders one line per call; "12 repos" and "88 files" and "wrote 240 matches to disk" are three different lines.
 

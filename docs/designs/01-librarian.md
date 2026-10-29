@@ -10,14 +10,14 @@ Build a `librarian` tool: a nested research agent that answers questions about G
 
 ## Problem Statement / Background
 
-Some of the most useful context for coding work lives in *other people's repos*: how a framework implements a feature, what an error deep in a dependency actually means, which of several libraries fits a need. Two concrete scenarios drove this design:
+Some of the most useful context for coding work lives in _other people's repos_: how a framework implements a feature, what an error deep in a dependency actually means, which of several libraries fits a need. Two concrete scenarios drove this design:
 
 - **Known-repo deep dive**: "How does drizzle-orm handle prepared statements?" — requires mapping an unfamiliar repo, tracing a flow, and citing exact locations.
 - **Ecosystem discovery**: "Compare the most popular SQL ORMs for TypeScript" — requires popularity signal, docs context, and enough source inspection to compare honestly.
 
-The prior attempt ([default-anton/pi-librarian](https://github.com/default-anton/pi-librarian)) gave a subagent freeform bash and told it to use `gh search code`. That endpoint is GitHub's *legacy* search engine: default-branch only, files under 384 KB, tokenized matching (no regex), skips less-active repos, 10 requests/minute. Roughly half of all runs ended in "I can't find that" — the model was handed a bad instrument. Its presentation layer was also unsatisfying.
+The prior attempt ([default-anton/pi-librarian](https://github.com/default-anton/pi-librarian)) gave a subagent freeform bash and told it to use `gh search code`. That endpoint is GitHub's _legacy_ search engine: default-branch only, files under 384 KB, tokenized matching (no regex), skips less-active repos, 10 requests/minute. Roughly half of all runs ended in "I can't find that" — the model was handed a bad instrument. Its presentation layer was also unsatisfying.
 
-Amp's librarian, by contrast, works essentially every time. Investigation (binary string extraction plus interrogating the subagent itself) revealed its shape: seven *structured* per-repo tools — `read_github` (line-ranged reads), `glob_github`, `list_directory_github`, `search_github` (single-repo, paginated), `commit_search`, `diff`, `list_repositories` — plus `web_search`/`read_web_page`, all against GitHub's code-search index, with a subagent prompt oriented around evidence-backed, line-cited findings. The lesson: structure and evidence discipline, not secret infrastructure.
+Amp's librarian, by contrast, works essentially every time. Investigation (binary string extraction plus interrogating the subagent itself) revealed its shape: seven _structured_ per-repo tools — `read_github` (line-ranged reads), `glob_github`, `list_directory_github`, `search_github` (single-repo, paginated), `commit_search`, `diff`, `list_repositories` — plus `web_search`/`read_web_page`, all against GitHub's code-search index, with a subagent prompt oriented around evidence-backed, line-cited findings. The lesson: structure and evidence discipline, not secret infrastructure.
 
 This design adopts Amp's structure where it earns its keep and beats it on the weak link: within-repo search runs on local clones instead of any search API.
 
@@ -98,7 +98,7 @@ results   3 locations                                                 0.1s
 
 ### 2. `search_code` is a candidate-finder, demoted from evidence source
 
-Cross-repo code search is the one job that requires an API, and every available API has gaps. So the prompt frames `search_code` hits as *candidates to verify* via checkout/read — never as citable evidence. This is the root-cause fix for pi-librarian's failure mode: it treated a lossy index as ground truth.
+Cross-repo code search is the one job that requires an API, and every available API has gaps. So the prompt frames `search_code` hits as _candidates to verify_ via checkout/read — never as citable evidence. This is the root-cause fix for pi-librarian's failure mode: it treated a lossy index as ground truth.
 
 Backend selection is explicit, not hidden fallback. `search_code` uses Grep for public GitHub code search, including regex and broad/no-repo discovery. `search_github_code` uses GitHub REST code search for authenticated/public GitHub searches, especially private repositories or GitHub-specific visibility. The model chooses the instrument based on the task, and failures are reported directly instead of silently trying another backend.
 
@@ -108,7 +108,7 @@ Grep is accessed through the official public MCP endpoint (`https://mcp.grep.app
 
 ### 3. Nested agent session, not tool proxying
 
-A librarian run is a `createAgentSession` with `SessionManager.inMemory()`, an isolated system prompt, and built-in tools selected by name. `SessionManager.inMemory(cacheDir)` uses `cacheDir` as the nested session cwd; it does not persist a session file. Pi offers no API to execute another extension's tool from outside (`getAllTools()` is metadata-only), so "inheriting" main-session extension tools means *loading extension code* into the nested session.
+A librarian run is a `createAgentSession` with `SessionManager.inMemory()`, an isolated system prompt, and built-in tools selected by name. `SessionManager.inMemory(cacheDir)` uses `cacheDir` as the nested session cwd; it does not persist a session file. Pi offers no API to execute another extension's tool from outside (`getAllTools()` is metadata-only), so "inheriting" main-session extension tools means _loading extension code_ into the nested session.
 
 Full inheritance of the user's global extension dir was rejected: it would activate unrelated hooks (UI companions, session recovery, powerline) inside every headless research run, and the librarian would have to exclude itself to avoid recursion. Instead, `librarian.extensions` is an explicit allowlist of paths loaded via `additionalExtensionPaths` with `noExtensions: true`. Predictable composition; the cost is one settings entry when a new tool should flow in.
 
@@ -153,7 +153,7 @@ pi-librarian capped runs at 10 turns, which contributed to thin answers. v1 impo
 
 - **Status:** Rejected
 - **Decision or open issue:** Amp's `search_github` rides GitHub's modern code-search index server-side; the public REST equivalent is the legacy engine that caused pi-librarian's failures. Without Amp's infrastructure, the API-only shape inherits the weak link.
-- **Retained discussion:** Amp's *tool structure* (per-repo scoping, pagination, line-ranged reads) is adopted; only the retrieval substrate differs.
+- **Retained discussion:** Amp's _tool structure_ (per-repo scoping, pagination, line-ranged reads) is adopted; only the retrieval substrate differs.
 
 ### Scrape GitHub's Blackbird web search endpoint
 

@@ -16,7 +16,7 @@ From [Native search versus a search backend, head to head](02-native-search-vers
 
 The search backend, same symbol, ranked it **1st of 65**, and its progress stream reported `excluded: repository-fork` so the exclusion was visible rather than silent.
 
-This is not a ranking nicety. It is the difference between a research agent citing the definition and citing a stale vendored copy of it — and a stale copy is a *plausible-looking* wrong answer, which is the worst kind. It also compounds: the agent reads the wrong file, reasons from it, and the error propagates into findings that look properly cited.
+This is not a ranking nicety. It is the difference between a research agent citing the definition and citing a stale vendored copy of it — and a stale copy is a _plausible-looking_ wrong answer, which is the worst kind. It also compounds: the agent reads the wrong file, reasons from it, and the error propagates into findings that look properly cited.
 
 ## Why it needs deciding rather than assuming
 

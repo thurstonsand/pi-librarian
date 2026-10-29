@@ -10,7 +10,7 @@ blocked-by: []
 
 Cross-repo commit and diff search is available from a search backend. `checkout_repo` plus git already answers every history question about a repo you have cloned. Does a history search tool belong in the toolset, and if so, described how?
 
-Blocked on nothing now that the head-to-head spike has landed. Its finding that matters here: a backend answers "which repositories match" instance-wide for **2,952 bytes**, and no native path offers an equivalent projection. So cross-repo *discovery* is cheap and backend-only — which is the same argument this tool rests on, already proven for code. Whether it holds for history is the question.
+Blocked on nothing now that the head-to-head spike has landed. Its finding that matters here: a backend answers "which repositories match" instance-wide for **2,952 bytes**, and no native path offers an equivalent projection. So cross-repo _discovery_ is cheap and backend-only — which is the same argument this tool rests on, already proven for code. Whether it holds for history is the question.
 
 ## What the probe measured
 
@@ -20,17 +20,17 @@ Run against a real 7.6.0 instance indexing ~5,500 repositories, over four rounds
 
 `timeout:` is a query filter with a **20-second default** and a **180-second ceiling**; `timeout:300s` is silently capped. Every "wall" in the first round was that default, which is why four unrelated probes landed within 100ms of each other. The published documentation says 10 seconds and a one-minute maximum, so the docs are stale against 7.6.0 here.
 
-Predicate arguments must be **unquoted**, and this is the trap worth remembering: `repo:has.commit.after("2026-07-01")` fails with `invalid time ref`, while `repo:has.commit.after(2026-07-01)` succeeds. Meanwhile `before:` and `after:` *require* quoted arguments. Two date-taking constructs, opposite quoting rules, one of them undocumented. Unquoted, the predicate accepts every format tried, including `1 month ago` and `yesterday`.
+Predicate arguments must be **unquoted**, and this is the trap worth remembering: `repo:has.commit.after("2026-07-01")` fails with `invalid time ref`, while `repo:has.commit.after(2026-07-01)` succeeds. Meanwhile `before:` and `after:` _require_ quoted arguments. Two date-taking constructs, opposite quoting rules, one of them undocumented. Unquoted, the predicate accepts every format tried, including `1 month ago` and `yesterday`.
 
 ### What history search actually costs
 
-| target | scope | latency | outcome |
-| --- | --- | --- | --- |
-| `type:commit` | 1 repo | 1.2s | complete |
-| `type:commit count:all` | 13 repos | 9.9s | complete |
-| `type:commit count:all` | 41 repos | 28.2s | complete, **11.7 MB** |
-| `type:diff count:all select:repo` | 41 repos | 77.3s | complete |
-| `type:commit count:all` @180s | instance-wide | 180.4s | **1 repo short of complete**, 8,485 matches across 139 repos |
+| target                            | scope         | latency | outcome                                                      |
+| --------------------------------- | ------------- | ------- | ------------------------------------------------------------ |
+| `type:commit`                     | 1 repo        | 1.2s    | complete                                                     |
+| `type:commit count:all`           | 13 repos      | 9.9s    | complete                                                     |
+| `type:commit count:all`           | 41 repos      | 28.2s   | complete, **11.7 MB**                                        |
+| `type:diff count:all select:repo` | 41 repos      | 77.3s   | complete                                                     |
+| `type:commit count:all` @180s     | instance-wide | 180.4s  | **1 repo short of complete**, 8,485 matches across 139 repos |
 
 Cost is close to linear: **~0.7s per repository for commits, ~1.9s for diffs.** The final figure is the one that overturned the earlier verdict — instance-wide history search does essentially work in a single streaming call, covering all but one repository in 180 seconds, and it names the gap. Earlier rounds reported it as hopelessly incomplete because they ran at the 20-second default.
 
@@ -40,9 +40,9 @@ This is the finding most worth keeping, because it is the opposite of everyone's
 
 **Work-reducing**, because they resolve from the index before any history is walked: `repo:` patterns, `repo:has.path()`, `repo:has.content()`, `repo:has.file(path: content:)`, `repo:has.topic()`. All sub-2s at instance scale — `has.file(path:go\.mod content:cobra)` returned 1,371 repositories in 1.26s, and a plain repo-set count runs in 575-825ms regardless of size, which makes an exact pre-flight essentially free.
 
-**Not work-reducing**, because they are attributes of commits and git must walk history to evaluate them: `after:`, `before:`, `author:`, `message:`, the content pattern, `count:`, and `select:`. Measured: `after:"1 year ago"` produced the same wall and *fewer* results; `author:` instance-wide returned zero and still timed out; `select:repo` cut payload 500x and work not at all.
+**Not work-reducing**, because they are attributes of commits and git must walk history to evaluate them: `after:`, `before:`, `author:`, `message:`, the content pattern, `count:`, and `select:`. Measured: `after:"1 year ago"` produced the same wall and _fewer_ results; `author:` instance-wide returned zero and still timed out; `select:repo` cut payload 500x and work not at all.
 
-Sourcegraph's own site configuration documents `commitDiffMaxRepos` at **50** and `commitDiffWithTimeFilterMaxRepos` at 10,000 (an example on the same page says 5,000 — the docs contradict themselves), which would make a time filter a *permission token* that raises the breadth ceiling rather than an optimisation. Not observable on this instance: an unbounded instance-wide commit search reached a known target repository and 139 others, so the cap is configured well above the default or is not enforced in 7.6.
+Sourcegraph's own site configuration documents `commitDiffMaxRepos` at **50** and `commitDiffWithTimeFilterMaxRepos` at 10,000 (an example on the same page says 5,000 — the docs contradict themselves), which would make a time filter a _permission token_ that raises the breadth ceiling rather than an optimisation. Not observable on this instance: an unbounded instance-wide commit search reached a known target repository and 139 others, so the cap is configured well above the default or is not enforced in 7.6.
 
 ### Three ways this backend answers "nothing" while meaning "I gave up"
 
@@ -58,7 +58,7 @@ An over-broad query at the default timeout returns zero results, a clean `done`,
 
 For one repo, the API loses outright: `git log --grep`, `git log -S`, `--author`, and `git diff` are richer, unpaginated, and uncapped. The value is entirely in **not knowing which repos to clone**.
 
-The measurement narrows that value without destroying it. "Which services added a call to this deprecated endpoint last quarter" is *not* one streamed query across tens of thousands of repositories — at that breadth it returns nothing, or a partial answer it cannot label as partial. It is one streamed query across a few dozen, which is still a scope where clone-and-grep is a chore and a single query is not. And the narrowing step itself is cheap and exhaustive along the date axis, so "which repositories changed since last quarter" can legitimately feed "what changed in them".
+The measurement narrows that value without destroying it. "Which services added a call to this deprecated endpoint last quarter" is _not_ one streamed query across tens of thousands of repositories — at that breadth it returns nothing, or a partial answer it cannot label as partial. It is one streamed query across a few dozen, which is still a scope where clone-and-grep is a chore and a single query is not. And the narrowing step itself is cheap and exhaustive along the date axis, so "which repositories changed since last quarter" can legitimately feed "what changed in them".
 
 That puts history search in the role code search already occupies in the librarian's documented strategy: a discovery instrument producing candidates, verified afterward with a clone. Not a new concept to teach the prompt — the existing one, applied to history. What is new is that the instrument has a hard breadth limit, and the tool would have to own it rather than pass it to the model.
 
@@ -100,7 +100,7 @@ A capability with one rare use case does not earn a tool, its own settings, a di
 
 Recorded so the decision is reversible rather than merely made.
 
-A separate tool, not a flag on `search_code`, because the pre-flight needs the repository scope as a **first-class argument**. A free-form query string makes the scope uncountable: given `type:commit deprecated repo:^x/`, stripping `type:` and adding `select:repo` counts repositories *containing the word deprecated in code*, which is a different and smaller number. Getting the right count means parsing query syntax to separate filters from pattern, inside a tool whose whole purpose is to avoid doing too much work.
+A separate tool, not a flag on `search_code`, because the pre-flight needs the repository scope as a **first-class argument**. A free-form query string makes the scope uncountable: given `type:commit deprecated repo:^x/`, stripping `type:` and adding `select:repo` counts repositories _containing the word deprecated in code_, which is a different and smaller number. Getting the right count means parsing query syntax to separate filters from pattern, inside a tool whose whole purpose is to avoid doing too much work.
 
 ```
 search_history(target: commit | diff, pattern, repos, authors?, after?, before?, detail?)
@@ -126,7 +126,7 @@ Declined because a bounded run is only better than the streaming path when the s
 
 ### What transfers, and where it goes
 
-The findings outlive the decision. Three of them belong to tools that *are* being built:
+The findings outlive the decision. Three of them belong to tools that _are_ being built:
 
 - **The `skipped` allowlist is a bug in `search_code` today**, not a hypothetical. `shard-match-limit` made a truncated search look complete to this ticket's own harness. Belongs with delivery and completeness reporting.
 - **`select:file` savings vary from 13% to 92%** depending on match density — 4.59 MB against 5.27 MB on a saturating query, versus the 8% the head-to-head recorded on a selective one. The projection drops snippets, so it saves hugely when few files carry many matches and almost nothing when 13,000 files carry one each. Ticket 06 currently states the 8% figure as a property of the projection, which it is not.

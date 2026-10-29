@@ -94,50 +94,52 @@ In pi's global `settings.json`:
         "kind": "gitlab",
         "tokenEnv": "EXAMPLE_GITLAB_TOKEN",
         "advancedSearch": false,
-        "description": "Holds the services not yet migrated to example-bb.",
+        "description": "Holds the services not yet migrated to example-bb."
       },
       {
         "name": "example-bb",
         "url": "https://git.example.com",
         "kind": "bitbucket-server",
-        "disabled": ["code-search"],
+        "disabled": ["code-search"]
       },
       {
         "name": "example-sg",
         "url": "https://search.example.com",
-        "kind": "sourcegraph",
-      },
+        "kind": "sourcegraph"
+      }
     ],
     "builtInSources": { "github": true, "gitlab.com": false },
     "search": { "timeoutSeconds": 15, "defaultLimit": 10 },
     "web": {
       "parallel": { "apiKeyCommand": "op read op://Private/Parallel/credential" },
       "fetch": {
-        "browser": { "executablePath": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" },
-        "challenge": { "escalation": "headed", "headlessWaitSecs": 10, "headedWaitSecs": 20 },
-      },
+        "browser": {
+          "executablePath": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+        },
+        "challenge": { "escalation": "headed", "headlessWaitSecs": 10, "headedWaitSecs": 20 }
+      }
     },
     "cacheDir": "/tmp/pi-librarian",
-    "debug": { "persistRuns": false },
-  },
+    "debug": { "persistRuns": false }
+  }
 }
 ```
 
-| Setting             | Recommended                                      | Default                        |
-| ------------------- | ------------------------------------------------ | ------------------------------ |
-| `model`             | `openai-codex/gpt-5.5`                           | current session model          |
-| `thinkingLevel`     | `off`                                            | current session thinking level |
-| `tools.disabled`    | names of tools to remove from librarian runs     | `[]`                           |
-| `sources`           | code hosts and search backends                   | `[]`                           |
-| `builtInSources`    | switch `github` and `gitlab.com` on or off       | `github` on, `gitlab.com` off  |
-| `search.timeoutSeconds` | seconds a search may run before it is an error | `15`                        |
-| `search.defaultLimit` | results a search returns unless asked for more (at most 50) | `10`              |
-| `web.parallel.apiKeyCommand` | shell command printing a Parallel key, run per call | `PARALLEL_API_KEY` only |
-| `web.fetch.browser.executablePath` | the Chrome the local fetcher drives | an installed Chrome    |
-| `web.fetch.browser.profileDir` | the fetch browser's profile          | `~/.pi/agent/browser-profile`  |
-| `web.fetch.challenge.*` | `escalation` (`headed` or `never`), `headlessWaitSecs`, `headedWaitSecs` | `headed`, `10`, `20` |
-| `cacheDir`          | `/tmp/pi-librarian`                              | `/tmp/pi-librarian`            |
-| `debug.persistRuns` | persist nested session file paths for debugging  | `false`                        |
+| Setting                            | Recommended                                                              | Default                        |
+| ---------------------------------- | ------------------------------------------------------------------------ | ------------------------------ |
+| `model`                            | `openai-codex/gpt-5.5`                                                   | current session model          |
+| `thinkingLevel`                    | `off`                                                                    | current session thinking level |
+| `tools.disabled`                   | names of tools to remove from librarian runs                             | `[]`                           |
+| `sources`                          | code hosts and search backends                                           | `[]`                           |
+| `builtInSources`                   | switch `github` and `gitlab.com` on or off                               | `github` on, `gitlab.com` off  |
+| `search.timeoutSeconds`            | seconds a search may run before it is an error                           | `15`                           |
+| `search.defaultLimit`              | results a search returns unless asked for more (at most 50)              | `10`                           |
+| `web.parallel.apiKeyCommand`       | shell command printing a Parallel key, run per call                      | `PARALLEL_API_KEY` only        |
+| `web.fetch.browser.executablePath` | the Chrome the local fetcher drives                                      | an installed Chrome            |
+| `web.fetch.browser.profileDir`     | the fetch browser's profile                                              | `~/.pi/agent/browser-profile`  |
+| `web.fetch.challenge.*`            | `escalation` (`headed` or `never`), `headlessWaitSecs`, `headedWaitSecs` | `headed`, `10`, `20`           |
+| `cacheDir`                         | `/tmp/pi-librarian`                                                      | `/tmp/pi-librarian`            |
+| `debug.persistRuns`                | persist nested session file paths for debugging                          | `false`                        |
 
 Each `librarian.sources` entry requires a unique `name`, an HTTPS `url`, and a `kind`: `github`, `gitlab`, `bitbucket-server`, or `sourcegraph`. The `kind` decides which roles a source can play — `clone`, `code-search`, `repo-search` — unless `disabled`. `github` and `gitlab.com` are built in and need no entry; `builtInSources` switches each on or off as a whole, and a switched-off source does not exist at all, though a full clone URL to its host still clones.
 

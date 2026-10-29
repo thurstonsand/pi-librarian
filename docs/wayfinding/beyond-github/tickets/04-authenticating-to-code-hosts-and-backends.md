@@ -24,7 +24,7 @@ So the shape is probably: environment variable first, CLI fallback where one exi
 - Environment variable naming. Reusing a host's own conventional variable is friendlier but collides with other tooling; a namespaced variable is unambiguous but nobody has it set.
 - Whether credentials may live in settings at all. Settings are a file on disk in a repo-adjacent location — a plausible place for a token to be committed by accident. The existing settings hold no secrets, and keeping that property is worth something.
 - Cost of the CLI fallback. `gh auth token` is one subprocess resolved lazily and once. Four services means up to four subprocesses; whether they resolve eagerly at startup or lazily on first use changes startup latency against error timing.
-- What "unavailable" means and when it is decided. A backend with no credential should contribute no tool — but a credential that exists and is *rejected* is a different case, discovered mid-research, and needs to fail in a way the model can act on.
+- What "unavailable" means and when it is decided. A backend with no credential should contribute no tool — but a credential that exists and is _rejected_ is a different case, discovered mid-research, and needs to fail in a way the model can act on.
 - Whether a missing credential warrants a startup notification. There is precedent — extra-tool warnings already surface at session start — but four services makes four possible warnings, and warning about a service the user does not use is noise.
 
 ## Interfaces to pin down
@@ -36,9 +36,9 @@ So the shape is probably: environment variable first, CLI fallback where one exi
 
 ### The line: secrets in the environment, everything else in settings
 
-Credentials never appear in settings. Two reasons beyond the obvious one: the settings file is a plausible accidental-commit location and it currently holds no secrets, which is cheap to keep and expensive to regain; and settings are read from pi's *global* store, so a token placed there would apply to every project on the machine — strictly worse than an environment variable rather than more convenient.
+Credentials never appear in settings. Two reasons beyond the obvious one: the settings file is a plausible accidental-commit location and it currently holds no secrets, which is cheap to keep and expensive to regain; and settings are read from pi's _global_ store, so a token placed there would apply to every project on the machine — strictly worse than an environment variable rather than more convenient.
 
-Endpoints, capability declarations, and the *name of the variable holding a credential* live in settings. A host entry therefore declares `tokenEnv`, not `token` — it holds an identifier, never a secret. Naming it `token` would be a lie that invites someone to paste one in, so the field name is doing safety work. Its value should be validated at load as a plausible variable name and rejected if it looks like a credential (a recognisable token prefix, or length and case that no environment variable has), which conforms the input at the one edge where it enters.
+Endpoints, capability declarations, and the _name of the variable holding a credential_ live in settings. A host entry therefore declares `tokenEnv`, not `token` — it holds an identifier, never a secret. Naming it `token` would be a lie that invites someone to paste one in, so the field name is doing safety work. Its value should be validated at load as a plausible variable name and rejected if it looks like a credential (a recognisable token prefix, or length and case that no environment variable has), which conforms the input at the one edge where it enters.
 
 ### Multi-instance falls out for free
 
@@ -54,7 +54,7 @@ Uniform across kinds, and it reads in one line: explicit configuration, then con
 2. Its credential comes from the variable named by `tokenEnv`, or from the kind's conventional variable when `tokenEnv` is absent — `GITHUB_TOKEN` or `GH_TOKEN`, `GITLAB_ACCESS_TOKEN`, `BITBUCKET_TOKEN`, `SRC_ACCESS_TOKEN`.
 3. Only if enabled, a CLI fills what is still missing.
 
-Conventional names beat namespaced ones. A collision is the feature: a GitLab token in the environment is *for* the user's GitLab, and the librarian using it is correct. Our own `GITHUB_TOKEN` handling already set this precedent, and nobody has a namespaced variable set, which would make the unconfigured path the unfriendly one.
+Conventional names beat namespaced ones. A collision is the feature: a GitLab token in the environment is _for_ the user's GitLab, and the librarian using it is correct. Our own `GITHUB_TOKEN` handling already set this precedent, and nobody has a namespaced variable set, which would make the unconfigured path the unfriendly one.
 
 ### CLI discovery is opt-in, and does two jobs
 

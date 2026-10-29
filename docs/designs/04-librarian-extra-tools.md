@@ -36,8 +36,8 @@ Design 01 rejected name-based composition because `pi.getAllTools()` was believe
 // pi global settings
 {
   "librarian": {
-    "tools": ["search_web", "fetch_web"],   // extra tools, by name
-    "extensions": ["~/path/to/ext.ts"]      // escape hatch: extra search space only
+    "tools": ["search_web", "fetch_web"], // extra tools, by name
+    "extensions": ["~/path/to/ext.ts"] // escape hatch: extra search space only
   }
 }
 ```
