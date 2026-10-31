@@ -11,16 +11,19 @@ Researches code beyond GitHub: declared GitLab, Bitbucket Server, and Sourcegrap
 - The search tools are renamed by family and engine: `search_code` is `search_code_grepapp`, `search_github_code` is `search_code_github`, and `search_repos` is `search_repos_github`. `read_github_file` is replaced by `read_file`, which takes `repo` as `owner/repo` and reads from any declared code host.
 - `search_code_github` takes `owner` plus bare `repos` instead of `repos: [{owner, repo}]` and `owners`, and refuses a bare `OR`, parentheses, unbalanced quotes, and qualifiers in `pattern`, which GitHub silently misreads.
 - `search_repos_github` takes typed filters (`text`, `language`, `topics`, `min_stars`, `pushed_after`, …) instead of a raw query, and sorts by best match unless asked for stars.
+- `checkout_repo` takes a repository path plus the `source` it lives on, or a full clone URL; a bare `owner/repo` no longer means GitHub. Clones are keyed by hostname and `cacheDir` defaults to `/tmp/pi-librarian` instead of under `$TMPDIR`, so existing clones are fetched again.
 - `gitlab.com` is no longer a source by default; switch it on with `librarian.builtInSources`.
 - `provide_results` locations require a `source`.
 - The `librarian` tool drops `repos` and `owners`, which could not say which code host they meant; name repositories and their source in `query`.
 - Librarian runs no longer load the user's `AGENTS.md` or `APPEND_SYSTEM.md`.
-- Extra tools are gone: `librarian.tools.extra` and `librarian.extensions` are removed, and runs load no extensions. The web tools they existed for are built in.
+- Extra tools are gone: `librarian.tools` no longer lists them, `librarian.extensions` is removed, and runs load no extensions. The web tools they existed for are built in.
 - Every key under `librarian` is checked; an unknown or removed one is an error instead of being ignored.
 - pi-web-tools is deprecated in favour of this package; uninstall it, since both register `web_search` and `web_fetch`. Its `webTools.*` settings move to `librarian.web.*`, the `~/.pi/agent/github-token` file is no longer read, and Parallel is called over its REST API, so the optional `parallel-web` SDK is not needed.
 
 ### Added
 
+- `librarian.sources` declares GitLab, Bitbucket Server, Sourcegraph, and other GitHub instances by `name`, `url`, and `kind`, each with optional `disabled` roles; `checkout_repo` clones from any declared source.
+- `librarian.tools.disabled` removes tools from librarian runs.
 - `search_code_sourcegraph`, `search_repos_sourcegraph`, and `find_definition` for a declared Sourcegraph; `search_code_gitlab` and `search_repos_gitlab` for a declared GitLab; `search_code_bitbucket` and `search_repos_bitbucket` for a declared Bitbucket Server.
 - Every search writes its full results to `<cacheDir>/searches/<call-id>/results.jsonl` and returns a digest saying what was found, whether the search was complete, and what is shown. `limit` takes up to 50 results, 10 by default (`librarian.search.defaultLimit`).
 - A search running past `librarian.search.timeoutSeconds` (15 by default) is an error that cancels the request and says how to narrow it.
@@ -47,7 +50,6 @@ Keeps `/librarian` attach state per session branch and builds against Pi 1.4.0.
 ### Fixed
 
 - `/librarian` attach state now follows the current session branch. It is restored when you navigate with `/tree` and when you resume a session where you toggled it before sending a message.
-  ||||||| parent of ed53f6e (docs: record the beyond-GitHub implementation and what is left to test)
 
 ## 0.6.2
 
