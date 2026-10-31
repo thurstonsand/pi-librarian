@@ -67,7 +67,17 @@ Settled with the user on 2026-10-24 ("do the prefactor, and otherwise complete t
    - **Commit history** stays in `web_fetch` for URLs; the prompt still prefers a clone and `git log`.
    - **Issues get no new tools.** The issue fetcher reads the timeline, keeps only `closed`, `reopened`, `cross-referenced`, `referenced`, and `connected`, renders them in `conversation.md`, and states `closed by commit <sha>` as a fact. Listings show `[state/state_reason]` per row. The prompt tells runs that `completed` alone is not evidence of a fix.
    - **Authentication**: as above.
-6. **Firecrawl's Developer Index** stays out of this fold: an evaluation for the personal machine (`PERSONAL_TASKS.md`), as a possible `web_search` backend later.
+6. **Firecrawl's Developer Index** stays out of this fold: an evaluation for the personal machine, as a possible `web_search` backend later. Since evaluated and dropped; see _Firecrawl's Developer Index is not code search_ in the tool surface.
 7. **The `downgrade` branch** needs nothing for `parallel-web`, which is no longer a dependency. `playwright-core` resolved at 1.64.1 on the constrained mirror, so web-tools' 1.63.0 pin does not carry over.
 
 pi-web-tools itself gets a final release whose README points here, then `npm deprecate`; installing both makes pi report a tool-name clash at startup.
+
+## Measured live
+
+Run on 2026-10-31 from an orb, with a real Parallel key, through `createWebTools` and in pi 1.4.0 with `-e ./extensions/librarian.ts`.
+
+- **`web_search`** returns results with excerpts, at most 8. With `after_date: "2026-09-01"`, every date in the results was in October 2026.
+- **`apiKeyCommand` alone** registers `web_search`, and a rotated key takes effect on the next call: with `cat` of a file as the command, a stale key in the file was a `401`, and rewriting the file made the next call in the same process succeed.
+- **The Parallel fetcher** gives an `excerpt` without `objective` and `highlights` with one, on `orm.drizzle.team/docs/transactions`.
+- **An invalid key** was reported as a bare `HTTP 401`. Parallel refuses a key before the API proper, in a gateway's shape, `{"code":16,"message":"Invalid API key (C.1)"}`, while every other error seen — `422`s from both endpoints — is the documented `{"error":{"message"}}`. The client now reads both, so the message is `Parallel search returned HTTP 401: Invalid API key (C.1)`.
+- **A librarian run** asked where Bun documents its fake timers traced `✓ search web How Bun bun:test implements fake timers … (5 results)`, then `✓ fetch https://bun.sh/blog/bun-v1.4 +1 more (2 documents)`, both pages from the Parallel fetcher. Three earlier runs never searched: given a documentation question, the model went straight to a URL it could guess — a raw GitHub file, `docs.stripe.com/api/idempotent_requests`, `nodejs.org/en/blog/release` — and each fetch answered it. That is the prompt working, not `web_search` being missed.

@@ -600,7 +600,7 @@ Every search tool takes `limit`: **how many results come back to the agent**. De
 | -------------------------- | ------------------------------------------------------------- | ----------------------- |
 | `search_code_github`       | 100 (`per_page`)                                              | 50                      |
 | `search_repos_github`      | 100 (`per_page`)                                              | 50                      |
-| `search_code_grepapp`      | whatever its MCP server's `searchGitHub` returns, unmeasured  | that, up to 50          |
+| `search_code_grepapp`      | 10, measured; `searchGitHub` takes no page or count argument  | 10                      |
 | `search_code_sourcegraph`  | no limit; `count:` is ours to set                             | 50                      |
 | `search_repos_sourcegraph` | no limit                                                      | 50                      |
 | `find_definition`          | no limit                                                      | 50                      |
@@ -695,23 +695,23 @@ Every one takes `limit` — see _The agent chooses how many_. The digest header 
 
 The honest reason for five tools. **Measured** marks what was tested against a live engine for this document; `?` is unverified and must be measured before it ships.
 
-|                 | `_github`                                                     | `_grepapp`       | `_sourcegraph`                           | `_gitlab`                                                    | `_bitbucket`                                         |
-| --------------- | ------------------------------------------------------------- | ---------------- | ---------------------------------------- | ------------------------------------------------------------ | ---------------------------------------------------- |
-| pattern         | substring, words ANDed, quoted phrase                         | literal or regex | literal, keyword, regex — always encoded | exact string of the whole query, measured                    | whole tokens, words ANDed, OR/NOT, phrases, measured |
-| substring match | **yes**, measured                                             | yes              | yes                                      | yes                                                          | **no**, measured                                     |
-| regex           | **no**; `/…/` is literal text, `OR` is silently AND, measured | yes              | yes                                      | no                                                           | no                                                   |
-| path filter     | `path:`                                                       | yes              | `file:`                                  | `path:`, `filename:`, `extension:` — project scope, measured | `path:`, `ext:`, measured                            |
-| language filter | `language:`                                                   | yes              | `lang:`                                  | no; `extension:`                                             | `lang:`, measured                                    |
-| repo scope      | `repo:`, `user:` = `org:`, measured                           | repo prefix      | `repo:` regex                            | one project unless advanced, measured                        | project, repo                                        |
-| projection      | no                                                            | no               | **yes**                                  | no                                                           | no                                                   |
-| private repos   | yes, with auth                                                | **no**           | yes                                      | yes                                                          | yes                                                  |
-| completeness    | `incomplete_results` = scope unsearchable                     | none             | `skipped` allowlist                      | none                                                         | 1,000-result window                                  |
-| result ceiling  | 1,000                                                         | `?`              | match budget                             | none; `x-total` a lower bound                                | **1,000, hard**                                      |
-| rate limit      | 10/min, measured by hitting it                                | `?`              | none in 311 requests                     | **30/min per user**, measured                                | none seen in 40 requests                             |
+|                 | `_github`                                                     | `_grepapp`                                   | `_sourcegraph`                           | `_gitlab`                                                    | `_bitbucket`                                         |
+| --------------- | ------------------------------------------------------------- | -------------------------------------------- | ---------------------------------------- | ------------------------------------------------------------ | ---------------------------------------------------- |
+| pattern         | substring, words ANDed, quoted phrase                         | literal or regex                             | literal, keyword, regex — always encoded | exact string of the whole query, measured                    | whole tokens, words ANDed, OR/NOT, phrases, measured |
+| substring match | **yes**, measured                                             | yes                                          | yes                                      | yes                                                          | **no**, measured                                     |
+| regex           | **no**; `/…/` is literal text, `OR` is silently AND, measured | yes                                          | yes                                      | no                                                           | no                                                   |
+| path filter     | `path:`                                                       | yes                                          | `file:`                                  | `path:`, `filename:`, `extension:` — project scope, measured | `path:`, `ext:`, measured                            |
+| language filter | `language:`                                                   | yes                                          | `lang:`                                  | no; `extension:`                                             | `lang:`, measured                                    |
+| repo scope      | `repo:`, `user:` = `org:`, measured                           | repo prefix                                  | `repo:` regex                            | one project unless advanced, measured                        | project, repo                                        |
+| projection      | no                                                            | no                                           | **yes**                                  | no                                                           | no                                                   |
+| private repos   | yes, with auth                                                | **no**                                       | yes                                      | yes                                                          | yes                                                  |
+| completeness    | `incomplete_results` = scope unsearchable                     | none, measured                               | `skipped` allowlist                      | none                                                         | 1,000-result window                                  |
+| result ceiling  | 1,000                                                         | **10, hard**, measured                       | match budget                             | none; `x-total` a lower bound                                | **1,000, hard**                                      |
+| rate limit      | 10/min, measured by hitting it                                | about 100/min per IP, measured by hitting it | none in 311 requests                     | **30/min per user**, measured                                | none seen in 40 requests                             |
 
 Three rows deserve attention. **grep.app reaches no private code**, which makes it the wrong choice for anyone with declared sources and the only choice for anyone without. **Three of five engines give no completeness signal**, so their digests can report what they found and must stay silent about what they missed — not fixable from our side. And **GitHub reads `OR` as AND without saying so**, the worst kind of failure, handled below.
 
-The grep.app cells are `?` because grep.app is unreachable from the network this was measured on. They are in [`PERSONAL_TASKS.md`](PERSONAL_TASKS.md).
+The grep.app cells were measured from an orb, since grep.app is unreachable from the network the rest was measured on; see _`search_code_grepapp`_.
 
 ### `search_code_github`
 
@@ -805,6 +805,20 @@ name: "search_code_grepapp",
 label: "Search public code",
 description: "Search public open-source code by literal pattern or regex (grep.app; public code only).",
 ```
+
+Measured through the MCP server's `searchGitHub`, about 900 calls from an orb:
+
+| behaviour         | measured                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| results per call  | **exactly 10 files**, each with one or more snippets. The input schema has `query`, `matchCase`, `matchWholeWords`, `useRegexp`, `repo`, `path`, `language`, and nothing else; `page`, `perPage`, and `num` are accepted and ignored, returning the same 10 files. So `limit` tops out at 10.                                                                                                                                                                                       |
+| result ceiling    | the same 10. There is no way to the 11th result through this server.                                                                                                                                                                                                                                                                                                                                                                                                                |
+| completeness      | none. A hit is a text block; the response carries no total, no flag, and no partial marker. No results is one text block, `No results found for your query.`, with `isError: false`.                                                                                                                                                                                                                                                                                                |
+| rate limit        | **about 100 calls a minute per IP**, a 20-wide burst of 200 calls got 105 through, and two sequential runs, as fast as one connection goes, were refused at call 313 after 178 seconds and call 381 after 217. No rate-limit header on any response. A refusal is not a `429`: the server fails to parse its upstream's `Too Many Requests` and returns `isError: true` with `Unexpected token 'T', "Too Many R"... is not valid JSON`, which the tool passes through as its error. |
+| failures          | about one call in ten is a `504` after 15.2 seconds, from Vercel's gateway; the same query then succeeds in half a second. The client's 3, 5, and 7 second attempts are for this.                                                                                                                                                                                                                                                                                                   |
+| latency           | 0.2–0.8s when it answers.                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| unknown arguments | rejected loudly only on a type error, `-32602` naming the field.                                                                                                                                                                                                                                                                                                                                                                                                                    |
+
+Both shapes end to end through the tool's `execute`: a `(?s)` regex with `language: "TypeScript"` returned 10 files across 9 repos, and `repo: "vitejs/"` returned 10 files in `vitejs/vite`; both digests name `grep.app`, each file as `owner/repo — path`, and numbered snippet lines.
 
 ### `search_code_sourcegraph`
 
@@ -924,7 +938,29 @@ So the previous draft was wrong in its main claim: filters are not an advanced-s
 }
 ```
 
-Valid only on `kind: "gitlab"`; anywhere else it is rejected at load. **Default `false`, including for `gitlab.com` until measured.** Both wrong answers are loud — the `400` above — so the choice is about cost: wrong at `false` means naming a project that need not be named; wrong at `true` means a `400` on every unscoped search, each one counting against the 30-a-minute limit. Whether gitlab.com offers advanced search to an ordinary account decides its built-in value, and is in [`PERSONAL_TASKS.md`](PERSONAL_TASKS.md).
+Valid only on `kind: "gitlab"`; anywhere else it is rejected at load. **Default `false`, including for `gitlab.com`, which is measured below.** Both wrong answers are loud — the `400` above — so the choice is about cost: wrong at `false` means naming a project that need not be named; wrong at `true` means a `400` on every unscoped search, each one counting against the 30-a-minute limit.
+
+### gitlab.com
+
+Measured with an ordinary account's token on gitlab.com 19.6, about 70 requests. **gitlab.com has advanced search, but not instance-wide**, so the built-in stays `advancedSearch: false`:
+
+| behaviour                         | measured                                                                                                                                                                                                                                                                                                                                                                                            |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| global blob search                | **`403 Global Search is disabled for this scope`** — a third refusal, beside the two `400`s                                                                                                                                                                                                                                                                                                         |
+| group blob search                 | **works on every public group tried**, paid or free: `gitlab-org`, `gitlab-com`, `fdroid`, `inkscape`, `wireshark`, `veloren`. 1–6s. `x-total` is real, and caps at 5,000                                                                                                                                                                                                                           |
+| default engine, project and group | **exact code search (zoekt)**, not basic: words are ANDed in any order (`export default defineConfig` is 32 files in `gitlab-org/gitlab`, the quoted phrase 5), quotes keep a phrase, `-term` excludes, and **the pattern is parsed as a regex that `/…/` does not mark**: `defineConfig({` is a `400` naming `error parsing regexp: missing closing )`, while `/define[A-Z]onfig/` matches nothing |
+| `search_type`                     | `basic`, `advanced`, or `zoekt`; anything else is a `400` listing them. **`basic` at project scope is the fixed string the self-hosted spike measured**: the phrase is 5 files, `defineConfig({` is 5. Group scope refuses `basic` with the advanced-search `400`                                                                                                                                   |
+| filters under `basic`             | `filename:`, `extension:`, `path:` all narrow, as on the self-hosted instance                                                                                                                                                                                                                                                                                                                       |
+| `basic`, cost                     | about 3s a page on `gitlab-org/gitlab`, against 0.4–0.8s for zoekt. Four pages fit the 15-second budget; the default `limit` needs one                                                                                                                                                                                                                                                              |
+| rate-limit headers                | `ratelimit-limit: 100`, `ratelimit-name: burst_traffic_per_user_free_plan` — a burst limit on top of the 30-a-minute search limit                                                                                                                                                                                                                                                                   |
+
+**So every project search sends `search_type=basic`.** The tool's description promises a fixed string, and on gitlab.com it was false twice over: words ANDed, and a pattern ending in `(` — the very shape the prompt teaches — an error. The client's own line filter hid the first, since it keeps only lines containing the pattern; nothing hid the second. An instance without advanced search has only basic, so the parameter changes nothing there; an older GitLab that predates `search_type` should ignore it as an undeclared parameter, which is unverified, since no such instance was reachable. Unscoped searches send none, since `basic` cannot answer them.
+
+**Not reachable on gitlab.com:** the unscoped path. Global search is refused, and the hostname is reserved for the built-in, so no declared source can set `advancedSearch: true` against it. That path keeps unit coverage only until an instance with instance-wide advanced search is available.
+
+**Open: a group scope.** `advancedSearch` is a yes or no, but gitlab.com is a third tier — project and group, not global. A `group` argument on `search_code_gitlab`, sent to `/groups/:id/search`, would let the librarian search `gitlab-org` without naming one of its projects. It would search under zoekt semantics, not the fixed string, so its description would differ from `project`'s.
+
+**Two GitLab tokens.** The built-in `gitlab.com` and a declared GitLab without `tokenEnv` both read `GITLAB_ACCESS_TOKEN`, so one of them sends the other's token and fails with `GitLab rejected the token (401): 401 Unauthorized`, on every search and read. The trace subject says which source; the message does not say which variable. Nothing is unreachable, since the declared source can take `tokenEnv`, so the built-in does not get a variable of its own.
 
 The flag changes the schema, which is why prose could not have carried it — ticket 11's open question has its first concrete answer. **A description the model reads cannot make an argument optional.**
 
@@ -1341,6 +1377,8 @@ In [What the user sees](#what-the-user-sees), with every state.
 
 ## Firecrawl's Developer Index is not code search
 
+**Dropped, after measurement** — see _Decision_ at the end of this section. What follows is the case as it was argued, then the evidence that closed it.
+
 Proposed as a future engine playing grep.app's role. Its documentation says otherwise: the index covers **issues, merged pull requests, READMEs, curated documentation sites, and agent-skill files** — not source files. A query is a natural-language question; a result is a ranked artifact with an id such as `issue:owner/repo#123` and its matched passages in markdown. Optional filters pick artifact types and scope by repository or documentation source, and seven repository-attribute filters (`language`, `topic`, `license`, `min_stars`, `max_stars`, `archived`, `fork`) overlap `search_repos_github` almost exactly. Source: `features/developer.mdx` in `firecrawl/firecrawl-docs`.
 
 So it does not fit the `search_code_*` family. What it adds is narrower than it first looks, because folding in pi-web-tools — [ticket 12](tickets/12-folding-pi-web-tools-into-the-librarian.md) — already brings issues and pull requests: `web_fetch` reads any of them with their conversations, and searches one repository's issues and PRs through a listing URL with `?q=`. What the Developer Index adds on top is **search across repositories**, and **natural-language questions over READMEs and documentation**.
@@ -1350,7 +1388,51 @@ So it does not fit the `search_code_*` family. What it adds is narrower than it 
 Two constraints:
 
 - **It is unreachable from at least one corporate network**, where a category filter blocks it at the proxy. It cannot be the only path to anything.
-- **Nothing about it gets measured here.** Every open question — query behaviour, result ceiling, keyless rate limits, whether it beats `web_search` on a library question, how its repository filters compare with GitHub's — is in [`PERSONAL_TASKS.md`](PERSONAL_TASKS.md).
+- **Nothing about it gets measured on that network.** It was measured from an orb instead, below.
+
+### Measured, keyless
+
+About 45 calls to `/v2/search/developer` from an orb. Three research questions — a library behaviour question (drizzle nested transactions), an error message (`ERR_REQUIRE_ESM`), and "was this bug fixed" (vitest fake timers and `setImmediate`) — at `k=10`, then scope, filter, and limit probes.
+
+**The live response is not the documented one.** It has `success`, `partial`, and `results`, plus `repos` when scoped. No `coverage`, no `reranked`, and no `type` on a result; the kind is the `id` prefix alone. And there is a fifth, undocumented kind, **`web:`**: general web pages — Stack Overflow, Medium, dev.to, Sentry's answers — were 3, 5, and 3 of the 10 results for the three questions. So the index is partly a web search already.
+
+| behaviour          | measured                                                                                                                                                                                                                                                                     |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| result kinds       | `doc`, `issue`, `pull_request`, `readme`, and `web`; at `k=100` on "typescript orm", 56 doc, 17 readme, 15 issue, 8 pull request, 4 web                                                                                                                                      |
+| passages           | one per result by default, 79 to 3,370 characters, median 170, 90th percentile 770. **Some results have none**: 5 of 10 in a scoped search, 18 of 100 at `k=100`                                                                                                             |
+| `title`            | absent once in 100. More often present and useless: an issue's title is its id (`vitest-dev/vitest#4004`) for 6 of 10 results in one scoped search, and a pull request's is the first line of its body (`Fixes [#11380](…)`)                                                 |
+| result ceiling     | `k` up to 100; `k=101` is a `400` naming the bound                                                                                                                                                                                                                           |
+| completeness       | `partial`, always `false` in every call made                                                                                                                                                                                                                                 |
+| scope echo         | works as documented: `repos: ["vitest-dev/vitest", "thurstonsand/pi-librarian"]` echoed `indexed: true` with all three types for the first and `false` for the second                                                                                                        |
+| repository filters | `language` with no `types` dropped `doc` and `web` results, as documented                                                                                                                                                                                                    |
+| latency            | 0.5–1.6s at `k=10`, 2.1s at `k=100`                                                                                                                                                                                                                                          |
+| keyless limit      | **about 100 credits a day per IP**, and the credit cap binds first: refused after about 42 searches costing about 100 credits, with `reason: "credits"` and `retry_after_seconds: 85930`. No per-minute limit before that; a 20-wide burst was refused only by the daily cap |
+
+**Against GitHub issue search, it does not earn its place inside one repository.** Scoped to `vitest-dev/vitest`, its top ten held issues #4004, #11380, and #621 and the fixing pull request #11681. GitHub's issue search, with `is:issue`, returned #11380, #7142, #4004, #5027, and #621, and with `is:pr` returned #11681 first. Same answer, one more call — the API refuses a query without `is:issue` or `is:pr`. Unscoped, its first result for the bug question was a pull request in an unrelated project that hit the same vitest behaviour: on topic, but not the answer to "was this fixed in vitest".
+
+**Against `search_repos_github`, its repository half agrees on the leaders and nothing else.** "typescript orm" with `types: ["readme"]`, `language: "TypeScript"`, `min_stars: 1000` against `orm language:TypeScript stars:>1000` on GitHub: both have drizzle, typeorm, mikro-orm, and adonisjs/lucid. Firecrawl ranks by README text, so a starter template, an examples repository, and an object mapper come in, and it returns no stars, language, or dates to judge them by. It also named `prisma/prisma`, which GitHub now calls `prisma/orm` — the index keeps a repository's old name. `search_repos_github` stays the tool for repository discovery.
+
+So its case rests on **documentation and READMEs across projects**, which is the `web_search` comparison below.
+
+### With a key, and against `web_search`
+
+**A key changes the limit, not the results.** The three questions again with a free key: the same top tens, reordered by a place or two, with two or three entries swapped for others of the same kind. No rate-limit header, and a 25-wide burst all answered `200`.
+
+**`web_search` answered two of the three better and tied the third.** The same questions, as `objective` with `max_results: 10`:
+
+| question                              | `web_search`                                                                                                                             | Developer Index                                                                            |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| drizzle nested transactions           | issues #958 and #1936, the better-drizzle and devsheets pages, `drizzle-transaction-context` — the same evidence                         | the same, plus official drizzle docs pages; one titled "Transactions" is the seed overview |
+| `ERR_REQUIRE_ESM`                     | **the Node.js 22.12.0 and 20.19.0 release notes**, where `require(esm)` was unflagged — the actual fix — and Vite's troubleshooting page | forum answers, blog posts, and issues in unrelated projects that hit the error             |
+| vitest fake timers and `setImmediate` | **vitest.dev's `fakeTimers` config page** first, the timers guide, and vitest's own `timers.ts`                                          | an unrelated project's pull request first, two Bun issues; vitest's `faketimers.md` fifth  |
+
+`web_search` returned about 8,000 characters of excerpts per question to the Index's 3,000–10,000, so neither is cheaper to read.
+
+### Decision
+
+**Dropped.** Every half of it is covered — issues and pull requests in one repository by GitHub's own search through `web_fetch`, repository discovery by `search_repos_github` with the attributes to judge by, and documentation by `web_search`, which found the primary source where the Index found secondary ones. Its one remaining advantage, issue search across repositories, led with unrelated projects' issues and pull requests in two of the three questions. And it is unreachable from one of the networks this has to work on.
+
+The one way Firecrawl could return is as a second `web_search` backend beside Parallel. That would be its general `/v2/search`, a web search, not the Developer Index, and nothing about it has been measured.
 
 
 ## `find_definition`, and why there is no `find_references`
@@ -1667,7 +1749,7 @@ In [What the user sees](#what-the-user-sees), with every state.
 
 - **`provide_results` locations carry a required `source`.**
 - **`read_file` reads from code hosts only**, not Sourcegraph.
-- **Firecrawl's Developer Index sits beside `web_search`**, in the package ticket 12 creates.
+- **Firecrawl's Developer Index sits beside `web_search`**, in the package ticket 12 creates. Superseded: measured, then dropped; see its section.
 - **Librarian runs load no prompt files but ours**: `noContextFiles: true` for `AGENTS.md`, and `appendSystemPromptOverride: () => []` for `APPEND_SYSTEM.md`, which leaks the same way.
 - **The search budget defaults to 15 seconds and is a setting**, `librarian.search.timeoutSeconds`.
 - **`search_repos_sourcegraph` loses `contains_content`**, because "which repositories contain this code" is `search_code_sourcegraph` with `detail: "repos"`. Repository search asks what a repository is; code search asks what it contains.
@@ -1699,4 +1781,4 @@ In [What the user sees](#what-the-user-sees), with every state.
 
 ### Measured elsewhere
 
-Everything that needs a personal machine or a personal account is in [`PERSONAL_TASKS.md`](PERSONAL_TASKS.md): grep.app's cells, gitlab.com's advanced-search availability, and every Firecrawl question.
+Everything that needed a personal machine or account was measured from an orb on 2026-10-31 and is recorded where it applies: grep.app's cells, gitlab.com, Parallel in [ticket 12](tickets/12-folding-pi-web-tools-into-the-librarian.md), and the Developer Index. What needs the work machine — the self-hosted GitLab's `search_type`, GitHub Enterprise, and the unscoped GitLab path — is in [`WORK_TASKS.md`](WORK_TASKS.md).

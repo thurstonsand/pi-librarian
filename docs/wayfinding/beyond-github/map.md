@@ -4,7 +4,7 @@
 
 An accepted design doc in `docs/designs/` that takes the librarian from GitHub-only research to any code the user can reach — search backends, code hosts, the tool surface they expose, and how results are delivered — complete enough to hand to `/grill-me` Gate 3 for execution planning.
 
-**Reached**: [Research beyond GitHub](../../designs/12-beyond-github.md) records what was built. Every ticket is closed; what remains is in [Personal tasks](PERSONAL_TASKS.md).
+**Reached**: [Research beyond GitHub](../../designs/12-beyond-github.md) records what was built. Every ticket is closed; what remains is in [Work tasks](WORK_TASKS.md).
 
 ## Notes
 
@@ -20,7 +20,7 @@ An accepted design doc in `docs/designs/` that takes the librarian from GitHub-o
 
 **Working artifact**: [Tool surface: inputs, outputs, and wording](tool-surface.md) — full tool definitions under review, including the shared delivery contract. It began as ticket 09's output arriving early, because the shapes were needed to argue about ticket 06, and became the literal text the tools were built from.
 
-**Personal tasks**: [Personal tasks](PERSONAL_TASKS.md) — measurements that need a personal machine or account: grep.app, gitlab.com advanced search, GitHub Enterprise, Parallel, and the Firecrawl Developer Index.
+**Work tasks**: [Work tasks](WORK_TASKS.md) — checks that need the work machine: the self-hosted GitLab, and GitHub Enterprise.
 
 ## Decisions so far
 
@@ -43,7 +43,7 @@ An accepted design doc in `docs/designs/` that takes the librarian from GitHub-o
 
 ## Built
 
-The [tool surface](tool-surface.md) is implemented on `beyond-github`: settings for built-in sources, tokens, and the search budget; runs isolated from the user's prompt files; one search tool per engine for GitHub, grep.app, Sourcegraph, GitLab, and Bitbucket Server, on a shared digest, artifact, and budget; `read_file` on every code host; a composed prompt; the attach renderer; and a usage log for tuning the default result count. Each engine was smoke-tested live where it was reachable. Deviations found while building are recorded in the tool surface where they apply. What could not be tested from here is in [`PERSONAL_TASKS.md`](PERSONAL_TASKS.md). Ticket 12 then folded pi-web-tools in: `web_search` and `web_fetch` ship here, granted to every run; the GitHub fetcher shares the repo tools' client; issues carry their filtered timeline; and extra tools are removed.
+The [tool surface](tool-surface.md) is implemented on `beyond-github`: settings for built-in sources, tokens, and the search budget; runs isolated from the user's prompt files; one search tool per engine for GitHub, grep.app, Sourcegraph, GitLab, and Bitbucket Server, on a shared digest, artifact, and budget; `read_file` on every code host; a composed prompt; the attach renderer; and a usage log for tuning the default result count. Each engine was smoke-tested live where it was reachable. Deviations found while building are recorded in the tool surface where they apply. What could not be tested from here was then measured from an orb, except what needs the work machine, in [`WORK_TASKS.md`](WORK_TASKS.md). Ticket 12 then folded pi-web-tools in: `web_search` and `web_fetch` ship here, granted to every run; the GitHub fetcher shares the repo tools' client; issues carry their filtered timeline; and extra tools are removed.
 
 ## Settled while building, or deferred
 
@@ -53,7 +53,7 @@ The [tool surface](tool-surface.md) is implemented on `beyond-github`: settings 
 - **Scoping the librarian tool itself** is settled by removal: `repos` and `owners` could not say which host they meant and were never enforced, so the `query` description asks for the repositories and their source instead.
 - **The staleness window** is settled by reading the code: an explicit `ref` always fetches from the origin regardless of `FETCH_DEBOUNCE_MS`, so a search hit's commit is checked out exactly, and only a default-branch checkout can be up to 15 minutes old. `checkout_repo`'s and `read_file`'s `ref` descriptions now say to pass the hit's commit; see the [tool surface](tool-surface.md).
 - **Testing without a live instance** is settled: tests stub `fetch` at the network boundary, so the real clients, query building, and response parsing run, and assert the request each engine receives and the digest the agent gets.
-- **Converging with `pi-web-tools`** is done: [Folding pi-web-tools into the librarian](tickets/12-folding-pi-web-tools-into-the-librarian.md) records each decision. Firecrawl's Developer Index stays a personal-machine evaluation.
+- **Converging with `pi-web-tools`** is done: [Folding pi-web-tools into the librarian](tickets/12-folding-pi-web-tools-into-the-librarian.md) records each decision. Firecrawl's Developer Index was evaluated and dropped: `web_search`, `search_repos_github`, and GitHub's issue search already cover it, and did better where they overlap.
 - **Dependencies** are settled by building: GitLab, Bitbucket Server, Sourcegraph, and Parallel are each a few authenticated requests over `fetch`, validated with TypeBox. Only GitHub keeps a first-party client, `@octokit/rest`, behind `github.ts`'s validated `get`, `getRaw`, and `graphql`.
 
 ## Out of scope
