@@ -2,6 +2,12 @@
 
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- `find_definition` says that symbol kinds are exact, so an agent no longer misses a method by asking for a `function`.
+
 ## 0.7.1
 
 Reads a source's token from a command, so a password manager can hold it.

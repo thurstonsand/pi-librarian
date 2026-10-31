@@ -99,7 +99,10 @@ export function createFindDefinitionTool(
     ...sourceProperties(instances, "Which Sourcegraph to search"),
     symbol: Type.String({ description: "Exact symbol name, e.g. NewClient." }),
     kind: Type.Optional(
-      StringEnum(SYMBOL_KINDS, { description: "Only definitions of this kind." }),
+      StringEnum(SYMBOL_KINDS, {
+        description:
+          "Only definitions of this kind. Kinds are exact: `function` excludes `method` (Go receivers, Java members), `class` excludes `struct`. Omit unless the name is ambiguous.",
+      }),
     ),
     repos: Type.Optional(
       Type.Array(Type.String(), {
