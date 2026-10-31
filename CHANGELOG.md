@@ -2,7 +2,7 @@
 
 # Changelog
 
-## Unreleased
+## 0.7.0
 
 Researches code beyond GitHub: declared GitLab, Bitbucket Server, and Sourcegraph instances, one search tool per engine. Absorbs pi-web-tools: `web_search` and `web_fetch` ship here, in your session and in every librarian run.
 
@@ -25,7 +25,7 @@ Researches code beyond GitHub: declared GitLab, Bitbucket Server, and Sourcegrap
 - `librarian.sources` declares GitLab, Bitbucket Server, Sourcegraph, and other GitHub instances by `name`, `url`, and `kind`, each with optional `disabled` roles; `checkout_repo` clones from any declared source.
 - `librarian.tools.disabled` removes tools from librarian runs.
 - `search_code_sourcegraph`, `search_repos_sourcegraph`, and `find_definition` for a declared Sourcegraph; `search_code_gitlab` and `search_repos_gitlab` for a declared GitLab; `search_code_bitbucket` and `search_repos_bitbucket` for a declared Bitbucket Server.
-- Every search writes its full results to `<cacheDir>/searches/<call-id>/results.jsonl` and returns a digest saying what was found, whether the search was complete, and what is shown. `limit` takes up to 50 results, 10 by default (`librarian.search.defaultLimit`).
+- Every search writes its full results to `<cacheDir>/searches/<call-id>/results.jsonl` and returns a digest saying what was found, whether the search was complete, and what is shown. `limit` takes up to 50 results (10 on grep.app, which returns no more), 10 by default (`librarian.search.defaultLimit`).
 - A search running past `librarian.search.timeoutSeconds` (15 by default) is an error that cancels the request and says how to narrow it.
 - Sources read API tokens from the variable `tokenEnv` names, or their kind's usual one; a source without a token still clones. `advancedSearch` marks a GitLab with advanced search.
 - Attached tools render their results: a summary and the first entries collapsed, metadata and matched lines expanded.
