@@ -2,7 +2,9 @@
 
 # Changelog
 
-## Unreleased
+## 0.7.1
+
+Reads a source's token from a command, so a password manager can hold it.
 
 ### Added
 
