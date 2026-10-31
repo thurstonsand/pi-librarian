@@ -134,8 +134,13 @@ function splitRepo(repo: string): { project: string; slug: string } {
 export class BitbucketClient {
   constructor(
     private readonly url: string,
-    private readonly token: string,
+    private readonly token: () => Promise<string>,
   ) {}
+
+  // Resolves the token ahead of a search, so its time budget covers only the search.
+  async authorize(): Promise<void> {
+    await this.token();
+  }
 
   private async request(
     path: string,
@@ -151,7 +156,7 @@ export class BitbucketClient {
     const response = await fetch(url, {
       method: init.method ?? "GET",
       headers: {
-        authorization: `Bearer ${this.token}`,
+        authorization: `Bearer ${await this.token()}`,
         "user-agent": "pi-librarian",
         ...(init.body === undefined ? {} : { "content-type": "application/json" }),
       },

@@ -178,6 +178,7 @@ export function createSearchCodeGitLabTool(
         ? "filters scan the whole project; search without them, then read the files."
         : "use a rarer pattern, or narrow with path.";
 
+      await client.authorize();
       const { files, hasMore, total, projectPaths } = await runRestSearch(
         search,
         signal,

@@ -1,7 +1,6 @@
-import { exec } from "node:child_process";
-import { promisify } from "node:util";
 import { Type } from "typebox";
 import { parseTypeBoxValue, safeParseTypeBoxValue } from "../../shared/typebox.ts";
+import { runCredentialCommand } from "../credential-command.ts";
 import type { ParallelSettings } from "../settings.ts";
 import type { FetchedDocument, FetchWarning, WebFetcher } from "./contract.ts";
 import { formatWarnings, writeDocumentBody } from "./shared.ts";
@@ -11,8 +10,6 @@ export const DEFAULT_MAX_RESULTS = 5;
 export const MAX_MAX_RESULTS = 8;
 
 const API_URL = "https://api.parallel.ai/v1";
-
-const execAsync = promisify(exec);
 
 export interface ParallelSearchRequest {
   objective: string;
@@ -90,23 +87,7 @@ async function resolveApiKey(
   if (!settings.apiKeyCommand) {
     throw new Error("Parallel credentials are not configured");
   }
-  let apiKey: string;
-  try {
-    const command = execAsync(settings.apiKeyCommand, {
-      timeout: 30_000,
-      maxBuffer: 64 * 1024,
-      ...(signal ? { signal } : {}),
-    });
-    command.child.stdin?.end();
-    apiKey = (await command).stdout.trim();
-  } catch {
-    // Subprocess errors include the command and output, which may contain credentials.
-    throw new Error("Parallel API key command failed");
-  }
-  if (!apiKey || /\s/.test(apiKey)) {
-    throw new Error("Parallel API key command must return a single nonempty key");
-  }
-  return apiKey;
+  return runCredentialCommand(settings.apiKeyCommand, "Parallel API key command", signal);
 }
 
 export function normalizeSearchQueries(

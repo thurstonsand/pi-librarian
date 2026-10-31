@@ -2,6 +2,12 @@
 
 # Changelog
 
+## Unreleased
+
+### Added
+
+- A source's `tokenCommand` reads its token from a command, such as a password manager's CLI, instead of an environment variable. It runs once, on first use, and outside the search time limit.
+
 ## 0.7.0
 
 Researches code beyond GitHub: declared GitLab, Bitbucket Server, and Sourcegraph instances, one search tool per engine. Absorbs pi-web-tools: `web_search` and `web_fetch` ship here, in your session and in every librarian run.

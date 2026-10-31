@@ -105,7 +105,8 @@ In pi's global `settings.json`:
       {
         "name": "example-sg",
         "url": "https://search.example.com",
-        "kind": "sourcegraph"
+        "kind": "sourcegraph",
+        "tokenCommand": "op read op://Private/Sourcegraph/credential"
       }
     ],
     "builtInSources": { "github": true, "gitlab.com": false },
@@ -143,7 +144,7 @@ In pi's global `settings.json`:
 
 Each `librarian.sources` entry requires a unique `name`, an HTTPS `url`, and a `kind`: `github`, `gitlab`, `bitbucket-server`, or `sourcegraph`. The `kind` decides which roles a source can play — `clone`, `code-search`, `repo-search` — unless `disabled`. `github` and `gitlab.com` are built in and need no entry; `builtInSources` switches each on or off as a whole, and a switched-off source does not exist at all, though a full clone URL to its host still clones.
 
-Search needs an API token; cloning does not, because it uses git's own credentials. A source reads its token from the environment variable named by `tokenEnv`, or by default from its kind's usual variable: `GITHUB_TOKEN`/`GH_TOKEN`, `GITLAB_ACCESS_TOKEN`, `BITBUCKET_TOKEN`, `SRC_ACCESS_TOKEN`. A source without a token keeps cloning and loses its search tools. `advancedSearch: true`, on a `gitlab` source only, says the instance has GitLab's advanced search, which lets code search span projects. `description` is up to 300 characters the agent cannot discover for itself, such as what a Sourcegraph does not index; it ends the description of every tool that reaches that source, so attached tools carry it too. Note that `librarian.tools.disabled` is a different lever: it removes a tool from the run entirely, where a source's `disabled` removes one source from one role.
+Search needs an API token; cloning does not, because it uses git's own credentials. A source reads its token from the environment variable named by `tokenEnv`, from what `tokenCommand` prints, or by default from its kind's usual variable: `GITHUB_TOKEN`/`GH_TOKEN`, `GITLAB_ACCESS_TOKEN`, `BITBUCKET_TOKEN`, `SRC_ACCESS_TOKEN`. `tokenCommand` runs once, the first time the source is used, and outside the search time limit; restart pi after rotating the token it prints. A source without a token keeps cloning and loses its search tools. `advancedSearch: true`, on a `gitlab` source only, says the instance has GitLab's advanced search, which lets code search span projects. `description` is up to 300 characters the agent cannot discover for itself, such as what a Sourcegraph does not index; it ends the description of every tool that reaches that source, so attached tools carry it too. Note that `librarian.tools.disabled` is a different lever: it removes a tool from the run entirely, where a source's `disabled` removes one source from one role.
 
 Every key under `librarian` is checked, and an unknown one is an error rather than ignored. Librarian runs have `read`, `grep`, `find`, `ls`, `bash`, the research tools, and the web tools; never `write` or `edit`.
 

@@ -145,6 +145,7 @@ export function createSearchReposGitLabTool(
         sort: params.sort ?? "activity",
         limit,
       });
+      await client.authorize();
       const result = await runRestSearch(
         search,
         signal,

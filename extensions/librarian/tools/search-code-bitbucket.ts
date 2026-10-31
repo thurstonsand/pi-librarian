@@ -136,6 +136,7 @@ export function createSearchCodeBitbucketTool(
         path: params.path,
       });
       const limit = resolveLimit(params.limit, search, BITBUCKET_MAX);
+      await client.authorize();
       const result = await runRestSearch(
         search,
         signal,

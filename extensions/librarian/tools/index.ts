@@ -1,6 +1,7 @@
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { BitbucketClient, createBitbucketFileReader } from "../bitbucket.ts";
 import { cloneSources } from "../checkout.ts";
+import { runCredentialCommand } from "../credential-command.ts";
 import {
   createGitHubClientProvider,
   createGitHubFileReader,
@@ -8,7 +9,13 @@ import {
 } from "../github.ts";
 import { createGitLabFileReader, GitLabClient } from "../gitlab.ts";
 import type { RepoFileReader } from "../repo-entry.ts";
-import type { LibrarianSettings, LibrarianSource, SourceKind, SourceRole } from "../settings.ts";
+import type {
+  LibrarianSettings,
+  LibrarianSource,
+  SourceKind,
+  SourceRole,
+  SourceToken,
+} from "../settings.ts";
 import { SourcegraphClient } from "../sourcegraph.ts";
 import { createCheckoutRepoTool } from "./checkout-repo.ts";
 import { createFindDefinitionTool } from "./find-definition.ts";
@@ -42,6 +49,25 @@ export function sourcesWith(
   return sources.filter((source) => source.kind === kind && source.roles.includes(role));
 }
 
+// A command's token is fetched once, on first use; a failure is not kept, so the next call retries.
+function tokenResolver(source: LibrarianSource, token: SourceToken): () => Promise<string> {
+  if (token.kind === "value") {
+    return async () => token.value;
+  }
+  let resolved: Promise<string> | undefined;
+  return () => {
+    resolved ??= runCredentialCommand(
+      token.command,
+      `librarian.sources "${source.name}" tokenCommand`,
+      undefined,
+    ).catch((error: unknown) => {
+      resolved = undefined;
+      throw error;
+    });
+    return resolved;
+  };
+}
+
 // ghCliToken is the built-in github source's fallback when no token variable is set.
 export function createRepoClients(
   settings: LibrarianSettings,
@@ -58,7 +84,11 @@ export function createRepoClients(
       case "github": {
         const token = source.token;
         const provider = createGitHubClientProvider(
-          source.name === "github" && token === undefined ? ghCliToken : async () => token,
+          token === undefined
+            ? source.name === "github"
+              ? ghCliToken
+              : async () => undefined
+            : tokenResolver(source, token),
           source.url,
         );
         github.set(source.name, provider);
@@ -67,19 +97,26 @@ export function createRepoClients(
       }
       case "sourcegraph":
         if (source.token) {
-          sourcegraph.set(source.name, new SourcegraphClient(source.url, source.token));
+          sourcegraph.set(
+            source.name,
+            new SourcegraphClient(source.url, tokenResolver(source, source.token)),
+          );
         }
         break;
       case "gitlab":
         if (source.token) {
-          const client = new GitLabClient(source.url, source.token, Date.now);
+          const client = new GitLabClient(
+            source.url,
+            tokenResolver(source, source.token),
+            Date.now,
+          );
           gitlab.set(source.name, client);
           readers.set(source.name, createGitLabFileReader(client));
         }
         break;
       case "bitbucket-server":
         if (source.token) {
-          const client = new BitbucketClient(source.url, source.token);
+          const client = new BitbucketClient(source.url, tokenResolver(source, source.token));
           bitbucket.set(source.name, client);
           readers.set(source.name, createBitbucketFileReader(client));
         }

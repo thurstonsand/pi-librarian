@@ -126,8 +126,13 @@ function toMatch(value: unknown): SourcegraphMatch {
 export class SourcegraphClient {
   constructor(
     private readonly url: string,
-    private readonly token: string,
+    private readonly token: () => Promise<string>,
   ) {}
+
+  // Resolves the token ahead of a search, so its time budget covers only the search.
+  async authorize(): Promise<void> {
+    await this.token();
+  }
 
   async streamSearch(params: StreamSearchParams): Promise<StreamResult> {
     const url = new URL("/.api/search/stream", this.url);
@@ -137,7 +142,7 @@ export class SourcegraphClient {
 
     const response = await fetch(url, {
       headers: {
-        authorization: `token ${this.token}`,
+        authorization: `token ${await this.token()}`,
         accept: "text/event-stream",
         "user-agent": "pi-librarian",
       },

@@ -168,10 +168,15 @@ export class GitLabClient {
 
   constructor(
     private readonly url: string,
-    private readonly token: string,
+    private readonly token: () => Promise<string>,
     now: () => number,
   ) {
     this.codeSearches = new CodeSearchWindow(now);
+  }
+
+  // Resolves the token ahead of a search, so its time budget covers only the search.
+  async authorize(): Promise<void> {
+    await this.token();
   }
 
   private async request(
@@ -188,7 +193,7 @@ export class GitLabClient {
     }
     const response = await fetch(url, {
       method,
-      headers: { "private-token": this.token, "user-agent": "pi-librarian" },
+      headers: { "private-token": await this.token(), "user-agent": "pi-librarian" },
       ...(signal ? { signal } : {}),
     });
     if (!response.ok) {

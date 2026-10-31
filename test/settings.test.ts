@@ -164,7 +164,7 @@ describe("resolveLibrarianSettings", () => {
         url: "https://gitlab.example.com",
         kind: "gitlab",
         roles: ["clone", "code-search", "repo-search"],
-        token: "secret-gl",
+        token: { kind: "value", value: "secret-gl" },
         advancedSearch: true,
         description: "Nothing here is mirrored to example-bb.",
       },
@@ -177,7 +177,41 @@ describe("resolveLibrarianSettings", () => {
       { SRC_ACCESS_TOKEN: "secret-sg" },
     );
     expect(settings.sources[1]?.roles).toEqual(["code-search", "repo-search"]);
-    expect(settings.sources[1]?.token).toBe("secret-sg");
+    expect(settings.sources[1]?.token).toEqual({ kind: "value", value: "secret-sg" });
+  });
+
+  it("takes tokenCommand as the source's credential without running it, and refuses tokenEnv beside it", () => {
+    const declared = {
+      name: "example-sg",
+      url: "https://search.example.com",
+      kind: "sourcegraph" as const,
+      tokenCommand: "  op read op://Private/Sourcegraph/credential ",
+    };
+    const settings = resolveLibrarianSettings(
+      { sources: [declared] },
+      { SRC_ACCESS_TOKEN: "conventional-variable" },
+    );
+    expect(settings.sources[1]?.token).toEqual({
+      kind: "command",
+      command: "op read op://Private/Sourcegraph/credential",
+    });
+    expect(settings.sources[1]?.roles).toEqual(["code-search", "repo-search"]);
+
+    expect(() =>
+      resolveLibrarianSettings({ sources: [{ ...declared, tokenEnv: "EXAMPLE_SG_TOKEN" }] }, {}),
+    ).toThrow('librarian.sources "example-sg" sets both tokenEnv and tokenCommand; keep one.');
+  });
+
+  it.each(["", "  "])("rejects the source token command %j", (tokenCommand) => {
+    const source = {
+      name: "sg",
+      url: "https://search.example.com",
+      kind: "sourcegraph",
+      tokenCommand,
+    };
+    expect(() => parseSettings({ librarian: { sources: [source] } }, {})).toThrow(
+      "Invalid settings: /librarian/sources/0/tokenCommand",
+    );
   });
 
   it("switches built-in sources on and off as a whole", () => {

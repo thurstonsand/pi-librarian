@@ -1,3 +1,5 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { stubFetch } from "./support/fetch-stub.ts";
 import {
@@ -345,5 +347,64 @@ describe("find_definition", () => {
       "example-bb — clone with source: example-bb",
       " 1. PROJ/widget-sdk — src/retry.ts:30 (a1b2c3d) — function in retry",
     ]);
+  });
+});
+
+describe("a source's tokenCommand", () => {
+  function commandSettings(command: string) {
+    return {
+      cacheDir,
+      sources: [
+        {
+          name: "example-sg",
+          url: "https://search.example.com",
+          kind: "sourcegraph" as const,
+          tokenCommand: command,
+        },
+      ],
+    };
+  }
+
+  it("runs once, on first use, and sends what it prints", async () => {
+    const runs = path.join(cacheDir, "runs");
+    const requests = stubFetch([
+      () =>
+        sse([
+          ["progress", progress(0, 0, 3)],
+          ["done", {}],
+        ]),
+    ]);
+    const tools = repoTools(commandSettings(`echo run >> "${runs}"; printf sgp-from-command`), {});
+
+    await call(tools, "search_code_sourcegraph", { pattern: "computeBackoff" });
+    await call(tools, "search_code_sourcegraph", { pattern: "retryPolicy" });
+
+    expect(requests.map((request) => request.headers.get("authorization"))).toEqual([
+      "token sgp-from-command",
+      "token sgp-from-command",
+    ]);
+    expect(await fs.readFile(runs, "utf8")).toBe("run\n");
+  });
+
+  it("runs again after a failure, whose message names the source and not the command", async () => {
+    const marker = path.join(cacheDir, "failed-once");
+    stubFetch([
+      () =>
+        sse([
+          ["progress", progress(0, 0, 3)],
+          ["done", {}],
+        ]),
+    ]);
+    const tools = repoTools(
+      commandSettings(
+        `test -f "${marker}" || { touch "${marker}"; echo secret-output >&2; exit 1; }; printf sgp-second`,
+      ),
+      {},
+    );
+
+    const failure = call(tools, "search_code_sourcegraph", { pattern: "computeBackoff" });
+    await expect(failure).rejects.toThrow('librarian.sources "example-sg" tokenCommand failed');
+    await expect(failure).rejects.not.toThrow(/secret-output|failed-once/);
+    await call(tools, "search_code_sourcegraph", { pattern: "computeBackoff" });
   });
 });

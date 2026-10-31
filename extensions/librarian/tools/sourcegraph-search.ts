@@ -53,6 +53,8 @@ export async function runSourcegraphSearch(
       ),
     );
 
+  // The budget is for the search; a token command can take seconds on first use.
+  await request.client.authorize();
   const result = await withSearchDeadline(
     timeoutMs + CLIENT_GRACE_MS,
     request.signal,

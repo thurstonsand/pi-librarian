@@ -159,6 +159,21 @@ describe("CodeSearchWindow", () => {
 });
 
 describe("search_repos_gitlab", () => {
+  it("fetches a tokenCommand's token before the search budget starts", async () => {
+    const requests = stubFetch([() => json([], { "x-total": "0" })]);
+    const declared = {
+      name: "example-gl",
+      url: "https://gitlab.example.com",
+      kind: "gitlab" as const,
+      tokenCommand: "sleep 0.5; printf glpat-slow",
+    };
+    const tools = repoTools({ cacheDir, sources: [declared], search: { timeoutSeconds: 0.2 } }, {});
+
+    await call(tools, "search_repos_gitlab", { name: "widget" });
+
+    expect(requests.map((request) => request.headers.get("private-token"))).toEqual(["glpat-slow"]);
+  });
+
   it("sends explicit ordering and archived=false, and group-path matching only for a group path", async () => {
     const requests = stubFetch([
       () =>

@@ -133,7 +133,7 @@ describe("Parallel API key command", () => {
     async (invalidCommand) => {
       parallelStub();
       await expect(client(invalidCommand).search(searchRequest(), undefined)).rejects.toThrow(
-        "Parallel API key command must return a single nonempty key",
+        "Parallel API key command must print a single nonempty value",
       );
     },
   );

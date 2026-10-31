@@ -64,6 +64,7 @@ export function createSearchReposBitbucketTool(
       }
       const limit = resolveLimit(params.limit, search, BITBUCKET_MAX);
       const project = params.project ? rejectUnsafeValue("project", params.project) : undefined;
+      await client.authorize();
       const result = await runRestSearch(
         search,
         signal,

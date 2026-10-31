@@ -51,6 +51,7 @@ const SOURCE_SCHEMA = Type.Object(
     kind: SOURCE_KIND_SCHEMA,
     disabled: Type.Optional(Type.Array(SOURCE_ROLE_SCHEMA, { uniqueItems: true })),
     tokenEnv: Type.Optional(Type.String({ minLength: 1 })),
+    tokenCommand: Type.Optional(Type.String({ pattern: "\\S" })),
     advancedSearch: Type.Optional(Type.Boolean()),
     description: Type.Optional(Type.String({ pattern: "\\S", maxLength: MAX_SOURCE_DESCRIPTION })),
   },
@@ -154,12 +155,16 @@ export class ModelReference {
 // Search roles need an API credential and are dropped without one; cloning uses git's own
 // credentials, so a source without a token still clones. The built-in github source is the
 // exception: its token is resolved lazily, falling back to the gh CLI.
+// A command runs only when the source is first used, so a slow or interactive secret store costs
+// nothing at startup.
+export type SourceToken = { kind: "value"; value: string } | { kind: "command"; command: string };
+
 export interface LibrarianSource {
   name: string;
   url: string;
   kind: SourceKind;
   roles: SourceRole[];
-  token: string | undefined;
+  token: SourceToken | undefined;
   advancedSearch: boolean;
   description: string | undefined;
 }
@@ -169,7 +174,7 @@ export interface CloneSource {
   url: string;
   kind: CloneSourceKind;
   roles: SourceRole[];
-  token: string | undefined;
+  token: SourceToken | undefined;
   advancedSearch: boolean;
   description: string | undefined;
 }
@@ -409,11 +414,11 @@ function resolveToken(
   kind: SourceKind,
   tokenEnv: string | undefined,
   env: NodeJS.ProcessEnv,
-): string | undefined {
+): SourceToken | undefined {
   for (const variable of tokenEnv ? [tokenEnv] : CONVENTIONAL_TOKEN_ENV[kind]) {
     const value = env[variable]?.trim();
     if (value) {
-      return value;
+      return { kind: "value", value };
     }
   }
   return undefined;
@@ -422,7 +427,7 @@ function resolveToken(
 function rolesWithCredential(
   kind: SourceKind,
   roles: readonly SourceRole[],
-  token: string | undefined,
+  token: SourceToken | undefined,
 ): SourceRole[] {
   return token || kind === "github" ? [...roles] : roles.filter((role) => role === "clone");
 }
@@ -485,9 +490,15 @@ function normalizeSources(
       );
     }
 
+    if (value.tokenEnv !== undefined && value.tokenCommand !== undefined) {
+      throw new Error(`librarian.sources "${name}" sets both tokenEnv and tokenCommand; keep one.`);
+    }
     const tokenEnv =
       value.tokenEnv === undefined ? undefined : validateTokenEnv(value.tokenEnv, name);
-    const token = resolveToken(value.kind, tokenEnv, env);
+    const token: SourceToken | undefined =
+      value.tokenCommand === undefined
+        ? resolveToken(value.kind, tokenEnv, env)
+        : { kind: "command", command: value.tokenCommand.trim() };
 
     names.add(name);
     hostnames.add(hostname);
