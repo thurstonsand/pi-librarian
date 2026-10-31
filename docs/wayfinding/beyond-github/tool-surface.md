@@ -1781,4 +1781,4 @@ In [What the user sees](#what-the-user-sees), with every state.
 
 ### Measured elsewhere
 
-Everything that needed a personal machine or account was measured from an orb on 2026-10-31 and is recorded where it applies: grep.app's cells, gitlab.com, Parallel in [ticket 12](tickets/12-folding-pi-web-tools-into-the-librarian.md), and the Developer Index. What needs the work machine — the self-hosted GitLab's `search_type`, GitHub Enterprise, and the unscoped GitLab path — is in [`WORK_TASKS.md`](WORK_TASKS.md).
+Everything that needed a personal machine or account was measured from an orb on 2026-10-31 and is recorded where it applies: grep.app's cells, gitlab.com, Parallel in [ticket 12](tickets/12-folding-pi-web-tools-into-the-librarian.md), and the Developer Index. What needs the work machine — the self-hosted GitLab's `search_type`, GitHub Enterprise, and the unscoped GitLab path — is unverified, and left to deploying there.

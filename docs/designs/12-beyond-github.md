@@ -30,4 +30,4 @@ This record summarizes what was built. The reasoning lives in the [wayfinding ma
 
 - **Attach-mode weight.** `/librarian` adds every repo tool to the main session; whether attach needs a narrower set waits on the usage log.
 - **Caching search responses** within a run. Unexamined; clones are already cached.
-- **Measurements this machine cannot make**: grep.app, gitlab.com advanced search, Parallel, and Firecrawl's Developer Index were measured from an orb and recorded in the [tool surface](../wayfinding/beyond-github/tool-surface.md); what needs the work machine is in [Work tasks](../wayfinding/beyond-github/WORK_TASKS.md).
+- **Measurements this machine cannot make**: grep.app, gitlab.com advanced search, Parallel, and Firecrawl's Developer Index were measured from an orb and recorded in the [tool surface](../wayfinding/beyond-github/tool-surface.md). What only the work machine can check is left to deploying there.

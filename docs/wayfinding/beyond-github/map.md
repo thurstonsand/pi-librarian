@@ -4,7 +4,7 @@
 
 An accepted design doc in `docs/designs/` that takes the librarian from GitHub-only research to any code the user can reach — search backends, code hosts, the tool surface they expose, and how results are delivered — complete enough to hand to `/grill-me` Gate 3 for execution planning.
 
-**Reached**: [Research beyond GitHub](../../designs/12-beyond-github.md) records what was built. Every ticket is closed; what remains is in [Work tasks](WORK_TASKS.md).
+**Reached**: [Research beyond GitHub](../../designs/12-beyond-github.md) records what was built. Every ticket is closed.
 
 ## Notes
 
@@ -19,8 +19,6 @@ An accepted design doc in `docs/designs/` that takes the librarian from GitHub-o
 **Standing preference**: prefer what the librarian can already do. `checkout_repo` plus git covers single-repo history, blame, and diffs better than any API. A new tool earns its place by enabling something otherwise impossible or infeasible, not by being available.
 
 **Working artifact**: [Tool surface: inputs, outputs, and wording](tool-surface.md) — full tool definitions under review, including the shared delivery contract. It began as ticket 09's output arriving early, because the shapes were needed to argue about ticket 06, and became the literal text the tools were built from.
-
-**Work tasks**: [Work tasks](WORK_TASKS.md) — checks that need the work machine: the self-hosted GitLab, and GitHub Enterprise.
 
 ## Decisions so far
 
@@ -43,7 +41,7 @@ An accepted design doc in `docs/designs/` that takes the librarian from GitHub-o
 
 ## Built
 
-The [tool surface](tool-surface.md) is implemented on `beyond-github`: settings for built-in sources, tokens, and the search budget; runs isolated from the user's prompt files; one search tool per engine for GitHub, grep.app, Sourcegraph, GitLab, and Bitbucket Server, on a shared digest, artifact, and budget; `read_file` on every code host; a composed prompt; the attach renderer; and a usage log for tuning the default result count. Each engine was smoke-tested live where it was reachable. Deviations found while building are recorded in the tool surface where they apply. What could not be tested from here was then measured from an orb, except what needs the work machine, in [`WORK_TASKS.md`](WORK_TASKS.md). Ticket 12 then folded pi-web-tools in: `web_search` and `web_fetch` ship here, granted to every run; the GitHub fetcher shares the repo tools' client; issues carry their filtered timeline; and extra tools are removed.
+The [tool surface](tool-surface.md) is implemented on `beyond-github`: settings for built-in sources, tokens, and the search budget; runs isolated from the user's prompt files; one search tool per engine for GitHub, grep.app, Sourcegraph, GitLab, and Bitbucket Server, on a shared digest, artifact, and budget; `read_file` on every code host; a composed prompt; the attach renderer; and a usage log for tuning the default result count. Each engine was smoke-tested live where it was reachable. Deviations found while building are recorded in the tool surface where they apply. What could not be tested from here was then measured from an orb, except what needs the work machine. Ticket 12 then folded pi-web-tools in: `web_search` and `web_fetch` ship here, granted to every run; the GitHub fetcher shares the repo tools' client; issues carry their filtered timeline; and extra tools are removed.
 
 ## Settled while building, or deferred
 
