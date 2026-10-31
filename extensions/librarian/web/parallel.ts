@@ -31,6 +31,10 @@ const PARALLEL_ERROR_SCHEMA = Type.Object({
   error: Type.Object({ message: Type.String() }),
 });
 
+// Authentication is refused before the API proper, in a gateway's shape: a bad key is
+// `{"code":16,"message":"Invalid API key (C.1)"}`, not the `error` object above.
+const PARALLEL_GATEWAY_ERROR_SCHEMA = Type.Object({ message: Type.String() });
+
 // The key is resolved per call, so a rotated secret takes effect without restarting pi.
 // Two endpoints and one header: the SDK they replace brought an optional dependency that some
 // registry mirrors do not carry at all.
@@ -61,7 +65,9 @@ export class ParallelClient {
     });
     const payload: unknown = await response.json().catch(() => undefined);
     if (!response.ok) {
-      const detail = safeParseTypeBoxValue(PARALLEL_ERROR_SCHEMA, payload)?.error.message;
+      const detail =
+        safeParseTypeBoxValue(PARALLEL_ERROR_SCHEMA, payload)?.error.message ??
+        safeParseTypeBoxValue(PARALLEL_GATEWAY_ERROR_SCHEMA, payload)?.message;
       throw new Error(
         `Parallel ${endpoint} returned HTTP ${response.status}${detail ? `: ${detail}` : ""}`,
       );

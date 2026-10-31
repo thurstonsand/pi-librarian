@@ -21,7 +21,7 @@ The `librarian` tool spawns a research subagent with purpose-built tools, built 
 
 - **`web_search`**, **`web_fetch`** — the [web tools](#web-tools), which librarian runs get as well.
 
-Every search returns a short digest, 10 results unless the librarian asks for up to 50, and writes the full result set to a file it can grep. A search that runs past its 15-second budget is an error that says how to narrow it, never a partial answer.
+Every search returns a short digest, 10 results unless the librarian asks for up to 50 (grep.app returns 10 at most), and writes the full result set to a file it can grep. A search that runs past its 15-second budget is an error that says how to narrow it, never a partial answer.
 
 ## Usage
 

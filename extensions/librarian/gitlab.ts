@@ -276,6 +276,10 @@ export class GitLabClient {
       {
         scope: "blobs",
         search,
+        // gitlab.com answers a project search with exact code search unless told otherwise, which
+        // ANDs words and parses `foo(` as a broken regex. Basic is the fixed string the tool
+        // promises, and the only engine an instance without advanced search has.
+        search_type: scope === "instance" ? undefined : "basic",
         ref,
         page: String(page),
         per_page: String(perPage),

@@ -14,8 +14,8 @@ import { LIBRARIAN_TOOL_NAMES } from "./names.ts";
 import { limitParameter, resolveLimit, runRestSearch } from "./shared.ts";
 
 const GREP_APP_SOURCE = "grep.app";
-// Unmeasured: the MCP server decides how many hits one call returns, and the tool does not page.
-const GREP_APP_MAX = 50;
+// The MCP server returns exactly 10 files per call and takes no page or count argument.
+const GREP_APP_MAX = 10;
 
 export interface SearchCodeGrepAppDetails {
   kind: "search_code_grepapp";

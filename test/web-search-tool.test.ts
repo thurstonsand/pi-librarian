@@ -59,6 +59,16 @@ describe("web_search request", () => {
       "Parallel search failed: Parallel search returned HTTP 422: Request validation error",
     );
   });
+
+  it("reports the gateway's message when it refuses the key", async () => {
+    const { tool } = toolWithResponse({ code: 16, message: "Invalid API key (C.1)" }, 401);
+
+    await expect(
+      tool.execute("call", { objective: "test" }, undefined, undefined, {} as ExtensionToolContext),
+    ).rejects.toThrow(
+      "Parallel search failed: Parallel search returned HTTP 401: Invalid API key (C.1)",
+    );
+  });
 });
 
 describe("web_search structured content", () => {

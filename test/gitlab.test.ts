@@ -74,6 +74,7 @@ describe("search_code_gitlab", () => {
     expect(Object.fromEntries(search?.url.searchParams.entries() ?? [])).toEqual({
       scope: "blobs",
       search: "Worktree extension:go",
+      search_type: "basic",
       page: "1",
       per_page: "50",
     });
