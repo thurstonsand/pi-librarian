@@ -46,20 +46,14 @@ run = "scripts/check-changelog.sh"
 description = "Lint GitHub Actions workflows"
 run = "hk check --all --step jactionlint"
 
-# Renovate runs on the Node its engines field names (^24.11), not the project's. `tools.node` is the
-# Node that builds re2 and the PATH prefix the Node that runs it, since Renovate's bin shim ends in
-# `exec node`: a task's PATH can start at /opt/homebrew/bin on a Homebrew machine, and
-# `{{ tools.node.path }}` names the project's Node. A mismatch fails re2's ABI check and downgrades
-# regex validation to JavaScript RegExp with only a warning.
+# Renovate supports only Node 24 (its engines say ^24.11), while the repo develops on 26. Its tasks
+# run under MISE_ENV=renovate, whose mise.renovate.toml overlays Node 24 and adds Renovate, so mise
+# both installs and runs it on 24: re2, Renovate's native regex engine, is built for the Node that
+# installs it and refuses to load in another, leaving validation on JavaScript RegExp with only a
+# warning. `mise x` also puts that Node ahead of a Homebrew one already on PATH.
 [tasks."lint:renovate"]
 description = "Validate Renovate configuration"
-run = "PATH=\"$(mise where node@24)/bin:$PATH\" renovate-config-validator renovate.json"
-tools.node = "24"
-tools."npm:renovate" = { version = "44.198.2", allow_builds = [
-  "re2",
-], trust_policy_excludes = [
-  "@yarnpkg/libzip@3.2.2",
-] }
+run = "MISE_ENV=renovate mise x -- renovate-config-validator renovate.json"
 
 [tasks.format]
 description = "Format"
@@ -84,10 +78,4 @@ run = 'scripts/release.sh "$usage_version"'
 
 [tasks.renovate]
 description = "Run Renovate"
-run = "PATH=\"$(mise where node@24)/bin:$PATH\" renovate"
-tools.node = "24"
-tools."npm:renovate" = { version = "44.198.2", allow_builds = [
-  "re2",
-], trust_policy_excludes = [
-  "@yarnpkg/libzip@3.2.2",
-] }
+run = "MISE_ENV=renovate mise x -- renovate"
