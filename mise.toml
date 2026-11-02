@@ -9,6 +9,10 @@ enter = "mise bootstrap --yes --quiet"
 [tools]
 hk = "2.10.0"
 node = "26"
+# hk's check and fix hooks run jactionlint, which runs shellcheck over every `run:` script. Renovate
+# does not know mise's `jactionlint` shorthand, so the backend is spelled out.
+"aqua:jdx/jactionlint" = "2.4.0"
+shellcheck = "0.11.0"
 
 [env]
 HK_MISE = "1"
@@ -36,8 +40,7 @@ run = "biome check ."
 
 [tasks."lint:actions"]
 description = "Lint GitHub Actions workflows"
-run = "actionlint"
-tools.actionlint = "1.7.12"
+run = "hk check --all --step jactionlint"
 
 # Renovate runs on the Node its engines field names (^24.11), not the project's. `tools.node` is the
 # Node that builds re2 and the PATH prefix the Node that runs it, since Renovate's bin shim ends in
