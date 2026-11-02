@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-02
+
 Requires Pi 1.5.0 and names the expand key you bound; git installs stop replaying the changelog on every launch.
 
 ### Breaking
