@@ -11,6 +11,7 @@
 ### Changed
 
 - Built and tested against Pi 1.5.0.
+- `engines` asks for Node 24 or later, with no upper bound, so Node 26 installs without a warning.
 
 ### Fixed
 
