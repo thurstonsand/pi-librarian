@@ -44,10 +44,16 @@
       "groupSlug": "hk"
     },
     {
-      "description": "Pi is the host this package extends, and users run whatever pi released last. Build against that release the day it ships instead of waiting out the release-age gate, and raise the devDependency floor to it rather than only moving the lockfile. The peer ranges stay \"*\"; bump leaves wildcards alone.",
+      "description": "Pi is the host this package extends, and users run whatever pi released last. Build against that release the day it ships instead of waiting out the release-age gate, and raise the devDependency floor to it rather than only moving the lockfile.",
       "matchPackageNames": ["@earendil-works/**"],
       "minimumReleaseAge": null,
       "rangeStrategy": "bump"
+    },
+    {
+      "description": "The peer ranges are the oldest pi this package supports, raised by hand when the extension starts relying on a newer pi. Renovate would bump them with every release.",
+      "matchPackageNames": ["@earendil-works/**"],
+      "matchDepTypes": ["peerDependencies"],
+      "enabled": false
     },
     {
       "description": "Pinned to the version pi ships. Pi's extension loader aliases typebox to its own bundled copy, so our declaration only types what pi executes and must match it. It moves when pi moves, not on Renovate's schedule; the typebox pin test reports when that happens.",

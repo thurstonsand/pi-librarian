@@ -1,6 +1,6 @@
 import { stripVTControlCharacters } from "node:util";
 import type { AgentToolResult } from "@earendil-works/pi-agent-core";
-import { initTheme, type Theme } from "@earendil-works/pi-coding-agent";
+import { initTheme, type KeybindingHints, type Theme } from "@earendil-works/pi-coding-agent";
 import { Container, Text } from "@earendil-works/pi-tui";
 import { beforeAll, describe, expect, it } from "vitest";
 import type { LibrarianRunDetails, TraceCall } from "../extensions/librarian/run.ts";
@@ -28,7 +28,7 @@ const CTX: TraceContext = {
   sources: [],
 };
 
-// keyHint reads pi's theme singleton, which every real session initializes
+// The findings Markdown reads pi's theme singleton, which every real session initializes
 beforeAll(() => {
   initTheme();
 });
@@ -37,6 +37,15 @@ const theme = {
   fg: (_name: string, text: string) => text,
   bold: (text: string) => text,
 } as Theme;
+
+// Stands in for pi's injected hints with a binding no default keymap uses, so a hint that does not
+// come from the render context shows up as a different key.
+const hints: KeybindingHints = {
+  keyText: (keybinding) => (keybinding === "app.tools.expand" ? "f9" : ""),
+  keyHint: (keybinding, description) =>
+    `${keybinding === "app.tools.expand" ? "f9" : ""} ${description}`,
+};
+const LAST = { ...hints, lastComponent: undefined };
 
 function call(name: string, args: unknown): TraceCall {
   return { id: "t1", name, args, startedAt: 0 };
@@ -241,10 +250,13 @@ describe("renderLibrarianResult", () => {
       {},
     );
 
-    const rendered = renderLibrarianResult(result, { expanded: true, isPartial: false }, theme, {
-      ...CTX,
-      sources,
-    })
+    const rendered = renderLibrarianResult(
+      result,
+      { expanded: true, isPartial: false },
+      theme,
+      { ...CTX, sources },
+      LAST,
+    )
       .render(200)
       .map((line) => stripVTControlCharacters(line).trimEnd());
 
@@ -260,6 +272,7 @@ describe("renderLibrarianResult", () => {
       { expanded: true, isPartial: false },
       theme,
       CTX,
+      LAST,
     )
       .render(120)
       .join("\n");
@@ -277,6 +290,7 @@ describe("renderLibrarianResult", () => {
       { expanded: false, isPartial: false },
       theme,
       CTX,
+      LAST,
     )
       .render(120)
       .join("\n");
@@ -284,8 +298,7 @@ describe("renderLibrarianResult", () => {
     expect(rendered).toContain("The librarian researches repositories.");
     expect(rendered).toContain("run run-123");
     expect(rendered).toContain("1 tool call · 0.0s · test/model (high)");
-    expect(rendered).toContain("details hidden");
-    expect(rendered).toContain("to expand");
+    expect(rendered).toContain("details hidden, f9 to expand)");
     expect(rendered).not.toContain("\n  1 tool call");
     expect(rendered).not.toContain("It checks evidence before answering.");
   });
@@ -331,6 +344,7 @@ describe("renderLibrarianResult", () => {
       { expanded: true, isPartial: true },
       theme,
       CTX,
+      LAST,
     )
       .render(120)
       .join("\n");
@@ -349,9 +363,7 @@ describe("renderLibrarianResult", () => {
       { expanded: false, isPartial: false },
       theme,
       CTX,
-      {
-        lastComponent: staleContainer,
-      },
+      { ...hints, lastComponent: staleContainer },
     )
       .render(120)
       .join("\n");
@@ -369,6 +381,7 @@ describe("renderLibrarianResult", () => {
       { expanded: false, isPartial: false },
       theme,
       CTX,
+      LAST,
     )
       .render(120)
       .join("\n");
@@ -416,6 +429,7 @@ describe("renderRepoToolResult", () => {
     isError: false,
     durationMs: 1700,
     invalidate: () => {},
+    ...hints,
     ...overrides,
   });
   const lines = (component: { render(width: number): string[] }) =>
@@ -440,7 +454,7 @@ describe("renderRepoToolResult", () => {
       " 3. PROJ/repo-3 — src/retry.ts",
       " 4. PROJ/repo-4 — src/retry.ts",
       " 5. PROJ/repo-5 — src/retry.ts",
-      expect.stringMatching(/^ … 2 more \(.*to expand\)$/),
+      " … 2 more (f9 to expand)",
       "Took 1.7s",
     ]);
   });

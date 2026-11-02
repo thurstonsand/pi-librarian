@@ -4,9 +4,13 @@
 
 ## Unreleased
 
+### Breaking
+
+- Requires Pi 1.5.0 or later. Expand hints in the librarian's results and attached tools now come from Pi's render context, which only Pi 1.5.0 provides, so they always name the key you bound to expanding tool output.
+
 ### Changed
 
-- Built and tested against Pi 1.5.0. Pi 1.0.2 remains the minimum supported version.
+- Built and tested against Pi 1.5.0.
 
 ### Fixed
 

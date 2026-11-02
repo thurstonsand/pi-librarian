@@ -1,7 +1,7 @@
 import path from "node:path";
 import type { AgentToolResult } from "@earendil-works/pi-agent-core";
-import type { Theme } from "@earendil-works/pi-coding-agent";
-import { getMarkdownTheme, keyHint } from "@earendil-works/pi-coding-agent";
+import type { KeybindingHints, Theme } from "@earendil-works/pi-coding-agent";
+import { getMarkdownTheme } from "@earendil-works/pi-coding-agent";
 import {
   type Component,
   Container,
@@ -28,7 +28,7 @@ const COLLAPSED_TRACE_CALLS = 3;
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 export const SPINNER_INTERVAL_MS = 80;
 
-interface LibrarianRenderContext {
+interface LibrarianRenderContext extends KeybindingHints {
   lastComponent: Component | undefined;
 }
 
@@ -329,6 +329,7 @@ function renderTrace(
   details: LibrarianRunDetails,
   expanded: boolean,
   context: TraceContext,
+  hints: KeybindingHints,
   theme: Theme,
 ): string[] {
   const lines: string[] = [];
@@ -337,7 +338,7 @@ function renderTrace(
   if (hiddenCount > 0) {
     lines.push(
       theme.fg("muted", `  … ${hiddenCount} earlier call${hiddenCount === 1 ? "" : "s"} (`) +
-        keyHint("app.tools.expand", "to expand") +
+        hints.keyHint("app.tools.expand", "to expand") +
         theme.fg("muted", ")"),
     );
   }
@@ -352,10 +353,10 @@ export function renderLibrarianResult(
   options: { expanded: boolean; isPartial: boolean },
   theme: Theme,
   traceContext: TraceContext,
-  context?: LibrarianRenderContext,
+  context: LibrarianRenderContext,
 ): Container {
   const container =
-    context?.lastComponent instanceof Container ? context.lastComponent : new Container();
+    context.lastComponent instanceof Container ? context.lastComponent : new Container();
   container.clear();
   const details = result.details;
 
@@ -373,7 +374,7 @@ export function renderLibrarianResult(
   container.addChild(new Spacer(1));
 
   if (running || !details.findings) {
-    for (const line of renderTrace(details, options.expanded, traceContext, theme)) {
+    for (const line of renderTrace(details, options.expanded, traceContext, context, theme)) {
       container.addChild(new Text(line, 0, 0));
     }
   }
@@ -385,7 +386,7 @@ export function renderLibrarianResult(
         container.addChild(
           new Text(
             theme.fg("muted", `(${hiddenText}, `) +
-              keyHint("app.tools.expand", "to expand") +
+              context.keyHint("app.tools.expand", "to expand") +
               theme.fg("muted", ")"),
             0,
             0,
@@ -445,7 +446,7 @@ const COLLAPSED_READ_LINES = 5;
 const ELAPSED_INTERVAL_MS = 100;
 
 // The fields of pi's ToolRenderContext this renderer reads; pi does not export the type.
-interface RepoToolRenderContext {
+interface RepoToolRenderContext extends KeybindingHints {
   state: unknown;
   executionStarted: boolean;
   isError: boolean;
@@ -475,11 +476,16 @@ function runningVerb(toolName: string): string {
   }
 }
 
-function expandHint(theme: Theme, text: string): string {
-  return `${theme.fg("muted", `${text} (`)}${keyHint("app.tools.expand", "to expand")}${theme.fg("muted", ")")}`;
+function expandHint(hints: KeybindingHints, theme: Theme, text: string): string {
+  return `${theme.fg("muted", `${text} (`)}${hints.keyHint("app.tools.expand", "to expand")}${theme.fg("muted", ")")}`;
 }
 
-function renderEntries(entries: ShownEntry[], expanded: boolean, theme: Theme): string[] {
+function renderEntries(
+  entries: ShownEntry[],
+  expanded: boolean,
+  hints: KeybindingHints,
+  theme: Theme,
+): string[] {
   const shown = expanded ? entries : entries.slice(0, COLLAPSED_ENTRIES);
   const width = String(entries.length).length;
   const lines: string[] = [];
@@ -502,7 +508,7 @@ function renderEntries(entries: ShownEntry[], expanded: boolean, theme: Theme): 
     }
   }
   if (shown.length < entries.length) {
-    lines.push(expandHint(theme, ` … ${entries.length - shown.length} more`));
+    lines.push(expandHint(hints, theme, ` … ${entries.length - shown.length} more`));
   }
   return lines;
 }
@@ -568,7 +574,9 @@ export function renderRepoToolResult(
       const shown = options.expanded ? contentLines : contentLines.slice(0, COLLAPSED_READ_LINES);
       lines.push(...shown.map((line) => theme.fg("toolOutput", line)));
       if (shown.length < contentLines.length) {
-        lines.push(expandHint(theme, `… ${contentLines.length - shown.length} more lines`));
+        lines.push(
+          expandHint(context, theme, `… ${contentLines.length - shown.length} more lines`),
+        );
       }
       break;
     }
@@ -578,7 +586,7 @@ export function renderRepoToolResult(
     case "provide_results":
       break;
     default:
-      lines.push(...renderEntries(details.entries, options.expanded, theme));
+      lines.push(...renderEntries(details.entries, options.expanded, context, theme));
       if (options.expanded) {
         lines.push(theme.fg("dim", `Full results: ${formatArtifact(details.artifact)}`));
       }
