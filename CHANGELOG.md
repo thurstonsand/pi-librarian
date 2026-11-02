@@ -4,6 +4,10 @@
 
 ## Unreleased
 
+### Changed
+
+- Built and tested against Pi 1.5.0. Pi 1.0.2 remains the minimum supported version.
+
 ### Fixed
 
 - `find_definition` says that symbol kinds are exact, so an agent no longer misses a method by asking for a `function`.
