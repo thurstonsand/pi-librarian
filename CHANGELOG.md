@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+Requires Pi 1.5.0 and names the expand key you bound; git installs stop replaying the changelog on every launch.
+
 ### Breaking
 
 - Requires Pi 1.5.0 or later. Expand hints in the librarian's results and attached tools now come from Pi's render context, which only Pi 1.5.0 provides, so they always name the key you bound to expanding tool output.
