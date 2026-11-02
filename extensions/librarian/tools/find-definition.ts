@@ -1,4 +1,3 @@
-import { StringEnum } from "@earendil-works/pi-ai";
 import { defineTool } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import {
@@ -10,6 +9,7 @@ import {
 } from "../delivery.ts";
 import type { LibrarianSource, SearchSettings } from "../settings.ts";
 import type { SourcegraphClient } from "../sourcegraph.ts";
+import { StringEnum } from "../string-enum.ts";
 import { LIBRARIAN_TOOL_NAMES } from "./names.ts";
 import {
   limitParameter,

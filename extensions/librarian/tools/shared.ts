@@ -1,7 +1,7 @@
-import { StringEnum } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
 import { SearchTimeoutError, searchTimeoutMessage, withSearchDeadline } from "../budget.ts";
 import { type LibrarianSource, MAX_SEARCH_LIMIT, type SearchSettings } from "../settings.ts";
+import { StringEnum } from "../string-enum.ts";
 
 export function limitParameter(maximum: number, defaultLimit: number) {
   return Type.Optional(

@@ -1,10 +1,10 @@
 import os from "node:os";
 import path from "node:path";
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
-import { StringEnum } from "@earendil-works/pi-ai";
 import { SettingsManager } from "@earendil-works/pi-coding-agent";
 import { type Static, Type } from "typebox";
 import { parseTypeBoxValue } from "../shared/typebox.ts";
+import { StringEnum } from "./string-enum.ts";
 
 const THINKING_LEVELS = [
   "off",
