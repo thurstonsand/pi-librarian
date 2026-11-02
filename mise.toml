@@ -42,6 +42,16 @@ run = "biome check ."
 description = "Check that CHANGELOG.md's headings parse, descend, and end at package.json's version"
 run = "scripts/check-changelog.sh"
 
+# `npm ci` installs the lockfile without re-resolving it, so CI stays green on a lockfile that
+# `npm install`, which Renovate runs, rejects with ERESOLVE. It must run on mise's Node: another
+# npm version rewrites the lockfile and fails the diff.
+[tasks."lint:lockfile"]
+description = "Check that package-lock.json still resolves from package.json, unchanged"
+run = [
+    "npm install --package-lock-only --ignore-scripts --quiet --no-fund --no-audit",
+    "git diff --exit-code package-lock.json",
+]
+
 [tasks."lint:actions"]
 description = "Lint GitHub Actions workflows"
 run = "hk check --all --step jactionlint"
