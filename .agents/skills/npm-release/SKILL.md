@@ -25,7 +25,7 @@ Use this skill when preparing and publishing a new release for `pi-librarian`.
   - package, install, or release changes
   - API changes
   - documentation updates
-  - likely semver bump: patch, minor, or major
+  - likely semver bump: patch, minor, or major. Raising the minimum Pi version is a minor bump.
 
 Ask the user to confirm the target version unless they already specified it.
 
