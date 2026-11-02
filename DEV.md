@@ -19,6 +19,9 @@ mise run test -- -t "accepts SSH repository URLs"
 
 # Single test file
 mise run test -- test/search-code.test.ts
+
+# Release Unreleased as 1.2.3, once its entries are reviewed (see docs/release.md)
+mise run release 1.2.3
 ```
 
 No build/compile step — the pi framework loads extensions directly from TypeScript source.

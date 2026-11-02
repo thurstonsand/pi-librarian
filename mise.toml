@@ -38,6 +38,10 @@ depends = ["lint:*"]
 description = "Lint TypeScript, JSON, and Markdown"
 run = "biome check ."
 
+[tasks."lint:changelog"]
+description = "Check that CHANGELOG.md's headings parse, descend, and end at package.json's version"
+run = "scripts/check-changelog.sh"
+
 [tasks."lint:actions"]
 description = "Lint GitHub Actions workflows"
 run = "hk check --all --step jactionlint"
@@ -72,6 +76,11 @@ run = "vitest run"
 [tasks.check]
 description = "Run full verification"
 depends = ["lint", "typecheck", "test"]
+
+[tasks.release]
+description = "Release Unreleased as the given version: changelog, package.json, commit, tag, and push"
+usage = 'arg "<version>" help="The version to release, such as 1.2.3"'
+run = 'scripts/release.sh "$usage_version"'
 
 [tasks.renovate]
 description = "Run Renovate"

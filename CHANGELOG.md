@@ -2,7 +2,7 @@
 
 # Changelog
 
-## Unreleased
+## [Unreleased]
 
 ### Breaking
 
@@ -15,8 +15,9 @@
 ### Fixed
 
 - `find_definition` says that symbol kinds are exact, so an agent no longer misses a method by asking for a `function`.
+- A git install, such as the `downgrade` branch, shows Pi's "Extension Updates" for new releases only, instead of the whole changelog on every launch: package.json now carries the released version.
 
-## 0.7.1
+## [0.7.1] - 2026-10-31
 
 Reads a source's token from a command, so a password manager can hold it.
 
@@ -24,7 +25,7 @@ Reads a source's token from a command, so a password manager can hold it.
 
 - A source's `tokenCommand` reads its token from a command, such as a password manager's CLI, instead of an environment variable. It runs once, on first use, and outside the search time limit.
 
-## 0.7.0
+## [0.7.0] - 2026-10-31
 
 Researches code beyond GitHub: declared GitLab, Bitbucket Server, and Sourcegraph instances, one search tool per engine. Absorbs pi-web-tools: `web_search` and `web_fetch` ship here, in your session and in every librarian run.
 
@@ -61,7 +62,7 @@ Researches code beyond GitHub: declared GitLab, Bitbucket Server, and Sourcegrap
 
 - The librarian's prompt is composed from the tools a run actually has.
 
-## 0.6.3
+## [0.6.3] - 2026-10-24
 
 Keeps `/librarian` attach state per session branch and builds against Pi 1.4.0.
 
@@ -73,7 +74,7 @@ Keeps `/librarian` attach state per session branch and builds against Pi 1.4.0.
 
 - `/librarian` attach state now follows the current session branch. It is restored when you navigate with `/tree` and when you resume a session where you toggled it before sending a message.
 
-## 0.6.2
+## [0.6.2] - 2026-10-16
 
 Builds against Pi 1.3.0 and times the trace like Pi's own tool rows.
 
@@ -82,7 +83,7 @@ Builds against Pi 1.3.0 and times the trace like Pi's own tool rows.
 - Trace rows read "Elapsed 2.3s" while a call runs and "Took 1m 30s" once it finishes. They use Pi's recorded tool duration where Pi provides one (Pi 1.1.0+) and Pi's duration format, which also fixes durations shown as "1m 60s".
 - Built and tested against Pi 1.3.0. No extension changes were needed for Pi 1.1.0 through 1.3.0, and Pi 1.0.2 remains the minimum supported version.
 
-## 0.6.1
+## [0.6.1] - 2026-10-08
 
 Builds against Pi 1.0.4.
 
@@ -90,7 +91,7 @@ Builds against Pi 1.0.4.
 
 - Built and tested against Pi 1.0.4. No extension changes were needed, and Pi 1.0.2 remains the minimum supported version.
 
-## 0.6.0
+## [0.6.0] - 2026-10-04
 
 Builds against Pi 1.0.2 and adopts its tool metadata.
 
@@ -107,7 +108,7 @@ Builds against Pi 1.0.2 and adopts its tool metadata.
 
 - The librarian now fails with a clear error when the session model is a virtual model, which it does not support. A virtual `librarian.model` falls back to the session model with a warning.
 
-## 0.5.1
+## [0.5.1] - 2026-07-25
 
 ### Changed
 
@@ -117,7 +118,7 @@ Builds against Pi 1.0.2 and adopts its tool metadata.
 
 - Fixed the nested librarian session dropping natively registered extension providers.
 
-## 0.5.0
+## [0.5.0] - 2026-07-17
 
 ### Changed
 
@@ -127,7 +128,7 @@ Builds against Pi 1.0.2 and adopts its tool metadata.
 
 - Fixed the nested librarian session dropping extension-registered providers by propagating the model runtime into the run.
 
-## 0.4.0
+## [0.4.0] - 2026-07-13
 
 ### Added
 
@@ -140,13 +141,13 @@ Builds against Pi 1.0.2 and adopts its tool metadata.
 - Raised the minimum supported Pi version to 0.80.6.
 - Changed persisted attach entries to require tool snapshots. Older attach entries are now ignored.
 
-## 0.3.1
+## [0.3.1] - 2026-07-08
 
 ### Changed
 
 - Sharpened the research tools' prompt snippets, guidelines, and descriptions so the librarian names each tool explicitly and reads its guidance as directive instructions.
 
-## 0.3.0
+## [0.3.0] - 2026-07-05
 
 Hardens librarian research tools and aligns GitHub file reads with pi's native `read` tool.
 
@@ -155,7 +156,7 @@ Hardens librarian research tools and aligns GitHub file reads with pi's native `
 - Changed `read_github_file` to use `offset` and `limit` instead of `range`, matching pi's native `read` tool semantics.
 - Hardened `checkout_repo` cache reuse so mismatched or malformed cached paths are discarded, while reused checkouts are reset and cleaned before research.
 
-## 0.2.1
+## [0.2.1] - 2026-07-05
 
 Fixes TUI rendering corruption.
 
@@ -168,7 +169,7 @@ Fixes TUI rendering corruption.
 - Fixed librarian trace rendering leaving stale "N earlier calls" duplicates in the TUI, caused by unsilenced `@octokit/request` deprecation warnings writing to the console.
 - Fixed `search_code` retries riding out a fixed 30s-per-attempt budget; retries now use an escalating timeout schedule so a stalled request recovers in seconds instead of up to a minute.
 
-## 0.2.0
+## [0.2.0] - 2026-07-04
 
 Adds continuable librarian runs and opt-in for extra tools.
 
@@ -188,7 +189,7 @@ Adds continuable librarian runs and opt-in for extra tools.
 
 - Fixed tool error handling so pi marks librarian tool failures as errored executions.
 
-## 0.1.1
+## [0.1.1] - 2026-07-04
 
 Adds automated release and dependency maintenance infrastructure.
 
@@ -198,7 +199,7 @@ Adds automated release and dependency maintenance infrastructure.
 - Added Renovate configuration for dependency update PRs.
 - Added a helper script for annotated release tags.
 
-## 0.1.0
+## [0.1.0] - 2026-07-04
 
 Initial release of `@thurstonsand/pi-librarian`.
 
