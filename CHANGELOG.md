@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-11-06
+
 Codex installs the librarian as a plugin too.
 
 ### Added

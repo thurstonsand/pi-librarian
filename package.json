@@ -1,6 +1,6 @@
 {
   "name": "@thurstonsand/pi-librarian",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "type": "module",
   "description": "Code research subagent for pi: deep-dive repos and discover across GitHub, GitLab, Bitbucket Server, and Sourcegraph; plus web search and URL-native fetch",
   "license": "MIT",
