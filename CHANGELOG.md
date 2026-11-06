@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+### Removed
+
+- The Codex plugin. Codex plugins cannot ship agents, and its skill was a weaker stand-in for the role; install the role with `librarian codex setup`, and remove the plugin with `codex plugin remove librarian@pi-librarian` and `codex plugin marketplace remove pi-librarian`.
+
 ## [0.9.1] - 2026-11-06
 
 Codex installs the librarian as a plugin too.

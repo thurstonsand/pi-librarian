@@ -24,7 +24,7 @@ Separately, the npm package ships `.ts` source. Node refuses to strip types unde
 - One core, pi-free, that both bindings call; the pi extension keeps its tools, `/librarian`, `/browser`, and continuable runs unchanged in behavior.
 - A `librarian` CLI whose commands exist only for what is configured, with progressive `--help`.
 - A Claude Code plugin needing no setup in the default (unsandboxed) configuration.
-- A Codex plugin needing no setup under auto review or full access, and `librarian codex setup` for the default sandbox, which writes the agent role and one execpolicy rule, with `librarian codex uninstall` to remove them.
+- Codex support through `librarian codex setup`, which writes the agent role and one execpolicy rule, and `librarian codex uninstall`, which removes them.
 - One settings file, migrated automatically from pi's settings.
 - Shared cache, state, and browser across harnesses, with exactly one fetch worker per user.
 - The package runs from npm and `npx` with compiled JavaScript.
@@ -93,7 +93,7 @@ Claude plugin, in `plugin/`, listed by `.claude-plugin/marketplace.json` at the 
 - `bin/librarian`: runs `npx -y @thurstonsand/pi-librarian@<plugin version>`; the release script keeps the plugin's version equal to the package's.
 - `hooks/hooks.json`: one `PreToolUse` hook, effective only when `agent_type` is the librarian. It allows `Read` under the cache and state directories, a bare `librarian` command, and read-only inspection (`grep`, `rg`, `find`, `ls`, `cat`, `head`, `tail`, `wc`, `jq`, `git -C <clone>` with a read subcommand) whose every absolute path lies in those directories. Claude Code 2.1.319 has no search tool of its own and refuses a shell search outside the workspace, which a hook's allow overrides.
 
-Codex plugin, in `codex-plugin/`, listed by `.agents/plugins/marketplace.json`, which Codex reads before `.claude-plugin/marketplace.json`. Codex 0.167 loads a plugin's skills, MCP servers, and hooks, but no agents, rules, or `bin/`, so the plugin is one `librarian` skill. The skill tells the main agent to spawn a subagent with `fork_turns: "none"` and a message pointing at `references/librarian-prompt.md`, so the child reads the prompt and the main agent never does; it spawns the `librarian` role instead when `codex setup` wrote one. `scripts/sync-codex-plugin.mjs` generates that prompt from the Claude agent, with a preamble naming the pinned `npx` command and asking for escalation rather than a sandbox workaround, and writes the plugin's version; lint fails when either is stale.
+Codex 0.167 loads a plugin's skills, MCP servers, and hooks, but no agents, rules, or `bin/`. A skill that tells the main agent to spawn a default subagent and have it read the prompt was built and dropped: its prompt arrives as command output rather than developer instructions, its description sits in the skills list rather than `spawn_agent`, and it still needed the rule in the default sandbox. The role is the only Codex install.
 
 `librarian codex setup` writes `~/.codex/agents/librarian.toml`, built from the plugin agent's prompt plus the `codex` settings, and `~/.codex/rules/librarian.rules` holding `prefix_rule(pattern=["librarian"], decision="allow")`. It writes without asking and reports each file as created, updated, or unchanged, then says Codex must restart. `librarian codex uninstall` names whichever of the two files exist, asks once, and removes them only on yes. The role's description tells the main agent to spawn it with `fork_turns: "none"`.
 

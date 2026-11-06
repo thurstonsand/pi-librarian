@@ -32,7 +32,7 @@ Every search returns a short digest, 10 results unless the librarian asks for up
 
 ## Claude Code and Codex
 
-Both get a `librarian` subagent that runs the same research tools as a `librarian` command, so the tools stay out of the main agent's context. The command lists only the sources you configured; `librarian --help` and each command's `--help` document the rest. Clones, results, the browser profile, and the fetch worker are shared with pi. Each plugin runs the command through `npx`, pinned to its own version, when `librarian` is not on `PATH`.
+Both get a `librarian` subagent that runs the same research tools as a `librarian` command, so the tools stay out of the main agent's context. The command lists only the sources you configured; `librarian --help` and each command's `--help` document the rest. Clones, results, the browser profile, and the fetch worker are shared with pi. The Claude plugin runs the command through `npx`, pinned to its own version, when `librarian` is not on `PATH`.
 
 ### Claude Code
 
@@ -46,19 +46,14 @@ The subagent runs on Sonnet. To change it, set `CLAUDE_CODE_SUBAGENT_MODEL` toge
 
 ### Codex
 
-```bash
-codex plugin marketplace add thurstonsand/pi-librarian
-codex plugin add librarian@pi-librarian
-```
-
-Codex plugins cannot ship agents, so the plugin ships a `librarian` skill that tells the main agent to spawn a subagent and hand it the librarian's prompt. Under auto review or full access that is all it needs. Codex's default sandbox blocks the librarian's network and asks for every clone and fetch, and `codex exec` cannot ask at all; for those, install the command and give Codex a real `librarian` role and a rule that runs it outside the sandbox:
+Codex plugins cannot ship agents, so Codex gets the librarian as a role instead. Install the command and write the role:
 
 ```bash
 npm install --global @thurstonsand/pi-librarian
 librarian codex setup
 ```
 
-`codex setup` writes `~/.codex/agents/librarian.toml`, with the model and reasoning effort from the `codex` settings, and `~/.codex/rules/librarian.rules`, reporting each as created, updated, or unchanged; restart Codex after it changes either. The skill prefers that role when it exists. Rerun `codex setup` after upgrading or after changing the `codex` settings. `librarian codex uninstall` asks once, then removes both files.
+`codex setup` writes `~/.codex/agents/librarian.toml`, with the model and reasoning effort from the `codex` settings, and `~/.codex/rules/librarian.rules`, which runs the `librarian` command outside Codex's sandbox without asking, since the default `workspace-write` sandbox blocks both its network and its cache. It reports each file as created, updated, or unchanged; restart Codex after it changes either. Rerun it after upgrading or after changing the `codex` settings. `librarian codex uninstall` asks once, then removes both files.
 
 ## Web tools
 
