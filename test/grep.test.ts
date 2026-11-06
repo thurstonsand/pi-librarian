@@ -4,7 +4,7 @@ import {
   parseGrepMcpEvents,
   parseGrepSearchText,
   searchCodeGrep,
-} from "../extensions/librarian/grep-app.ts";
+} from "../src/core/grep-app.ts";
 
 function sse(payload: unknown): string {
   return `event: message\ndata: ${JSON.stringify(payload)}\n`;

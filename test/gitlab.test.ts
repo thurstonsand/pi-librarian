@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CodeSearchWindow } from "../extensions/librarian/gitlab.ts";
-import { summarizeToolResult } from "../extensions/librarian/trace.ts";
+import { CodeSearchWindow } from "../src/core/gitlab.ts";
+import { summarizeToolResult } from "../src/pi/trace.ts";
 import { stubFetch } from "./support/fetch-stub.ts";
 import { call, repoTools, temporaryCacheDir, text, withoutArtifact } from "./support/tools.ts";
 

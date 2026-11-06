@@ -2,13 +2,9 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  CheckoutError,
-  parseRepoReference,
-  repoCachePath,
-} from "../extensions/librarian/checkout.ts";
-import { resolveLibrarianSettings } from "../extensions/librarian/settings.ts";
-import { createCheckoutRepoTool } from "../extensions/librarian/tools/checkout-repo.ts";
+import { CheckoutError, parseRepoReference, repoCachePath } from "../src/core/checkout.ts";
+import { resolveLibrarianSettings } from "../src/core/settings.ts";
+import { createCheckoutRepoTool } from "../src/core/tools/checkout-repo.ts";
 
 afterEach(() => {
   vi.doUnmock("node:child_process");
@@ -151,7 +147,7 @@ describe("createCheckoutRepoTool", () => {
       {},
     );
     const tool = createCheckoutRepoTool("/tmp/pi-librarian", settings.sources);
-    const sourceSchema = tool.parameters.properties.source as {
+    const sourceSchema = tool.parameters.properties.source as unknown as {
       enum: string[];
       description: string;
     };
@@ -228,7 +224,7 @@ describe("checkoutRepo", () => {
       ),
     }));
 
-    const { checkoutRepo } = await import("../extensions/librarian/checkout.ts");
+    const { checkoutRepo } = await import("../src/core/checkout.ts");
     const cacheDir = await fs.mkdtemp(path.join(os.tmpdir(), "pi-librarian-checkout-test-"));
     return { calls, checkoutRepo, cacheDir };
   }
@@ -256,9 +252,30 @@ describe("checkoutRepo", () => {
     const result = await checkoutRepo("a/b", HOSTS, "github", undefined, cacheDir, undefined);
 
     expect(result.reusedClone).toBe(true);
+    expect(result.guidance).toEqual([]);
     expect(calls).toContainEqual(["checkout", "--force", "main"]);
     expect(calls).toContainEqual(["reset", "--hard", "origin/main"]);
     expect(calls).toContainEqual(["clean", "-fdx"]);
+  });
+
+  it("lists agent guidance at the repository root only", async () => {
+    const { checkoutRepo, cacheDir } = await withMockedGit((args) => {
+      if (args.join(" ") === "remote get-url origin") return "https://github.com/a/b.git";
+      if (args.join(" ") === "symbolic-ref refs/remotes/origin/HEAD") {
+        return "refs/remotes/origin/main";
+      }
+      if (args.join(" ") === "rev-parse HEAD") return "abc123";
+      if (args.join(" ") === "ls-files") return "CLAUDE.md\ndocs/AGENTS.md\nsrc/CLAUDE.md";
+      return "";
+    });
+    await fs.mkdir(path.join(cacheDir, "repos", "github.com", "a", "b", ".git"), {
+      recursive: true,
+    });
+
+    const result = await checkoutRepo("a/b", HOSTS, "github", undefined, cacheDir, undefined);
+
+    expect(result.guidance).toEqual(["CLAUDE.md"]);
+    expect(result.fileCount).toBe(3);
   });
 
   it("hard-resets and cleans explicit ref checkouts", async () => {

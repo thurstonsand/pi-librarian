@@ -17,7 +17,7 @@ vi.mock("node:fs/promises", async (importOriginal) => {
 
 import { readFile } from "node:fs/promises";
 import { connect } from "node:net";
-import { createFetchWorkerClient } from "../extensions/librarian/web/fetchers/local/worker-connection.ts";
+import { createFetchWorkerClient } from "../src/core/web/fetchers/local/worker-connection.ts";
 
 class FakeSocket extends Duplex {
   readonly writes: string[] = [];

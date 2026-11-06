@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { createLibrarianResourceLoader } from "../extensions/librarian/resource-loader.ts";
+import { createLibrarianResourceLoader } from "../src/pi/resource-loader.ts";
 
 describe("createLibrarianResourceLoader", () => {
   let agentDir: string;

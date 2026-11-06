@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { renderFindingsMarkdown } from "../extensions/librarian/results.ts";
-import { resolveLibrarianSettings } from "../extensions/librarian/settings.ts";
+import { resolveLibrarianSettings } from "../src/core/settings.ts";
+import { renderFindingsMarkdown } from "../src/pi/results.ts";
 
 const { sources } = resolveLibrarianSettings(
   {

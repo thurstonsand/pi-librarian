@@ -1,6 +1,6 @@
 # AGENTS.md
 
-`pi-librarian` gives a pi session the ability to research open source code: deep dives into specific repos ("how does feature X work in repo Y") and discovery across the ecosystem ("compare the most popular SQL ORMs for TypeScript"). It exposes a `librarian` tool that spawns a nested research agent with purpose-built GitHub tools, and a `/librarian` command that attaches those tools directly to the main session.
+`pi-librarian` gives a pi session the ability to research open source code: deep dives into specific repos ("how does feature X work in repo Y") and discovery across the ecosystem ("compare the most popular SQL ORMs for TypeScript"). It exposes a `librarian` tool that spawns a nested research agent with purpose-built GitHub tools, and a `/librarian` command that attaches those tools directly to the main session. Claude Code and Codex reach the same tools as a `librarian` command, run by a subagent of their own.
 
 ## Project context
 

@@ -3,3 +3,4 @@ node_modules/
 .amp/portals/*
 docs/wayfinding/*/local-links.md
 local-files/
+dist/

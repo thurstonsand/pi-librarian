@@ -4,9 +4,9 @@ import path from "node:path";
 import type { Api, Model } from "@earendil-works/pi-ai";
 import type { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { runLibrarian } from "../extensions/librarian/run.ts";
-import type { LibrarianSettings } from "../extensions/librarian/settings.ts";
-import { createRepoClients, createRepoTools } from "../extensions/librarian/tools/index.ts";
+import type { LibrarianSettings } from "../src/core/settings.ts";
+import { createRepoClients, createRepoTools } from "../src/core/tools/index.ts";
+import { runLibrarian } from "../src/pi/run.ts";
 
 const { createAgentSession } = vi.hoisted(() => ({
   createAgentSession: vi.fn(),
@@ -67,10 +67,7 @@ describe("runLibrarian", () => {
     });
 
     const settings: LibrarianSettings = {
-      model: undefined,
-      thinkingLevel: undefined,
       search: { timeoutSeconds: 15, defaultLimit: 10 },
-      tools: { disabled: ["bash", "search_code_grepapp"] },
       sources: [
         {
           name: "github",
@@ -90,7 +87,13 @@ describe("runLibrarian", () => {
         },
       },
       cacheDir,
-      debug: { persistRuns: false },
+      pi: {
+        model: undefined,
+        thinkingLevel: undefined,
+        tools: { disabled: ["bash", "search_code_grepapp"] },
+        debug: { persistRuns: false },
+      },
+      codex: { model: undefined, reasoningEffort: undefined },
     };
     const result = await runLibrarian({
       query: "Verify runtime propagation",

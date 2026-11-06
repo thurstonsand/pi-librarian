@@ -32,7 +32,14 @@ awk -v heading="## [${version}] - $(date +%F)" '
 ' CHANGELOG.md > CHANGELOG.md.tmp
 mv CHANGELOG.md.tmp CHANGELOG.md
 npm version "${version}" --no-git-tag-version > /dev/null
-git add CHANGELOG.md package.json package-lock.json
+# The Claude plugin's bin runs the CLI pinned to the plugin's own version.
+node -e '
+  const fs = require("node:fs");
+  const file = "plugin/.claude-plugin/plugin.json";
+  const plugin = JSON.parse(fs.readFileSync(file, "utf8"));
+  fs.writeFileSync(file, `${JSON.stringify({ ...plugin, version: process.argv[1] }, null, 2)}\n`);
+' "${version}"
+git add CHANGELOG.md package.json package-lock.json plugin/.claude-plugin/plugin.json
 git commit --quiet -m "chore(release): ${version}"
 
 notes="$(mktemp)"

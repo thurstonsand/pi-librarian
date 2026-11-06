@@ -1,18 +1,14 @@
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import {
-  DEFAULT_CACHE_DIR,
-  parseSettings,
-  resolveLibrarianSettings,
-} from "../extensions/librarian/settings.ts";
+import { parseSettings, resolveLibrarianSettings } from "../src/core/settings.ts";
 
 describe("resolveLibrarianSettings", () => {
   it("returns defaults for empty settings", () => {
     const settings = resolveLibrarianSettings({}, {});
-    expect(settings.model).toBeUndefined();
-    expect(settings.thinkingLevel).toBeUndefined();
-    expect(settings.tools).toEqual({ disabled: [] });
+    expect(settings.pi.model).toBeUndefined();
+    expect(settings.pi.thinkingLevel).toBeUndefined();
+    expect(settings.pi.tools).toEqual({ disabled: [] });
     expect(settings.sources).toEqual([
       {
         name: "github",
@@ -24,87 +20,111 @@ describe("resolveLibrarianSettings", () => {
       },
     ]);
     expect(settings.search).toEqual({ timeoutSeconds: 15, defaultLimit: 10 });
-    expect(settings.debug.persistRuns).toBe(false);
-    expect(settings.cacheDir).toBe(DEFAULT_CACHE_DIR);
-    expect(settings.cacheDir).toBe("/tmp/pi-librarian");
+    expect(settings.pi.debug.persistRuns).toBe(false);
+    expect(settings.cacheDir).toBe(path.join(os.homedir(), ".cache/agents/librarian"));
+    expect(settings.web.fetch.browser.profileDir).toBe(
+      path.join(os.homedir(), ".local/state/agents/librarian/browser-profile"),
+    );
+    expect(settings.codex).toEqual({ model: undefined, reasoningEffort: undefined });
+  });
+
+  it("places the cache and browser profile under the XDG base directories", () => {
+    const settings = resolveLibrarianSettings(
+      {},
+      { XDG_CACHE_HOME: "/xdg/cache", XDG_STATE_HOME: "/xdg/state" },
+    );
+    expect(settings.cacheDir).toBe("/xdg/cache/agents/librarian");
+    expect(settings.web.fetch.browser.profileDir).toBe(
+      "/xdg/state/agents/librarian/browser-profile",
+    );
+  });
+
+  it("reads the codex section's model and reasoning effort", () => {
+    expect(() => parseSettings({ codex: { reasoningEffort: "max" } }, {})).toThrow(
+      "Invalid settings: /codex/reasoningEffort",
+    );
+    expect(
+      parseSettings({ codex: { model: "gpt-6-sol", reasoningEffort: "low" } }, {}).codex,
+    ).toEqual({ model: "gpt-6-sol", reasoningEffort: "low" });
   });
 
   it("parses provider/model references", () => {
-    const settings = resolveLibrarianSettings({ model: "anthropic/claude-sonnet-5" }, {});
-    expect(settings.model?.provider).toBe("anthropic");
-    expect(settings.model?.modelId).toBe("claude-sonnet-5");
+    const settings = resolveLibrarianSettings({ pi: { model: "anthropic/claude-sonnet-5" } }, {});
+    expect(settings.pi.model?.provider).toBe("anthropic");
+    expect(settings.pi.model?.modelId).toBe("claude-sonnet-5");
   });
 
   it("parses bare model patterns", () => {
-    const settings = resolveLibrarianSettings({ model: "opus" }, {});
-    expect(settings.model?.provider).toBeUndefined();
-    expect(settings.model?.modelId).toBe("opus");
-    expect(settings.model?.toString()).toBe("opus");
+    const settings = resolveLibrarianSettings({ pi: { model: "opus" } }, {});
+    expect(settings.pi.model?.provider).toBeUndefined();
+    expect(settings.pi.model?.modelId).toBe("opus");
+    expect(settings.pi.model?.toString()).toBe("opus");
   });
 
   it("parses model ids containing slashes", () => {
-    const settings = resolveLibrarianSettings({ model: "openrouter/meta/llama-4" }, {});
-    expect(settings.model?.provider).toBe("openrouter");
-    expect(settings.model?.modelId).toBe("meta/llama-4");
+    const settings = resolveLibrarianSettings({ pi: { model: "openrouter/meta/llama-4" } }, {});
+    expect(settings.pi.model?.provider).toBe("openrouter");
+    expect(settings.pi.model?.modelId).toBe("meta/llama-4");
   });
 
   it.each(["off", "minimal", "low", "medium", "high", "xhigh", "max"] as const)(
     "parses the %s thinking level",
     (thinkingLevel) => {
-      const settings = resolveLibrarianSettings({ thinkingLevel }, {});
-      expect(settings.thinkingLevel).toBe(thinkingLevel);
+      const settings = resolveLibrarianSettings({ pi: { thinkingLevel } }, {});
+      expect(settings.pi.thinkingLevel).toBe(thinkingLevel);
     },
   );
 
   it("rejects malformed model references", () => {
-    expect(resolveLibrarianSettings({ model: "/leading" }, {}).model).toBeUndefined();
-    expect(resolveLibrarianSettings({ model: "trailing/" }, {}).model).toBeUndefined();
+    expect(resolveLibrarianSettings({ pi: { model: "/leading" } }, {}).pi.model).toBeUndefined();
+    expect(resolveLibrarianSettings({ pi: { model: "trailing/" } }, {}).pi.model).toBeUndefined();
   });
 
   it("normalizes disabled tool names", () => {
     const settings = resolveLibrarianSettings(
-      { tools: { disabled: ["write", " write ", ""] } },
+      { pi: { tools: { disabled: ["write", " write ", ""] } } },
       {},
     );
-    expect(settings.tools).toEqual({ disabled: ["write"] });
+    expect(settings.pi.tools).toEqual({ disabled: ["write"] });
   });
 
   it("refuses keys it does not know, so a removed or misspelled one is not silently ignored", () => {
-    expect(() => parseSettings({ librarian: { extensions: ["/x"] } }, {})).toThrow(
-      "Invalid settings: /librarian/extensions is not a recognized key",
+    expect(() => parseSettings({ extensions: ["/x"] }, {})).toThrow(
+      "Invalid settings: /extensions is not a recognized key",
     );
-    expect(() => parseSettings({ librarian: { tools: { extra: ["web_fetch"] } } }, {})).toThrow(
-      "Invalid settings: /librarian/tools/extra is not a recognized key",
+    expect(() => parseSettings({ tools: { disabled: ["bash"] } }, {})).toThrow(
+      "Invalid settings: /tools is not a recognized key",
     );
-    expect(() => parseSettings({ librarian: { web: { fetch: { browsr: {} } } } }, {})).toThrow(
-      "Invalid settings: /librarian/web/fetch/browsr is not a recognized key",
+    expect(() => parseSettings({ pi: { tools: { extra: ["web_fetch"] } } }, {})).toThrow(
+      "Invalid settings: /pi/tools/extra is not a recognized key",
     );
-    expect(
-      parseSettings({ librarian: { tools: { disabled: ["bash"] } }, other: 1 }, {}).tools,
-    ).toEqual({ disabled: ["bash"] });
+    expect(() => parseSettings({ web: { fetch: { browsr: {} } } }, {})).toThrow(
+      "Invalid settings: /web/fetch/browsr is not a recognized key",
+    );
+    expect(parseSettings({ pi: { tools: { disabled: ["bash"] } } }, {}).pi.tools).toEqual({
+      disabled: ["bash"],
+    });
   });
 
   it.each(["", "  ", "x".repeat(301)])("rejects the source description %j", (description) => {
     const source = { name: "gl", url: "https://gitlab.example.com", kind: "gitlab", description };
-    expect(() => parseSettings({ librarian: { sources: [source] } }, {})).toThrow(
-      "Invalid settings: /librarian/sources/0/description",
+    expect(() => parseSettings({ sources: [source] }, {})).toThrow(
+      "Invalid settings: /sources/0/description",
     );
   });
 
   it.each(["", "  ", 42, ["command"]])("rejects the Parallel key command %j", (apiKeyCommand) => {
-    expect(() =>
-      parseSettings({ librarian: { web: { parallel: { apiKeyCommand } } } }, {}),
-    ).toThrow("Invalid settings: /librarian/web/parallel/apiKeyCommand");
+    expect(() => parseSettings({ web: { parallel: { apiKeyCommand } } }, {})).toThrow(
+      "Invalid settings: /web/parallel/apiKeyCommand",
+    );
   });
 
   it("resolves web settings, taking the Parallel key from the environment", () => {
     const settings = parseSettings(
       {
-        librarian: {
-          web: {
-            parallel: { apiKeyCommand: "op read secret" },
-            fetch: { browser: { profileDir: "~/profile" }, challenge: { escalation: "never" } },
-          },
+        web: {
+          parallel: { apiKeyCommand: "op read secret" },
+          fetch: { browser: { profileDir: "~/profile" }, challenge: { escalation: "never" } },
         },
       },
       { PARALLEL_API_KEY: " key-1 " },
@@ -117,13 +137,8 @@ describe("resolveLibrarianSettings", () => {
       },
     });
     expect(() =>
-      parseSettings(
-        { librarian: { web: { fetch: { browser: { executablePath: "chrome" } } } } },
-        {},
-      ),
-    ).toThrow(
-      'librarian.web.fetch.browser.executablePath must be an absolute path or start with "~/".',
-    );
+      parseSettings({ web: { fetch: { browser: { executablePath: "chrome" } } } }, {}),
+    ).toThrow('web.fetch.browser.executablePath must be an absolute path or start with "~/".');
   });
 
   it("normalizes host declarations, keeping search roles only for sources with a credential", () => {
@@ -199,7 +214,7 @@ describe("resolveLibrarianSettings", () => {
 
     expect(() =>
       resolveLibrarianSettings({ sources: [{ ...declared, tokenEnv: "EXAMPLE_SG_TOKEN" }] }, {}),
-    ).toThrow('librarian.sources "example-sg" sets both tokenEnv and tokenCommand; keep one.');
+    ).toThrow('sources "example-sg" sets both tokenEnv and tokenCommand; keep one.');
   });
 
   it.each(["", "  "])("rejects the source token command %j", (tokenCommand) => {
@@ -209,8 +224,8 @@ describe("resolveLibrarianSettings", () => {
       kind: "sourcegraph",
       tokenCommand,
     };
-    expect(() => parseSettings({ librarian: { sources: [source] } }, {})).toThrow(
-      "Invalid settings: /librarian/sources/0/tokenCommand",
+    expect(() => parseSettings({ sources: [source] }, {})).toThrow(
+      "Invalid settings: /sources/0/tokenCommand",
     );
   });
 
@@ -326,8 +341,8 @@ describe("resolveLibrarianSettings", () => {
   });
 
   it("reads debug run persistence", () => {
-    const settings = resolveLibrarianSettings({ debug: { persistRuns: true } }, {});
-    expect(settings.debug.persistRuns).toBe(true);
+    const settings = resolveLibrarianSettings({ pi: { debug: { persistRuns: true } } }, {});
+    expect(settings.pi.debug.persistRuns).toBe(true);
   });
 
   it("expands home-relative cacheDir and rejects relative paths", () => {

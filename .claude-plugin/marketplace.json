@@ -1,0 +1,13 @@
+{
+  "name": "pi-librarian",
+  "owner": {
+    "name": "Thurston Sandberg"
+  },
+  "plugins": [
+    {
+      "name": "librarian",
+      "source": "./plugin",
+      "description": "A research subagent for code and documentation outside the workspace, with tools only it can see"
+    }
+  ]
+}

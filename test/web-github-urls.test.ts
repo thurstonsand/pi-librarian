@@ -1,11 +1,10 @@
 import { mkdtemp } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createGitHubClientProvider } from "../extensions/librarian/github.ts";
-import type { FetcherResult } from "../extensions/librarian/web/contract.ts";
-import { createGitHubFetcher } from "../extensions/librarian/web/fetchers/github/index.ts";
+import { createGitHubClientProvider } from "../src/core/github.ts";
+import type { FetcherResult } from "../src/core/web/contract.ts";
+import { createGitHubFetcher } from "../src/core/web/fetchers/github/index.ts";
 import { type RecordedRequest, stubFetch } from "./support/fetch-stub.ts";
 
 let artifactDir: string;
@@ -31,7 +30,7 @@ async function fetchUnanswered(
       client: createGitHubClientProvider(async () => "token", "https://github.com"),
     },
   ]);
-  const result = await fetcher.fetch({ urls: [url], artifactDir, ctx: {} as ExtensionContext });
+  const result = await fetcher.fetch({ urls: [url], artifactDir });
   return { requests, result };
 }
 

@@ -4,9 +4,24 @@
 
 ## [Unreleased]
 
+### Breaking
+
+- Settings live in `~/.config/agents/librarian/config.json`, shared by every harness, instead of under `librarian` in pi's settings. `model`, `thinkingLevel`, `tools`, and `debug` move under `pi`. The first session after upgrading moves them, and the browser profile, automatically, and stops with an error when the new location already exists.
+- Clones, search results, and fetched pages default to `~/.cache/agents/librarian` instead of `/tmp/pi-librarian`, and the browser profile and fetch worker live in `~/.local/state/agents/librarian`; each honors its XDG variable.
+- The package ships compiled JavaScript from `dist/`, and pi's packages are optional peers.
+
 ### Added
 
 - `web_fetch` states the day Parallel acquired each page it returns, so an agent can tell a stale cached copy from a fresh one.
+- A `librarian` command runs every research tool from a shell, listing only the sources you configured.
+- A Claude Code plugin, installed from this repository's marketplace, gives Claude Code a librarian subagent whose tools the main agent never sees.
+- `librarian codex setup` writes a librarian role and the rule it needs for Codex, with its model and reasoning effort from the `codex` settings; `librarian codex uninstall` removes both after asking.
+- A checkout names the `AGENTS.md` and `CLAUDE.md` at the repository root.
+- The local fetcher drives Google Chrome, then a `chromium` on `PATH`, then Playwright's own Chromium, which it downloads when nothing else exists.
+
+### Fixed
+
+- The local fetcher works in an npm install; it crashed because Node refuses to strip types under `node_modules`.
 
 ## [0.8.0] - 2026-11-02
 

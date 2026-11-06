@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { resolveLibrarianSettings } from "../extensions/librarian/settings.ts";
-import { createRepoClients, createRepoTools } from "../extensions/librarian/tools/index.ts";
+import { resolveLibrarianSettings } from "../src/core/settings.ts";
+import { createRepoClients, createRepoTools } from "../src/core/tools/index.ts";
 
 function toolDescriptions(): Map<string, string> {
   const settings = resolveLibrarianSettings(

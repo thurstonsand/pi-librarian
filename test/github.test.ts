@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createGitHubClient } from "../extensions/librarian/github.ts";
+import { createGitHubClient } from "../src/core/github.ts";
 
 describe("createGitHubClient logging", () => {
   afterEach(() => {

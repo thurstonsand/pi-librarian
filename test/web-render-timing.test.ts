@@ -1,12 +1,13 @@
 import type { Theme } from "@earendil-works/pi-coding-agent";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createWebFetchTool } from "../extensions/librarian/web/fetch.ts";
+import { createWebFetchTool } from "../src/core/web/fetch.ts";
 import {
   formatElapsed,
   startToolTiming,
   type ToolTimingState,
   updateToolTiming,
-} from "../extensions/librarian/web/shared.ts";
+  withWebFetchRendering,
+} from "../src/pi/web-render.ts";
 
 describe("tool render timing", () => {
   afterEach(() => {
@@ -47,7 +48,7 @@ describe("tool render timing", () => {
   it("shows the recorded duration of a final result, not the render clock", () => {
     vi.useFakeTimers();
     vi.setSystemTime(1_000);
-    const tool = createWebFetchTool([], "/tmp/cache");
+    const tool = withWebFetchRendering(createWebFetchTool([], "/tmp/cache"));
     const theme = { fg: (_color: string, text: string) => text } as unknown as Theme;
     const state: ToolTimingState = {};
     startToolTiming(state, true);

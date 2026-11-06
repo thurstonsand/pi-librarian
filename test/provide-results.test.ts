@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createProvideResultsTool } from "../extensions/librarian/tools/provide-results.ts";
+import { createProvideResultsTool } from "../src/pi/provide-results.ts";
 
 describe("provide_results", () => {
   it("terminates the turn after recording findings", async () => {

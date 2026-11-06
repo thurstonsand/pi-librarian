@@ -1,14 +1,12 @@
 import { inspect } from "node:util";
-import type { ExtensionContext, ExtensionToolContext } from "@earendil-works/pi-coding-agent";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { resolveLibrarianSettings } from "../extensions/librarian/settings.ts";
-import { createWebTools } from "../extensions/librarian/web/index.ts";
-import { createParallelFetcher, ParallelClient } from "../extensions/librarian/web/parallel.ts";
-import { createWebSearchTool } from "../extensions/librarian/web/search.ts";
+import { resolveLibrarianSettings } from "../src/core/settings.ts";
+import { createWebTools } from "../src/core/web/index.ts";
+import { createParallelFetcher, ParallelClient } from "../src/core/web/parallel.ts";
+import { createWebSearchTool } from "../src/core/web/search.ts";
 import { stubFetch } from "./support/fetch-stub.ts";
 
 const command = 'printf "%s\\n" "$WEB_TOOLS_TEST_KEY"';
-const ctx = {} as ExtensionToolContext;
 
 function parallelStub() {
   return stubFetch([
@@ -41,10 +39,12 @@ afterEach(() => {
 
 describe("web tool registration", () => {
   it("registers web_search only when a Parallel credential source is configured", () => {
-    const names = (web: Record<string, unknown>, env: NodeJS.ProcessEnv) =>
-      createWebTools(resolveLibrarianSettings({ web }, env), new Map()).tools.map(
-        (tool) => tool.name,
-      );
+    const names = (web: Record<string, unknown>, env: NodeJS.ProcessEnv) => {
+      const tools = createWebTools(resolveLibrarianSettings({ web }, env), new Map(), () => {
+        throw new Error("the worker never starts here");
+      });
+      return [tools.search?.name, tools.fetch.name].filter((name) => name !== undefined);
+    };
 
     expect(names({}, {})).toEqual(["web_fetch"]);
     expect(names({}, { PARALLEL_API_KEY: "k" })).toEqual(["web_search", "web_fetch"]);
@@ -60,9 +60,9 @@ describe("Parallel API key command", () => {
     const requests = parallelStub();
     const tool = createWebSearchTool(client(command));
 
-    await tool.execute("first", { objective: "test" }, undefined, undefined, ctx);
+    await tool.execute("first", { objective: "test" }, undefined);
     vi.stubEnv("WEB_TOOLS_TEST_KEY", "rotated-fake-key");
-    await tool.execute("second", { objective: "test again" }, undefined, undefined, ctx);
+    await tool.execute("second", { objective: "test again" }, undefined);
 
     expect(requests.map((request) => request.headers.get("x-api-key"))).toEqual([
       "fake-command-key",
@@ -80,7 +80,6 @@ describe("Parallel API key command", () => {
       urls: ["https://example.com"],
       artifactDir: "/unused-no-results",
       signal: undefined,
-      ctx: {} as ExtensionContext,
     });
 
     expect(
@@ -99,7 +98,6 @@ describe("Parallel API key command", () => {
       { objective: "test" },
       undefined,
       undefined,
-      ctx,
     );
     expect(requests[0]?.headers.get("x-api-key")).toBe("fake-env-key");
   });
@@ -159,13 +157,7 @@ describe("Parallel API key command", () => {
     const requests = parallelStub();
     const tool = createWebSearchTool(client(command));
     await expect(
-      tool.execute(
-        "invalid",
-        { objective: "test", after_date: "invalid" },
-        undefined,
-        undefined,
-        ctx,
-      ),
+      tool.execute("invalid", { objective: "test", after_date: "invalid" }, undefined, undefined),
     ).rejects.toThrow("Invalid after_date");
     expect(requests).toEqual([]);
   });

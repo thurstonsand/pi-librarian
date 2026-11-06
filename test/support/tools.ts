@@ -3,11 +3,8 @@ import os from "node:os";
 import path from "node:path";
 import type { AgentToolResult } from "@earendil-works/pi-agent-core";
 import type { ExtensionToolContext, ToolDefinition } from "@earendil-works/pi-coding-agent";
-import {
-  type LibrarianFileSettings,
-  resolveLibrarianSettings,
-} from "../../extensions/librarian/settings.ts";
-import { createRepoClients, createRepoTools } from "../../extensions/librarian/tools/index.ts";
+import { type LibrarianFileSettings, resolveLibrarianSettings } from "../../src/core/settings.ts";
+import { createRepoClients, createRepoTools } from "../../src/core/tools/index.ts";
 
 export async function temporaryCacheDir(): Promise<string> {
   return fs.mkdtemp(path.join(os.tmpdir(), "librarian-tools-"));

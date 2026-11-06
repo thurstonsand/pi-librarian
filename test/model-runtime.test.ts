@@ -1,6 +1,6 @@
 import { type ModelRegistry, ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createLibrarianModelRuntime } from "../extensions/librarian/model-runtime.ts";
+import { createLibrarianModelRuntime } from "../src/pi/model-runtime.ts";
 
 afterEach(() => {
   vi.restoreAllMocks();

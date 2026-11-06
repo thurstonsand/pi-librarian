@@ -4,7 +4,7 @@ import {
   type BrowserFetch,
   type BrowserLauncher,
   BrowserSession,
-} from "../extensions/librarian/web/fetchers/local/browser-session.ts";
+} from "../src/core/web/fetchers/local/browser-session.ts";
 
 class EscalationRequired extends Error {}
 

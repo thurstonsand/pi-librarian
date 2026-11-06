@@ -1,11 +1,10 @@
 import { mkdtemp, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createGitHubClientProvider } from "../extensions/librarian/github.ts";
-import type { FetcherResult } from "../extensions/librarian/web/contract.ts";
-import { createGitHubFetcher } from "../extensions/librarian/web/fetchers/github/index.ts";
+import { createGitHubClientProvider } from "../src/core/github.ts";
+import type { FetcherResult } from "../src/core/web/contract.ts";
+import { createGitHubFetcher } from "../src/core/web/fetchers/github/index.ts";
 import { type Route, stubFetch } from "./support/fetch-stub.ts";
 
 let artifactDir: string;
@@ -26,7 +25,7 @@ async function fetchUrl(url: string): Promise<FetcherResult> {
       client: createGitHubClientProvider(async () => "token", "https://github.com"),
     },
   ]);
-  return fetcher.fetch({ urls: [url], artifactDir, ctx: {} as ExtensionContext });
+  return fetcher.fetch({ urls: [url], artifactDir });
 }
 
 function json(pathname: string, body: unknown): Route {

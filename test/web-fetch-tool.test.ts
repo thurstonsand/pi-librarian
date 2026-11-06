@@ -1,8 +1,7 @@
-import type { ExtensionToolContext } from "@earendil-works/pi-coding-agent";
 import { Value } from "typebox/value";
 import { describe, expect, it } from "vitest";
-import type { WebFetcher } from "../extensions/librarian/web/contract.ts";
-import { createWebFetchTool } from "../extensions/librarian/web/fetch.ts";
+import type { WebFetcher } from "../src/core/web/contract.ts";
+import { createWebFetchTool } from "../src/core/web/fetch.ts";
 
 const fetcher: WebFetcher = {
   source: "test",
@@ -61,8 +60,6 @@ describe("web_fetch structured content", () => {
       "call:1",
       { urls: ["https://ok.example", "https://nope.example"] },
       undefined,
-      undefined,
-      {} as ExtensionToolContext,
     );
 
     if (!tool.outputSchema) throw new Error("web_fetch declares no outputSchema");

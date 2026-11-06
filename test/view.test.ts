@@ -3,9 +3,9 @@ import type { AgentToolResult } from "@earendil-works/pi-agent-core";
 import { initTheme, type KeybindingHints, type Theme } from "@earendil-works/pi-coding-agent";
 import { Container, Text } from "@earendil-works/pi-tui";
 import { beforeAll, describe, expect, it } from "vitest";
-import type { LibrarianRunDetails, TraceCall } from "../extensions/librarian/run.ts";
-import { resolveLibrarianSettings } from "../extensions/librarian/settings.ts";
-import { summarizeToolResult } from "../extensions/librarian/trace.ts";
+import { resolveLibrarianSettings } from "../src/core/settings.ts";
+import type { LibrarianRunDetails, TraceCall } from "../src/pi/run.ts";
+import { summarizeToolResult } from "../src/pi/trace.ts";
 import {
   formatToolDuration,
   formatTraceLine,
@@ -14,7 +14,7 @@ import {
   renderRepoToolResult,
   shorten,
   type TraceContext,
-} from "../extensions/librarian/view.ts";
+} from "../src/pi/view.ts";
 
 const CACHE = "/home/user/.cache/pi-librarian";
 const CTX: TraceContext = {

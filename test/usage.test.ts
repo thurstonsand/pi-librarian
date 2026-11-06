@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { TraceCall } from "../extensions/librarian/run.ts";
-import { summarizeSearchUsage } from "../extensions/librarian/usage.ts";
+import type { TraceCall } from "../src/pi/run.ts";
+import { summarizeSearchUsage } from "../src/pi/usage.ts";
 
 const call = (name: string, args: unknown): TraceCall => ({ id: name, name, args, startedAt: 0 });
 

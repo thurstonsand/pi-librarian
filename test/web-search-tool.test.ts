@@ -1,9 +1,10 @@
-import type { ExtensionToolContext, Theme } from "@earendil-works/pi-coding-agent";
+import type { Theme } from "@earendil-works/pi-coding-agent";
 import { resetCapabilitiesCache, setCapabilities } from "@earendil-works/pi-tui";
 import { Value } from "typebox/value";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ParallelClient } from "../extensions/librarian/web/parallel.ts";
-import { createWebSearchTool } from "../extensions/librarian/web/search.ts";
+import { ParallelClient } from "../src/core/web/parallel.ts";
+import { createWebSearchTool } from "../src/core/web/search.ts";
+import { withWebSearchRendering } from "../src/pi/web-render.ts";
 import { stubFetch } from "./support/fetch-stub.ts";
 
 function toolWithResponse(response: unknown, status = 200) {
@@ -31,8 +32,6 @@ describe("web_search request", () => {
         after_date: "2026-01-01",
       },
       undefined,
-      undefined,
-      {} as ExtensionToolContext,
     );
 
     expect(requests.map((request) => [request.method, request.url.href])).toEqual([
@@ -53,9 +52,7 @@ describe("web_search request", () => {
       422,
     );
 
-    await expect(
-      tool.execute("call", { objective: "test" }, undefined, undefined, {} as ExtensionToolContext),
-    ).rejects.toThrow(
+    await expect(tool.execute("call", { objective: "test" }, undefined)).rejects.toThrow(
       "Parallel search failed: Parallel search returned HTTP 422: Request validation error",
     );
   });
@@ -63,9 +60,7 @@ describe("web_search request", () => {
   it("reports the gateway's message when it refuses the key", async () => {
     const { tool } = toolWithResponse({ code: 16, message: "Invalid API key (C.1)" }, 401);
 
-    await expect(
-      tool.execute("call", { objective: "test" }, undefined, undefined, {} as ExtensionToolContext),
-    ).rejects.toThrow(
+    await expect(tool.execute("call", { objective: "test" }, undefined)).rejects.toThrow(
       "Parallel search failed: Parallel search returned HTTP 401: Invalid API key (C.1)",
     );
   });
@@ -81,13 +76,7 @@ describe("web_search structured content", () => {
       warnings: [{ message: "partial", type: "warning" }],
     });
 
-    const result = await tool.execute(
-      "call",
-      { objective: "test" },
-      undefined,
-      undefined,
-      {} as ExtensionToolContext,
-    );
+    const result = await tool.execute("call", { objective: "test" }, undefined);
 
     if (!tool.outputSchema) throw new Error("web_search declares no outputSchema");
     expect(Value.Check(tool.outputSchema, result.structuredContent)).toBe(true);
@@ -103,9 +92,7 @@ describe("web_search structured content", () => {
   it("rejects a response that does not match Parallel's contract", async () => {
     const { tool } = toolWithResponse({ results: [{ url: "https://a.example" }] });
 
-    await expect(
-      tool.execute("call", { objective: "test" }, undefined, undefined, {} as ExtensionToolContext),
-    ).rejects.toThrow(
+    await expect(tool.execute("call", { objective: "test" }, undefined)).rejects.toThrow(
       "Parallel search failed: Parallel search response: /results/0 must have required properties excerpts",
     );
   });
@@ -117,7 +104,9 @@ describe("web_search result rows", () => {
   });
 
   const render = () =>
-    createWebSearchTool(new ParallelClient({ apiKey: "key-1", apiKeyCommand: undefined }))
+    withWebSearchRendering(
+      createWebSearchTool(new ParallelClient({ apiKey: "key-1", apiKeyCommand: undefined })),
+    )
       .renderResult?.(
         {
           content: [],

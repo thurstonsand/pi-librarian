@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildLibrarianSystemPrompt } from "../extensions/librarian/prompt.ts";
+import { buildLibrarianSystemPrompt } from "../src/pi/prompt.ts";
 
 describe("buildLibrarianSystemPrompt", () => {
   it("points at the cache layout", () => {

@@ -1,6 +1,6 @@
 # pi-librarian
 
-A code research subagent for the [pi coding agent](https://github.com/badlogic/pi-mono) inspired by [Amp](https://ampcode.com/): deep-dive questions about specific repos ("how does drizzle-orm implement prepared statements?") and discovery across the ecosystem ("compare the most popular TypeScript SQL ORMs"). It also gives your session, and every librarian run, `web_search` and `web_fetch`.
+A code research subagent for the [pi coding agent](https://github.com/badlogic/pi-mono) inspired by [Amp](https://ampcode.com/): deep-dive questions about specific repos ("how does drizzle-orm implement prepared statements?") and discovery across the ecosystem ("compare the most popular TypeScript SQL ORMs"). It also gives your session, and every librarian run, `web_search` and `web_fetch`. [Claude Code and Codex](#claude-code-and-codex) get the same librarian as a subagent.
 
 ![calling the librarian tool](images/librarian-run.png)
 
@@ -29,6 +29,28 @@ Every search returns a short digest, 10 results unless the librarian asks for up
 - Ask follow-up questions to earlier librarian runs.
 - `/librarian` attaches the research tools directly to your session for direct tool usage.
 - `web_search` and `web_fetch` are always in your session; `/browser open` opens the fetch browser so you can log in to sites it should reach.
+
+## Claude Code and Codex
+
+Both get a `librarian` subagent that runs the same research tools as a `librarian` command, so the tools stay out of the main agent's context: the main agent sees only the subagent's description. The command lists only the sources you configured; `librarian --help` and each command's `--help` document the rest. Clones, results, the browser profile, and the fetch worker are shared with pi.
+
+Claude Code installs it as a plugin, which needs nothing else:
+
+```text
+/plugin marketplace add thurstonsand/pi-librarian
+/plugin install librarian@pi-librarian
+```
+
+The subagent runs on Sonnet; Claude Code reads a plugin agent's model only from the plugin, so to change it set `CLAUDE_CODE_SUBAGENT_MODEL`, which applies to every subagent. The plugin runs the command through `npx`, pinned to the plugin's version, and its hooks let only the librarian subagent run `librarian` and read and search its cache without a permission prompt. Claude Code's sandbox is not supported; to use one, allow `Bash(librarian *)` in your own settings.
+
+Codex plugins cannot ship agents, so install the command and write the role yourself:
+
+```bash
+npm install --global @thurstonsand/pi-librarian
+librarian codex setup
+```
+
+`codex setup` writes `~/.codex/agents/librarian.toml` and `~/.codex/rules/librarian.rules`, reporting each as created, updated, or unchanged; restart Codex after it changes either. The rule runs the `librarian` command outside Codex's sandbox without asking, since the default `workspace-write` sandbox blocks both its network and its cache. Rerun `codex setup` after upgrading or after changing the `codex` settings. `librarian codex uninstall` asks once, then removes both files.
 
 ## Web tools
 
@@ -66,7 +88,7 @@ Each URL goes through a chain of fetchers, `github → parallel → local`; the 
 
 **Parallel** extracts anything else, when a key is configured.
 
-**Local** is a browser fallback: [`playwright-core`](https://github.com/microsoft/playwright) driving your Chrome, with a [rehype](https://github.com/rehypejs/rehype) HTML-to-markdown pipeline. It reaches pages behind a login once you have logged in through `/browser open`, and downloads non-HTML files such as PDFs. A bot-wall challenge that does not clear headless within `headlessWaitSecs` briefly opens a visible window for up to `headedWaitSecs`, unless `escalation` is `"never"`. `/browser restart` applies changed browser settings.
+**Local** is a browser fallback: [`playwright-core`](https://github.com/microsoft/playwright) driving a Chromium browser, with a [rehype](https://github.com/rehypejs/rehype) HTML-to-markdown pipeline. It uses `executablePath` when set, then Google Chrome, then a `chromium` on `PATH`, then Playwright's own Chromium, which the first local fetch downloads when nothing else exists and says so in its result. One worker and one browser serve every pi, Claude Code, and Codex session. It reaches pages behind a login once you have logged in through `/browser open`, and downloads non-HTML files such as PDFs. A bot-wall challenge that does not clear headless within `headlessWaitSecs` briefly opens a visible window for up to `headedWaitSecs`, unless `escalation` is `"never"`. `/browser restart` applies changed browser settings.
 
 ## GitHub auth for private repos
 
@@ -75,82 +97,87 @@ Public GitHub reads work without configuration. To let the librarian search and 
 1. Set `GITHUB_TOKEN` or `GH_TOKEN` in the environment before starting pi.
 2. Or authenticate the GitHub CLI so `gh auth token` returns a token:
 
-The token is loaded once per pi session and used for GitHub access in `search_code_github`, `search_repos_github`, `read_file`, and `web_fetch`. For private repositories, use a token with read access to the target repos. `checkout_repo` uses git's built-in credential helpers instead.
+The token is loaded once per session and used for GitHub access in `search_code_github`, `search_repos_github`, `read_file`, and `web_fetch`. For private repositories, use a token with read access to the target repos. `checkout_repo` uses git's built-in credential helpers instead.
 
 ## Configuration
 
-In pi's global `settings.json`:
+In `~/.config/agents/librarian/config.json`, under `$XDG_CONFIG_HOME` when set, shared by every harness:
 
 ```jsonc
 {
-  "librarian": {
+  "sources": [
+    {
+      "name": "example-gl",
+      "url": "https://gitlab.example.com",
+      "kind": "gitlab",
+      "tokenEnv": "EXAMPLE_GITLAB_TOKEN",
+      "advancedSearch": false,
+      "description": "Holds the services not yet migrated to example-bb."
+    },
+    {
+      "name": "example-bb",
+      "url": "https://git.example.com",
+      "kind": "bitbucket-server",
+      "disabled": ["code-search"]
+    },
+    {
+      "name": "example-sg",
+      "url": "https://search.example.com",
+      "kind": "sourcegraph",
+      "tokenCommand": "op read op://Private/Sourcegraph/credential"
+    }
+  ],
+  "builtInSources": { "github": true, "gitlab.com": false },
+  "search": { "timeoutSeconds": 15, "defaultLimit": 10 },
+  "web": {
+    "parallel": { "apiKeyCommand": "op read op://Private/Parallel/credential" },
+    "fetch": {
+      "browser": {
+        "executablePath": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+      },
+      "challenge": { "escalation": "headed", "headlessWaitSecs": 10, "headedWaitSecs": 20 }
+    }
+  },
+  "cacheDir": "~/.cache/agents/librarian",
+  "pi": {
     "model": "openai-codex/gpt-5.5",
     "thinkingLevel": "off",
     "tools": { "disabled": [] },
-    "sources": [
-      {
-        "name": "example-gl",
-        "url": "https://gitlab.example.com",
-        "kind": "gitlab",
-        "tokenEnv": "EXAMPLE_GITLAB_TOKEN",
-        "advancedSearch": false,
-        "description": "Holds the services not yet migrated to example-bb."
-      },
-      {
-        "name": "example-bb",
-        "url": "https://git.example.com",
-        "kind": "bitbucket-server",
-        "disabled": ["code-search"]
-      },
-      {
-        "name": "example-sg",
-        "url": "https://search.example.com",
-        "kind": "sourcegraph",
-        "tokenCommand": "op read op://Private/Sourcegraph/credential"
-      }
-    ],
-    "builtInSources": { "github": true, "gitlab.com": false },
-    "search": { "timeoutSeconds": 15, "defaultLimit": 10 },
-    "web": {
-      "parallel": { "apiKeyCommand": "op read op://Private/Parallel/credential" },
-      "fetch": {
-        "browser": {
-          "executablePath": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-        },
-        "challenge": { "escalation": "headed", "headlessWaitSecs": 10, "headedWaitSecs": 20 }
-      }
-    },
-    "cacheDir": "/tmp/pi-librarian",
     "debug": { "persistRuns": false }
-  }
+  },
+  "codex": { "model": "gpt-5.5", "reasoningEffort": "low" }
 }
 ```
 
-| Setting                            | Recommended                                                              | Default                        |
-| ---------------------------------- | ------------------------------------------------------------------------ | ------------------------------ |
-| `model`                            | `openai-codex/gpt-5.5`                                                   | current session model          |
-| `thinkingLevel`                    | `off`                                                                    | current session thinking level |
-| `tools.disabled`                   | names of tools to remove from librarian runs                             | `[]`                           |
-| `sources`                          | code hosts and search backends                                           | `[]`                           |
-| `builtInSources`                   | switch `github` and `gitlab.com` on or off                               | `github` on, `gitlab.com` off  |
-| `search.timeoutSeconds`            | seconds a search may run before it is an error                           | `15`                           |
-| `search.defaultLimit`              | results a search returns unless asked for more (at most 50)              | `10`                           |
-| `web.parallel.apiKeyCommand`       | shell command printing a Parallel key, run per call                      | `PARALLEL_API_KEY` only        |
-| `web.fetch.browser.executablePath` | the Chrome the local fetcher drives                                      | an installed Chrome            |
-| `web.fetch.browser.profileDir`     | the fetch browser's profile                                              | `~/.pi/agent/browser-profile`  |
-| `web.fetch.challenge.*`            | `escalation` (`headed` or `never`), `headlessWaitSecs`, `headedWaitSecs` | `headed`, `10`, `20`           |
-| `cacheDir`                         | `/tmp/pi-librarian`                                                      | `/tmp/pi-librarian`            |
-| `debug.persistRuns`                | persist nested session file paths for debugging                          | `false`                        |
+Earlier releases kept these settings under `librarian` in pi's `settings.json`, and the browser profile at `~/.pi/agent/browser-profile`. The first pi, Claude Code, or Codex session after upgrading moves both, filing `model`, `thinkingLevel`, `tools`, and `debug` under `pi`. When the new location already exists it stops with an error instead of choosing one.
 
-Each `librarian.sources` entry requires a unique `name`, an HTTPS `url`, and a `kind`: `github`, `gitlab`, `bitbucket-server`, or `sourcegraph`. The `kind` decides which roles a source can play — `clone`, `code-search`, `repo-search` — unless `disabled`. `github` and `gitlab.com` are built in and need no entry; `builtInSources` switches each on or off as a whole, and a switched-off source does not exist at all, though a full clone URL to its host still clones.
+| Setting                                | Recommended                                                              | Default                                           |
+| -------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------- |
+| `sources`                              | code hosts and search backends                                           | `[]`                                              |
+| `builtInSources`                       | switch `github` and `gitlab.com` on or off                               | `github` on, `gitlab.com` off                     |
+| `search.timeoutSeconds`                | seconds a search may run before it is an error                           | `15`                                              |
+| `search.defaultLimit`                  | results a search returns unless asked for more (at most 50)              | `10`                                              |
+| `web.parallel.apiKeyCommand`           | shell command printing a Parallel key, run per call                      | `PARALLEL_API_KEY` only                           |
+| `web.fetch.browser.executablePath`     | the browser the local fetcher drives                                     | Chrome, then a `chromium`                         |
+| `web.fetch.browser.profileDir`         | the fetch browser's profile                                              | `~/.local/state/agents/librarian/browser-profile` |
+| `web.fetch.challenge.*`                | `escalation` (`headed` or `never`), `headlessWaitSecs`, `headedWaitSecs` | `headed`, `10`, `20`                              |
+| `cacheDir`                             | clones, search results, and fetched pages                                | `~/.cache/agents/librarian`                       |
+| `pi.model`                             | `openai-codex/gpt-5.5`                                                   | current session model                             |
+| `pi.thinkingLevel`                     | `off`                                                                    | current session thinking level                    |
+| `pi.tools.disabled`                    | names of tools to remove from librarian runs                             | `[]`                                              |
+| `pi.debug.persistRuns`                 | persist nested session file paths for debugging                          | `false`                                           |
+| `codex.model`, `codex.reasoningEffort` | the Codex role's model and reasoning effort, applied by `codex setup`    | the parent session's                              |
 
-Search needs an API token; cloning does not, because it uses git's own credentials. A source reads its token from the environment variable named by `tokenEnv`, from what `tokenCommand` prints, or by default from its kind's usual variable: `GITHUB_TOKEN`/`GH_TOKEN`, `GITLAB_ACCESS_TOKEN`, `BITBUCKET_TOKEN`, `SRC_ACCESS_TOKEN`. `tokenCommand` runs once, the first time the source is used, and outside the search time limit; restart pi after rotating the token it prints. A source without a token keeps cloning and loses its search tools. `advancedSearch: true`, on a `gitlab` source only, says the instance has GitLab's advanced search, which lets code search span projects. `description` is up to 300 characters the agent cannot discover for itself, such as what a Sourcegraph does not index; it ends the description of every tool that reaches that source, so attached tools carry it too. Note that `librarian.tools.disabled` is a different lever: it removes a tool from the run entirely, where a source's `disabled` removes one source from one role.
+Each `sources` entry requires a unique `name`, an HTTPS `url`, and a `kind`: `github`, `gitlab`, `bitbucket-server`, or `sourcegraph`. The `kind` decides which roles a source can play — `clone`, `code-search`, `repo-search` — unless `disabled`. `github` and `gitlab.com` are built in and need no entry; `builtInSources` switches each on or off as a whole, and a switched-off source does not exist at all, though a full clone URL to its host still clones.
 
-Every key under `librarian` is checked, and an unknown one is an error rather than ignored. Librarian runs have `read`, `grep`, `find`, `ls`, `bash`, the research tools, and the web tools; never `write` or `edit`.
+Search needs an API token; cloning does not, because it uses git's own credentials. A source reads its token from the environment variable named by `tokenEnv`, from what `tokenCommand` prints, or by default from its kind's usual variable: `GITHUB_TOKEN`/`GH_TOKEN`, `GITLAB_ACCESS_TOKEN`, `BITBUCKET_TOKEN`, `SRC_ACCESS_TOKEN`. `tokenCommand` runs once, the first time the source is used, and outside the search time limit; restart the session after rotating the token it prints. A source without a token keeps cloning and loses its search tools. `advancedSearch: true`, on a `gitlab` source only, says the instance has GitLab's advanced search, which lets code search span projects. `description` is up to 300 characters the agent cannot discover for itself, such as what a Sourcegraph does not index; it ends the description of every tool that reaches that source, so attached tools carry it too. Note that `pi.tools.disabled` is a different lever: it removes a tool from the run entirely, where a source's `disabled` removes one source from one role.
+
+Every key in the file is checked, and an unknown one is an error rather than ignored. Pi's librarian runs have `read`, `grep`, `find`, `ls`, `bash`, the research tools, and the web tools; never `write` or `edit`.
 
 ## Development
 
 ```bash
-npm run check                       # biome + tsc + vitest
-pi -e ./extensions/librarian.ts     # run pi with this extension loaded
+npm run check                       # biome + tsc + vitest + build
+pi -e ./src/pi/librarian.ts         # run pi with this extension loaded
+mise run build && node dist/cli/librarian.js --help   # build and run the CLI
 ```

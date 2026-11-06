@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { throwForHttpError } from "../extensions/librarian/web/fetchers/local/http-status.ts";
+import { throwForHttpError } from "../src/core/web/fetchers/local/http-status.ts";
 
 describe("throwForHttpError", () => {
   it.each([200, 204, 301, 307, 399])("accepts HTTP %i", (status) => {

@@ -6,7 +6,7 @@ import {
   readAttachState,
   renderAttachEntry,
   setAttachState,
-} from "../extensions/librarian/attach.ts";
+} from "../src/pi/attach.ts";
 
 const TOOLS = ["search_code_github", "search_repos_github", "checkout_repo"];
 

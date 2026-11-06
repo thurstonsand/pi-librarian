@@ -2,7 +2,7 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
-import { createRehypeExtractor } from "../extensions/librarian/web/fetchers/local/local-extractor.ts";
+import { createRehypeExtractor } from "../src/core/web/fetchers/local/local-extractor.ts";
 
 const extractor = createRehypeExtractor();
 let dir: string;

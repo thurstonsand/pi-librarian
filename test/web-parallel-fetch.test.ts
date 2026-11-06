@@ -1,16 +1,9 @@
 import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  canonicalUrl,
-  createParallelFetcher,
-  ParallelClient,
-} from "../extensions/librarian/web/parallel.ts";
+import { canonicalUrl, createParallelFetcher, ParallelClient } from "../src/core/web/parallel.ts";
 import { stubFetch } from "./support/fetch-stub.ts";
-
-const ctx = {} as ExtensionContext;
 
 function fakeParallel(extractResult: unknown): ParallelClient {
   stubFetch([
@@ -58,7 +51,7 @@ describe("createParallelFetcher", () => {
       }),
     );
 
-    const { documents } = await fetcher.fetch({ urls, artifactDir, ctx });
+    const { documents } = await fetcher.fetch({ urls, artifactDir });
 
     expect(documents.map((doc) => doc.url)).toEqual([
       "https://example.com/second",
@@ -87,7 +80,7 @@ describe("createParallelFetcher", () => {
       }),
     );
 
-    const { documents } = await fetcher.fetch({ urls: [requested], artifactDir, ctx });
+    const { documents } = await fetcher.fetch({ urls: [requested], artifactDir });
 
     expect(documents[0]?.url).toBe(requested);
   });
@@ -115,7 +108,7 @@ describe("createParallelFetcher", () => {
       }),
     );
 
-    const { documents } = await fetcher.fetch({ urls, artifactDir, ctx });
+    const { documents } = await fetcher.fetch({ urls, artifactDir });
 
     expect(documents.map((doc) => doc.facts)).toEqual([
       ["published 2024-01-15", "acquired 2026-10-08"],
@@ -136,7 +129,6 @@ describe("createParallelFetcher", () => {
     const { documents } = await fetcher.fetch({
       urls: ["https://example.com/original"],
       artifactDir,
-      ctx,
     });
 
     expect(documents[0]?.url).toBe("https://redirected.example.com/");

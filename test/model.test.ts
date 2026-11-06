@@ -1,8 +1,8 @@
 import type { Api, Model } from "@earendil-works/pi-ai";
 import type { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { describe, expect, it } from "vitest";
-import { resolveLibrarianModel } from "../extensions/librarian/model.ts";
-import { ModelReference } from "../extensions/librarian/settings.ts";
+import { ModelReference } from "../src/core/settings.ts";
+import { resolveLibrarianModel } from "../src/pi/model.ts";
 
 const configuredModel = { provider: "anthropic", id: "claude-sonnet" } as Model<Api>;
 const currentModel = { provider: "openai", id: "gpt-5" } as Model<Api>;

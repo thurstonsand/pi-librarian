@@ -49,6 +49,18 @@ One way `web_fetch` resolves a URL: `github`, `parallel`, or `local`, tried in t
 **Document**:
 What a fetcher returns for one URL: a title, facts, an excerpt, and one or more bodies written under `<cacheDir>/fetches/<call-id>/`.
 
+**Binding**:
+A harness's way into the **Core**: the pi extension, or the `librarian` **CLI** that Claude Code and Codex subagents run.
+
+**Core**:
+The research tools, their clients, settings, and the fetch worker, in `src/core/`. Imports nothing from pi.
+
+**CLI**:
+The `librarian` command: each **Repo tool** and **Web tool** as a subcommand, existing only for configured sources. Only the librarian subagent's prompt names it, so the main agent never sees the tools.
+
+**Harness section**:
+The `pi` or `codex` key of the settings file, holding what only that harness reads, such as its model.
+
 **Attach / attached tools**:
 Loading the repo tools into the main pi session via `/librarian`, making them directly usable by the main agent alongside the `librarian` tool.
 _Avoid_: load, enable
@@ -57,7 +69,7 @@ _Avoid_: load, enable
 
 - A **Librarian run** ends with exactly one **Findings**, containing zero or more **Locations**.
 - **Attached tools** are the same **Repo tools** a **Librarian** uses, minus `provide_results`.
-- A librarian run has the **Repo tools**, the **Inherited tools**, and the **Web tools**, less anything in `librarian.tools.disabled`.
+- A librarian run has the **Repo tools**, the **Inherited tools**, and the **Web tools**, less anything in `pi.tools.disabled`.
 - The `github` **Fetcher** uses the same client per **Source** as the **Repo tools**, so one token and one error path serve both.
 - a **Librarian run** is persisted in its own session directory, identified by a **Run id**.
 - A **Kind** decides which **Roles** are possible, unless `disabled`. `sourcegraph` is the only kind that never has `clone`, which is why the list is `sources` and not `hosts`.

@@ -18,8 +18,12 @@
   "engines": {
     "node": ">=24"
   },
+  "bin": {
+    "librarian": "./dist/cli/librarian.js"
+  },
   "files": [
-    "extensions",
+    "dist",
+    "plugin/agents",
     "README.md",
     "CHANGELOG.md",
     "CONTEXT.md",
@@ -30,10 +34,12 @@
   ],
   "pi": {
     "extensions": [
-      "./extensions/librarian.ts"
+      "./dist/pi/librarian.js"
     ]
   },
   "scripts": {
+    "build": "mise run build",
+    "prepack": "mise run build",
     "lint": "mise run lint",
     "format": "mise run format",
     "typecheck": "mise run typecheck",
@@ -47,6 +53,7 @@
     "@earendil-works/pi-coding-agent": "^1.5.0",
     "@earendil-works/pi-tui": "^1.5.0",
     "@types/node": "^24.13.3",
+    "tsdown": "^0.23.5",
     "typebox": "1.3.27",
     "typescript": "^7.0.0",
     "vitest": "^5.0.0"
@@ -58,9 +65,27 @@
     "@earendil-works/pi-tui": ">=1.5.0",
     "typebox": "*"
   },
+  "peerDependenciesMeta": {
+    "@earendil-works/pi-agent-core": {
+      "optional": true
+    },
+    "@earendil-works/pi-ai": {
+      "optional": true
+    },
+    "@earendil-works/pi-coding-agent": {
+      "optional": true
+    },
+    "@earendil-works/pi-tui": {
+      "optional": true
+    },
+    "typebox": {
+      "optional": true
+    }
+  },
   "dependencies": {
     "@octokit/request-error": "^7.1.0",
     "@octokit/rest": "^22.0.1",
+    "commander": "^15.0.0",
     "playwright-core": "^1.64.1",
     "rehype-parse": "^9.0.1",
     "rehype-remark": "^10.0.1",

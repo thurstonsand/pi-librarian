@@ -1,0 +1,11 @@
+{
+  "name": "librarian",
+  "version": "0.8.0",
+  "description": "A research subagent for code and documentation outside the workspace, with tools only it can see",
+  "author": {
+    "name": "Thurston Sandberg"
+  },
+  "homepage": "https://github.com/thurstonsand/pi-librarian#readme",
+  "repository": "https://github.com/thurstonsand/pi-librarian",
+  "license": "MIT"
+}

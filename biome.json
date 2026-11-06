@@ -28,5 +28,27 @@
       "semicolons": "always",
       "trailingCommas": "all"
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["src/core/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@earendil-works/*", "**/pi/**"],
+                    "message": "src/core is shared by the pi and CLI bindings, so it must not depend on pi."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }
