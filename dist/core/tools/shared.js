@@ -1,0 +1,62 @@
+import { Type } from "typebox";
+import { SearchTimeoutError, searchTimeoutMessage, withSearchDeadline } from "../budget.js";
+import { MAX_SEARCH_LIMIT } from "../settings.js";
+import { StringEnum } from "../string-enum.js";
+export function limitParameter(maximum, defaultLimit) {
+    return Type.Optional(Type.Integer({
+        minimum: 1,
+        maximum,
+        description: `How many results to return. Default: ${defaultLimit}. Raise it only when the first results did not answer the question; each result with matched lines costs about 1 KB of context.`,
+    }));
+}
+export function resolveLimit(requested, search, maximum) {
+    return Math.min(requested ?? search.defaultLimit, maximum, MAX_SEARCH_LIMIT);
+}
+export function sourceLabels(sources) {
+    return sources.map((source) => `${source.name} (${new URL(source.url).host})`).join(", ");
+}
+// One instance means no argument: an enum of one member is noise the model reads on every call.
+export function sourceProperties(instances, description) {
+    return instances.length > 1
+        ? {
+            source: StringEnum(instances.map((instance) => instance.name), { description: `${description}: ${sourceLabels(instances)}.` }),
+        }
+        : {};
+}
+export function selectInstance(instances, params) {
+    if (instances.length === 1 && instances[0]) {
+        return instances[0];
+    }
+    const requested = "source" in params && typeof params.source === "string" ? params.source : undefined;
+    const instance = instances.find((candidate) => candidate.name === requested);
+    if (!instance) {
+        throw new Error(`Unknown source "${requested ?? ""}". Use one of: ${instances.map((candidate) => candidate.name).join(", ")}.`);
+    }
+    return instance;
+}
+// Engines read a space in an interpolated value as the start of another qualifier, and a quoted
+// value as a silent zero, so there is no safe escaping: refuse them.
+export function rejectUnsafeValue(argument, value) {
+    const trimmed = value.trim();
+    if (trimmed.length === 0) {
+        throw new Error(`${argument} cannot be blank.`);
+    }
+    // Parentheses too: inside a predicate, one closes it and lets the rest become another filter.
+    if (/[\s"'()]/.test(trimmed)) {
+        throw new Error(`${argument} cannot contain spaces, quotes, or parentheses: "${value}".`);
+    }
+    return trimmed;
+}
+export function validateIsoDate(argument, value) {
+    const trimmed = value.trim();
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
+    if (!match || Number.isNaN(Date.parse(`${trimmed}T00:00:00Z`))) {
+        throw new Error(`${argument} must be a date as YYYY-MM-DD, e.g. 2026-01-01: "${value}".`);
+    }
+    return trimmed;
+}
+// REST engines have no server-side cancel and report nothing when stopped, so they are held to the
+// budget itself; closing the connection is all there is.
+export function runRestSearch(search, signal, advice, run) {
+    return withSearchDeadline(search.timeoutSeconds * 1000, signal, () => new SearchTimeoutError(searchTimeoutMessage(search.timeoutSeconds, undefined, advice)), (deadline) => run(deadline.signal));
+}
