@@ -1,0 +1,20 @@
+{
+  "name": "pi-librarian",
+  "interface": {
+    "displayName": "pi-librarian"
+  },
+  "plugins": [
+    {
+      "name": "librarian",
+      "source": {
+        "source": "local",
+        "path": "./codex-plugin"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

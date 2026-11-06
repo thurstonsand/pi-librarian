@@ -56,6 +56,10 @@ run = [
 description = "Check that the Claude plugin's version, which pins the CLI it runs, matches package.json's"
 run = 'test "$(node -p "require(\"./plugin/.claude-plugin/plugin.json\").version")" = "$(node -p "require(\"./package.json\").version")" || { echo "plugin/.claude-plugin/plugin.json version differs from package.json" >&2; exit 1; }'
 
+[tasks."lint:codex-plugin"]
+description = "Check that the Codex plugin's prompt and version match the Claude agent and package.json"
+run = "scripts/sync-codex-plugin.mjs --check"
+
 [tasks."lint:actions"]
 description = "Lint GitHub Actions workflows"
 run = "hk check --all --step jactionlint"

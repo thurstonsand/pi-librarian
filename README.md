@@ -32,25 +32,33 @@ Every search returns a short digest, 10 results unless the librarian asks for up
 
 ## Claude Code and Codex
 
-Both get a `librarian` subagent that runs the same research tools as a `librarian` command, so the tools stay out of the main agent's context: the main agent sees only the subagent's description. The command lists only the sources you configured; `librarian --help` and each command's `--help` document the rest. Clones, results, the browser profile, and the fetch worker are shared with pi.
+Both get a `librarian` subagent that runs the same research tools as a `librarian` command, so the tools stay out of the main agent's context. The command lists only the sources you configured; `librarian --help` and each command's `--help` document the rest. Clones, results, the browser profile, and the fetch worker are shared with pi. Each plugin runs the command through `npx`, pinned to its own version, when `librarian` is not on `PATH`.
 
-Claude Code installs it as a plugin, which needs nothing else:
+### Claude Code
 
 ```text
-/plugin marketplace add thurstonsand/pi-librarian
-/plugin install librarian@pi-librarian
+/plugin install librarian --marketplace thurstonsand/pi-librarian
 ```
 
-The subagent runs on Sonnet; Claude Code reads a plugin agent's model only from the plugin, so to change it set `CLAUDE_CODE_SUBAGENT_MODEL`, which applies to every subagent. The plugin runs the command through `npx`, pinned to the plugin's version, and its hooks let only the librarian subagent run `librarian` and read and search its cache without a permission prompt. Claude Code's sandbox is not supported; to use one, allow `Bash(librarian *)` in your own settings.
+From a shell, `claude plugin install librarian --marketplace thurstonsand/pi-librarian` does the same.
 
-Codex plugins cannot ship agents, so install the command and write the role yourself:
+The subagent runs on Sonnet. To change it, set `CLAUDE_CODE_SUBAGENT_MODEL` together with `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1`, which applies to every subagent. The plugin's hooks let only the librarian subagent run `librarian` and read and search its cache without a permission prompt. Claude Code's sandbox is not supported; to use one, allow `Bash(librarian *)` in your own settings.
+
+### Codex
+
+```bash
+codex plugin marketplace add thurstonsand/pi-librarian
+codex plugin add librarian@pi-librarian
+```
+
+Codex plugins cannot ship agents, so the plugin ships a `librarian` skill that tells the main agent to spawn a subagent and hand it the librarian's prompt. Under auto review or full access that is all it needs. Codex's default sandbox blocks the librarian's network and asks for every clone and fetch, and `codex exec` cannot ask at all; for those, install the command and give Codex a real `librarian` role and a rule that runs it outside the sandbox:
 
 ```bash
 npm install --global @thurstonsand/pi-librarian
 librarian codex setup
 ```
 
-`codex setup` writes `~/.codex/agents/librarian.toml` and `~/.codex/rules/librarian.rules`, reporting each as created, updated, or unchanged; restart Codex after it changes either. The rule runs the `librarian` command outside Codex's sandbox without asking, since the default `workspace-write` sandbox blocks both its network and its cache. Rerun `codex setup` after upgrading or after changing the `codex` settings. `librarian codex uninstall` asks once, then removes both files.
+`codex setup` writes `~/.codex/agents/librarian.toml`, with the model and reasoning effort from the `codex` settings, and `~/.codex/rules/librarian.rules`, reporting each as created, updated, or unchanged; restart Codex after it changes either. The skill prefers that role when it exists. Rerun `codex setup` after upgrading or after changing the `codex` settings. `librarian codex uninstall` asks once, then removes both files.
 
 ## Web tools
 

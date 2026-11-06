@@ -1,5 +1,6 @@
 {
   "name": "pi-librarian",
+  "description": "The librarian research subagent for Claude Code",
   "owner": {
     "name": "Thurston Sandberg"
   },

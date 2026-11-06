@@ -4,6 +4,16 @@
 
 ## [Unreleased]
 
+Codex installs the librarian as a plugin too.
+
+### Added
+
+- A Codex plugin, installed from this repository's marketplace, gives Codex a `librarian` skill that spawns the librarian as a subagent, with no setup command.
+
+### Fixed
+
+- The README now says how to change the Claude subagent's model: `CLAUDE_CODE_SUBAGENT_MODEL` alone no longer overrides a plugin agent's own model.
+
 ## [0.9.0] - 2026-11-06
 
 The librarian runs from Claude Code and Codex too, through a `librarian` command; settings, cache, and browser profile move to shared XDG directories.

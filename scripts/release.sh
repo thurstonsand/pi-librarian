@@ -39,7 +39,9 @@ node -e '
   const plugin = JSON.parse(fs.readFileSync(file, "utf8"));
   fs.writeFileSync(file, `${JSON.stringify({ ...plugin, version: process.argv[1] }, null, 2)}\n`);
 ' "${version}"
-git add CHANGELOG.md package.json package-lock.json plugin/.claude-plugin/plugin.json
+scripts/sync-codex-plugin.mjs
+npx biome format --write codex-plugin > /dev/null
+git add CHANGELOG.md package.json package-lock.json plugin/.claude-plugin/plugin.json codex-plugin
 git commit --quiet -m "chore(release): ${version}"
 
 notes="$(mktemp)"
