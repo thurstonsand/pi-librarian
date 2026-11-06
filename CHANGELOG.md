@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+The librarian runs from Claude Code and Codex too, through a `librarian` command; settings, cache, and browser profile move to shared XDG directories.
+
 ### Breaking
 
 - Settings live in `~/.config/agents/librarian/config.json`, shared by every harness, instead of under `librarian` in pi's settings. `model`, `thinkingLevel`, `tools`, and `debug` move under `pi`. The first session after upgrading moves them, and the browser profile, automatically, and stops with an error when the new location already exists.
