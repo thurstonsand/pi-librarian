@@ -111,7 +111,7 @@ TypeScript 7's `tsc` compiles everything into `dist/` with `rewriteRelativeImpor
 
 ### 4. Git installs
 
-Pi installs git sources with `npm install --omit=dev`, so no build can run at install time, and `dist/` is not committed on `main`. The `downgrade` branch, which the work machine installs from git, gets a workflow that builds and commits `dist/` whenever the branch is pushed.
+Pi installs git sources with `npm install --omit=dev`, so no build can run at install time, and `dist/` is not committed on `main`. The `downgrade` branch, which the work machine installs from git, gets a workflow that builds and commits `dist/` whenever the branch is pushed, as one build commit above the pin commit that later runs amend.
 
 ### 5. Shared directories and one worker
 

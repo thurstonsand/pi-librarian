@@ -12,6 +12,7 @@ The job of this skill is to stop pins from disappearing silently. Git can merge 
 ## Model
 
 - **One pin commit.** The branch is a single pin commit on top of `main`. Amend it when pins change instead of stacking commits, so the diff against `main` is the whole story.
+- **One build commit above it.** `.github/workflows/downgrade.yml` commits `dist/` as `chore(dist): build the downgrade branch` on every push to the branch, because Pi's git install cannot build. The workflow owns that commit: drop it before rebasing, and the push recreates it.
 - **Force-push is correct.** Pi resets rather than pulls, so rewritten history costs the downstream install nothing.
 - **`PINS.md` is the contract.** Every row is a pin that must hold after the rebase. Each pin is enforced one of three ways:
   - **Exact range**: a direct dependency whose `package.json` range is narrowed to the pinned version. Needed once `main`'s range stops admitting it.
@@ -29,6 +30,7 @@ Find where the branch is checked out with `git worktree list`. If nothing has it
 ```sh
 TARGET=origin/main # or "v${VERSION}"
 git fetch origin
+[ "$(git log -1 --format=%s)" = "chore(dist): build the downgrade branch" ] && git reset --hard HEAD~1
 git rebase "$TARGET"
 ```
 
@@ -112,8 +114,8 @@ git push --force-with-lease=downgrade:origin/downgrade origin downgrade
 
 `git status` must be clean after `mise run check`; the bootstrap hook reinstalls dependencies and would surface a lockfile that drifted.
 
-Done when the gate passes and the push lands.
+Done when the gate passes, the push lands, and the `Downgrade build` run it starts has pushed the build commit on top.
 
 ### 7. Report
 
-Report the new `downgrade` commit, the target it was rebased onto, the `npm ls` result for every pin, any pin that had to be re-applied or moved, and any pins past their recheck date.
+Report the new pin commit and the build commit above it, the target it was rebased onto, the `npm ls` result for every pin, any pin that had to be re-applied or moved, and any pins past their recheck date.
