@@ -147,6 +147,7 @@ const parallelExtractResponse = Type.Object({
       publish_date: Type.Optional(nullableString),
       excerpts: Type.Array(Type.String()),
       full_content: Type.Optional(nullableString),
+      acquired_at: Type.Optional(nullableString),
     }),
   ),
   errors: Type.Array(
@@ -255,7 +256,11 @@ export function createParallelFetcher(client: ParallelClient): WebFetcher {
             url: requestedUrl,
             ...(item.url !== requestedUrl ? { link: item.url } : {}),
             title: item.title?.trim() || item.url,
-            facts: item.publish_date ? [`published ${item.publish_date}`] : [],
+            facts: [
+              ...(item.publish_date ? [`published ${item.publish_date}`] : []),
+              // Parallel truncates acquired_at to the start of its UTC day.
+              ...(item.acquired_at ? [`acquired ${item.acquired_at.slice(0, 10)}`] : []),
+            ],
             // With an objective, Parallel's excerpts are the steered answer the
             // agent asked for — deliver all of them uncapped as highlights.
             ...(objective ? { highlights: item.excerpts } : { excerpt: item.excerpts[0] }),

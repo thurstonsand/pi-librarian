@@ -92,6 +92,37 @@ describe("createParallelFetcher", () => {
     expect(documents[0]?.url).toBe(requested);
   });
 
+  it("states when Parallel acquired each page, when it knows", async () => {
+    const urls = ["https://example.com/dated", "https://example.com/undated"];
+    const fetcher = createParallelFetcher(
+      fakeParallel({
+        results: [
+          {
+            url: "https://example.com/dated",
+            publish_date: "2024-01-15",
+            acquired_at: "2026-10-08T00:00:00Z",
+            full_content: "dated",
+            excerpts: [],
+          },
+          {
+            url: "https://example.com/undated",
+            acquired_at: null,
+            full_content: "undated",
+            excerpts: [],
+          },
+        ],
+        errors: [],
+      }),
+    );
+
+    const { documents } = await fetcher.fetch({ urls, artifactDir, ctx });
+
+    expect(documents.map((doc) => doc.facts)).toEqual([
+      ["published 2024-01-15", "acquired 2026-10-08"],
+      [],
+    ]);
+  });
+
   it("falls back to the item url when nothing matches", async () => {
     const fetcher = createParallelFetcher(
       fakeParallel({
