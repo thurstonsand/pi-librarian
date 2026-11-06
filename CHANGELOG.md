@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-06
+
 The librarian runs from Claude Code and Codex too, through a `librarian` command; settings, cache, and browser profile move to shared XDG directories.
 
 ### Breaking
