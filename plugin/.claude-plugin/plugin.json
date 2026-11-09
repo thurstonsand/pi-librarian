@@ -1,6 +1,6 @@
 {
   "name": "librarian",
-  "version": "0.9.1",
+  "version": "0.10.0",
   "description": "A research subagent for code and documentation outside the workspace, with tools only it can see",
   "author": {
     "name": "Thurston Sandberg"

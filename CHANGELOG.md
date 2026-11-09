@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-09
+
 Codex installs the librarian only as a role; the Codex plugin is gone.
 
 ### Breaking
