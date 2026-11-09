@@ -8,6 +8,8 @@
 
 `package.json` carries the released version on `main`. A git install, such as the `downgrade` branch, reads it from there; a placeholder would make Pi show the whole changelog on every launch.
 
+Versions follow semantic versioning: a release with any new feature (an `Added` entry), a raised floor (a higher minimum Pi, Node, OS, or other dependency version), or anything breaking is at least minor, and breaking is major from 1.0 on; patch is only for fixes and dependency updates.
+
 ## Release flow
 
 1. Review `## [Unreleased]`: a one-line summary first, then the `### Breaking`, `### Added`, `### Changed`, and `### Fixed` entries that apply.
