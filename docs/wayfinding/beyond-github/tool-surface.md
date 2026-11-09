@@ -1434,7 +1434,6 @@ So its case rests on **documentation and READMEs across projects**, which is the
 
 The one way Firecrawl could return is as a second `web_search` backend beside Parallel. That would be its general `/v2/search`, a web search, not the Developer Index, and nothing about it has been measured.
 
-
 ## `find_definition`, and why there is no `find_references`
 
 The Sourcegraph spike settled this one with evidence, and the answer is one tool, not two.
