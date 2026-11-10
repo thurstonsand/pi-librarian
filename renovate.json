@@ -51,8 +51,8 @@
       "rangeStrategy": "bump"
     },
     {
-      "description": "The peer ranges are the oldest pi this package supports, raised by hand when the extension starts relying on a newer pi. Renovate would bump them with every release.",
-      "matchPackageNames": ["@earendil-works/**"],
+      "description": "Pi's docs/packages.md has a package declare the packages Pi provides as peerDependencies at \"*\", so it loads in whichever Pi hosts it. Renovate leaves those peers alone; the devDependencies carry the Pi the package is built against.",
+      "matchPackageNames": ["@earendil-works/**", "typebox"],
       "matchDepTypes": ["peerDependencies"],
       "enabled": false
     },

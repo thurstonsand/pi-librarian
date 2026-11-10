@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- pi's packages are peer dependencies at any version (`*`) instead of `>=1.5.0`, as pi's package guidance asks. pi supplies them to every extension it loads, so the range was a floor nothing enforced.
+
 ## [0.10.0] - 2026-11-09
 
 Codex installs the librarian only as a role; the Codex plugin is gone.
