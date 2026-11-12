@@ -69,7 +69,7 @@ _Avoid_: load, enable
 
 - A **Librarian run** ends with exactly one **Findings**, containing zero or more **Locations**.
 - **Attached tools** are the same **Repo tools** a **Librarian** uses, minus `provide_results`.
-- A librarian run has the **Repo tools**, the **Inherited tools**, and the **Web tools**, less anything in `pi.tools.disabled`.
+- A librarian run has the **Repo tools**, the **Inherited tools**, and the **Web tools**, less anything in `tools.disabled`; the **CLI** omits the commands of the same tools.
 - The `github` **Fetcher** uses the same client per **Source** as the **Repo tools**, so one token and one error path serve both.
 - a **Librarian run** is persisted in its own session directory, identified by a **Run id**.
 - A **Kind** decides which **Roles** are possible, unless `disabled`. `sourcegraph` is the only kind that never has `clone`, which is why the list is `sources` and not `hosts`.

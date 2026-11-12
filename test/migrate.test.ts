@@ -52,10 +52,10 @@ describe("migrateFromPi", () => {
     expect(readJson(current.settings)).toEqual({
       sources: [{ name: "work-sg", url: "https://sg.example.com", kind: "sourcegraph" }],
       cacheDir: "~/librarian-cache",
+      tools: { disabled: ["bash"] },
       pi: {
         model: "anthropic/claude-sonnet-5",
         thinkingLevel: "low",
-        tools: { disabled: ["bash"] },
         debug: { persistRuns: true },
       },
     });

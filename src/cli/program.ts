@@ -4,7 +4,7 @@ import { cloneSources } from "../core/checkout.ts";
 import type { LibrarianSettings, LibrarianSource, SourceKind } from "../core/settings.ts";
 import type { LibrarianTool } from "../core/tool.ts";
 import { type RepoClients, readableSources, sourcesWith } from "../core/tools/index.ts";
-import { LIBRARIAN_TOOL_NAMES } from "../core/tools/names.ts";
+import { LIBRARIAN_TOOL_NAMES, WEB_TOOL_NAMES } from "../core/tools/names.ts";
 import { parseTypeBoxValue } from "../core/typebox.ts";
 import type { WebTools } from "../core/web/index.ts";
 
@@ -129,21 +129,37 @@ function sourceDescription(source: LibrarianSource): string {
 }
 
 // Commands exist only for what is configured: a source without a search credential has no search
-// commands, and an engine with no instance has no source command at all.
+// commands, an engine with no instance has no source command at all, and a disabled tool has none.
 export function createProgram(input: ProgramInput): Command {
   const { settings, clients, repoTools, web, write } = input;
-  const tool = (name: string): LibrarianTool => {
-    const found = repoTools.find((candidate) => candidate.name === name);
+  const tools = [...repoTools, ...(web.search ? [web.search] : []), web.fetch];
+  const disabled = new Set(settings.tools.disabled);
+  const tool = (name: string): LibrarianTool | undefined => {
+    if (disabled.has(name)) return undefined;
+    const found = tools.find((candidate) => candidate.name === name);
     if (!found) throw new Error(`no ${name} tool`);
     return found;
   };
   const includes = (list: LibrarianSource[], source: LibrarianSource) =>
     list.some((candidate) => candidate.name === source.name);
   // A tool over one instance takes no source argument; one over several needs it named.
-  const sourceArgument = (name: string, source: LibrarianSource): Record<string, string> =>
-    "source" in (tool(name).parameters as unknown as ParametersSchema).properties
-      ? { source: source.name }
-      : {};
+  const addTool = (
+    parent: Command,
+    name: string,
+    command: string,
+    positionals: string[],
+    source: LibrarianSource | undefined,
+  ): Command | undefined => {
+    const found = tool(name);
+    if (!found) return undefined;
+    const fixed: Record<string, string> =
+      source && "source" in (found.parameters as unknown as ParametersSchema).properties
+        ? { source: source.name }
+        : {};
+    const added = toolCommand(command, found, positionals, fixed, write);
+    parent.addCommand(added);
+    return added;
+  };
 
   const program = new Command("librarian")
     .description(
@@ -160,63 +176,40 @@ export function createProgram(input: ProgramInput): Command {
     const command = new Command(source.name).description(sourceDescription(source));
 
     if (includes(sourcesWith(settings.sources, source.kind, "code-search"), source)) {
-      const name = CODE_TOOLS[source.kind];
-      command.addCommand(
-        toolCommand("code", tool(name), ["pattern"], sourceArgument(name, source), write),
-      );
+      addTool(command, CODE_TOOLS[source.kind], "code", ["pattern"], source);
     }
     if (includes(sourcesWith(settings.sources, source.kind, "repo-search"), source)) {
       const { tool: name, query } = REPO_TOOLS[source.kind];
-      command.addCommand(
-        toolCommand("repos", tool(name), [query], sourceArgument(name, source), write),
-      );
+      addTool(command, name, "repos", [query], source);
     }
     if (includes(readable, source)) {
-      const name = LIBRARIAN_TOOL_NAMES.readFile;
-      command.addCommand(
-        toolCommand("read", tool(name), ["repo", "path"], sourceArgument(name, source), write),
-      );
+      addTool(command, LIBRARIAN_TOOL_NAMES.readFile, "read", ["repo", "path"], source);
     }
     if (includes(clonable, source)) {
-      command.addCommand(
-        toolCommand(
-          "clone",
-          tool(LIBRARIAN_TOOL_NAMES.checkoutRepo),
-          ["repo"],
-          { source: source.name },
-          write,
-        ),
-      );
+      addTool(command, LIBRARIAN_TOOL_NAMES.checkoutRepo, "clone", ["repo"], source);
     }
     if (
       source.kind === "sourcegraph" &&
       includes(sourcesWith(settings.sources, "sourcegraph", "code-search"), source)
     ) {
-      const name = LIBRARIAN_TOOL_NAMES.findDefinition;
-      command.addCommand(
-        toolCommand("definition", tool(name), ["symbol"], sourceArgument(name, source), write),
-      );
+      addTool(command, LIBRARIAN_TOOL_NAMES.findDefinition, "definition", ["symbol"], source);
     }
     if (command.commands.length > 0) program.addCommand(command);
   }
 
-  program.addCommand(
-    toolCommand("grepapp", tool(LIBRARIAN_TOOL_NAMES.searchCodeGrepApp), ["pattern"], {}, write),
-  );
-  program.addCommand(
-    toolCommand("clone", tool(LIBRARIAN_TOOL_NAMES.checkoutRepo), ["repo"], {}, write)
-      .summary("Clone a repository by its full HTTPS or SSH URL")
-      .description(
-        "Clone a repository by its full HTTPS or SSH URL into the shared cache and check out a branch, tag, or commit, returning its path for grep, read, and git log, blame, and diff. Clones are reused across calls. To clone by repository path, use `librarian <source> clone`.",
-      ),
-  );
+  addTool(program, LIBRARIAN_TOOL_NAMES.searchCodeGrepApp, "grepapp", ["pattern"], undefined);
+  addTool(program, LIBRARIAN_TOOL_NAMES.checkoutRepo, "clone", ["repo"], undefined)
+    ?.summary("Clone a repository by its full HTTPS or SSH URL")
+    .description(
+      "Clone a repository by its full HTTPS or SSH URL into the shared cache and check out a branch, tag, or commit, returning its path for grep, read, and git log, blame, and diff. Clones are reused across calls. To clone by repository path, use `librarian <source> clone`.",
+    );
 
   const webCommand = new Command("web").description("Search the web and fetch pages");
   if (web.search) {
-    webCommand.addCommand(toolCommand("search", web.search, ["objective"], {}, write));
+    addTool(webCommand, WEB_TOOL_NAMES.webSearch, "search", ["objective"], undefined);
   }
-  webCommand.addCommand(toolCommand("fetch", web.fetch, ["urls"], {}, write));
-  program.addCommand(webCommand);
+  addTool(webCommand, WEB_TOOL_NAMES.webFetch, "fetch", ["urls"], undefined);
+  if (webCommand.commands.length > 0) program.addCommand(webCommand);
 
   program.addCommand(
     new Command("codex")

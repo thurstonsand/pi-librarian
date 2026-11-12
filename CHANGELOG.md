@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+### Breaking
+
+- `pi.tools.disabled` moves to the top-level `tools.disabled`, and applies to every harness: the `librarian` command leaves out the commands of disabled tools, so Claude Code and Codex lose them too.
+
 ### Changed
 
 - pi's packages are peer dependencies at any version (`*`) instead of `>=1.5.0`, as pi's package guidance asks. pi supplies them to every extension it loads, so the range was a floor nothing enforced.

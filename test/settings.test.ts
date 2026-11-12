@@ -8,7 +8,7 @@ describe("resolveLibrarianSettings", () => {
     const settings = resolveLibrarianSettings({}, {});
     expect(settings.pi.model).toBeUndefined();
     expect(settings.pi.thinkingLevel).toBeUndefined();
-    expect(settings.pi.tools).toEqual({ disabled: [] });
+    expect(settings.tools).toEqual({ disabled: [] });
     expect(settings.sources).toEqual([
       {
         name: "github",
@@ -82,26 +82,26 @@ describe("resolveLibrarianSettings", () => {
 
   it("normalizes disabled tool names", () => {
     const settings = resolveLibrarianSettings(
-      { pi: { tools: { disabled: ["write", " write ", ""] } } },
+      { tools: { disabled: ["write", " write ", ""] } },
       {},
     );
-    expect(settings.pi.tools).toEqual({ disabled: ["write"] });
+    expect(settings.tools).toEqual({ disabled: ["write"] });
   });
 
   it("refuses keys it does not know, so a removed or misspelled one is not silently ignored", () => {
     expect(() => parseSettings({ extensions: ["/x"] }, {})).toThrow(
       "Invalid settings: /extensions is not a recognized key",
     );
-    expect(() => parseSettings({ tools: { disabled: ["bash"] } }, {})).toThrow(
-      "Invalid settings: /tools is not a recognized key",
+    expect(() => parseSettings({ pi: { tools: { disabled: ["bash"] } } }, {})).toThrow(
+      "Invalid settings: /pi/tools is not a recognized key",
     );
-    expect(() => parseSettings({ pi: { tools: { extra: ["web_fetch"] } } }, {})).toThrow(
-      "Invalid settings: /pi/tools/extra is not a recognized key",
+    expect(() => parseSettings({ tools: { extra: ["web_fetch"] } }, {})).toThrow(
+      "Invalid settings: /tools/extra is not a recognized key",
     );
     expect(() => parseSettings({ web: { fetch: { browsr: {} } } }, {})).toThrow(
       "Invalid settings: /web/fetch/browsr is not a recognized key",
     );
-    expect(parseSettings({ pi: { tools: { disabled: ["bash"] } } }, {}).pi.tools).toEqual({
+    expect(parseSettings({ tools: { disabled: ["bash"] } }, {}).tools).toEqual({
       disabled: ["bash"],
     });
   });

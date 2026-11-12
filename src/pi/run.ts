@@ -148,7 +148,7 @@ export async function runLibrarian(
   }
 
   let findings: Findings | undefined;
-  const disabledTools = new Set(options.settings.pi.tools.disabled);
+  const disabledTools = new Set(options.settings.tools.disabled);
   const tools = [
     ...options.tools,
     createProvideResultsTool(

@@ -141,18 +141,18 @@ In `~/.config/agents/librarian/config.json`, under `$XDG_CONFIG_HOME` when set, 
       "challenge": { "escalation": "headed", "headlessWaitSecs": 10, "headedWaitSecs": 20 }
     }
   },
+  "tools": { "disabled": [] },
   "cacheDir": "~/.cache/agents/librarian",
   "pi": {
     "model": "openai-codex/gpt-5.5",
     "thinkingLevel": "off",
-    "tools": { "disabled": [] },
     "debug": { "persistRuns": false }
   },
   "codex": { "model": "gpt-5.5", "reasoningEffort": "low" }
 }
 ```
 
-Earlier releases kept these settings under `librarian` in pi's `settings.json`, and the browser profile at `~/.pi/agent/browser-profile`. The first pi, Claude Code, or Codex session after upgrading moves both, filing `model`, `thinkingLevel`, `tools`, and `debug` under `pi`. When the new location already exists it stops with an error instead of choosing one.
+Earlier releases kept these settings under `librarian` in pi's `settings.json`, and the browser profile at `~/.pi/agent/browser-profile`. The first pi, Claude Code, or Codex session after upgrading moves both, filing `model`, `thinkingLevel`, and `debug` under `pi`. When the new location already exists it stops with an error instead of choosing one.
 
 | Setting                                | Recommended                                                              | Default                                           |
 | -------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------- |
@@ -164,16 +164,16 @@ Earlier releases kept these settings under `librarian` in pi's `settings.json`, 
 | `web.fetch.browser.executablePath`     | the browser the local fetcher drives                                     | Chrome, then a `chromium`                         |
 | `web.fetch.browser.profileDir`         | the fetch browser's profile                                              | `~/.local/state/agents/librarian/browser-profile` |
 | `web.fetch.challenge.*`                | `escalation` (`headed` or `never`), `headlessWaitSecs`, `headedWaitSecs` | `headed`, `10`, `20`                              |
+| `tools.disabled`                       | names of tools to remove from librarian runs, in every harness           | `[]`                                              |
 | `cacheDir`                             | clones, search results, and fetched pages                                | `~/.cache/agents/librarian`                       |
 | `pi.model`                             | `openai-codex/gpt-5.5`                                                   | current session model                             |
 | `pi.thinkingLevel`                     | `off`                                                                    | current session thinking level                    |
-| `pi.tools.disabled`                    | names of tools to remove from librarian runs                             | `[]`                                              |
 | `pi.debug.persistRuns`                 | persist nested session file paths for debugging                          | `false`                                           |
 | `codex.model`, `codex.reasoningEffort` | the Codex role's model and reasoning effort, applied by `codex setup`    | the parent session's                              |
 
 Each `sources` entry requires a unique `name`, an HTTPS `url`, and a `kind`: `github`, `gitlab`, `bitbucket-server`, or `sourcegraph`. The `kind` decides which roles a source can play — `clone`, `code-search`, `repo-search` — unless `disabled`. `github` and `gitlab.com` are built in and need no entry; `builtInSources` switches each on or off as a whole, and a switched-off source does not exist at all, though a full clone URL to its host still clones.
 
-Search needs an API token; cloning does not, because it uses git's own credentials. A source reads its token from the environment variable named by `tokenEnv`, from what `tokenCommand` prints, or by default from its kind's usual variable: `GITHUB_TOKEN`/`GH_TOKEN`, `GITLAB_ACCESS_TOKEN`, `BITBUCKET_TOKEN`, `SRC_ACCESS_TOKEN`. `tokenCommand` runs once, the first time the source is used, and outside the search time limit; restart the session after rotating the token it prints. A source without a token keeps cloning and loses its search tools. `advancedSearch: true`, on a `gitlab` source only, says the instance has GitLab's advanced search, which lets code search span projects. `description` is up to 300 characters the agent cannot discover for itself, such as what a Sourcegraph does not index; it ends the description of every tool that reaches that source, so attached tools carry it too. Note that `pi.tools.disabled` is a different lever: it removes a tool from the run entirely, where a source's `disabled` removes one source from one role.
+Search needs an API token; cloning does not, because it uses git's own credentials. A source reads its token from the environment variable named by `tokenEnv`, from what `tokenCommand` prints, or by default from its kind's usual variable: `GITHUB_TOKEN`/`GH_TOKEN`, `GITLAB_ACCESS_TOKEN`, `BITBUCKET_TOKEN`, `SRC_ACCESS_TOKEN`. `tokenCommand` runs once, the first time the source is used, and outside the search time limit; restart the session after rotating the token it prints. A source without a token keeps cloning and loses its search tools. `advancedSearch: true`, on a `gitlab` source only, says the instance has GitLab's advanced search, which lets code search span projects. `description` is up to 300 characters the agent cannot discover for itself, such as what a Sourcegraph does not index; it ends the description of every tool that reaches that source, so attached tools carry it too. Note that `tools.disabled` is a different lever: it removes a tool from the run entirely, and its command from the `librarian` CLI, where a source's `disabled` removes one source from one role.
 
 Every key in the file is checked, and an unknown one is an error rather than ignored. Pi's librarian runs have `read`, `grep`, `find`, `ls`, `bash`, the research tools, and the web tools; never `write` or `edit`.
 

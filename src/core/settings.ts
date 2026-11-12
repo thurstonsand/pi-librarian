@@ -90,16 +90,13 @@ const WEB_SETTINGS_SCHEMA = Type.Object(
   STRICT,
 );
 
-// Each harness's section holds what only that harness reads: its model, and for pi, its own tool
-// filter and run debugging. Claude Code has none: a plugin agent's model is its frontmatter, and
-// Claude Code reads no per-agent override from anywhere else.
+// Each harness's section holds what only that harness reads: its model, and for pi, run
+// debugging. Claude Code has none: a plugin agent's model is its frontmatter, and Claude Code reads
+// no per-agent override from anywhere else.
 const PI_SETTINGS_SCHEMA = Type.Object(
   {
     model: Type.Optional(Type.String()),
     thinkingLevel: Type.Optional(THINKING_LEVEL_SCHEMA),
-    tools: Type.Optional(
-      Type.Object({ disabled: Type.Optional(Type.Array(Type.String())) }, STRICT),
-    ),
     debug: Type.Optional(
       Type.Object(
         {
@@ -142,6 +139,9 @@ const LIBRARIAN_FILE_SETTINGS_SCHEMA = Type.Object(
       ),
     ),
     web: Type.Optional(WEB_SETTINGS_SCHEMA),
+    tools: Type.Optional(
+      Type.Object({ disabled: Type.Optional(Type.Array(Type.String())) }, STRICT),
+    ),
     cacheDir: Type.Optional(Type.String()),
     pi: Type.Optional(PI_SETTINGS_SCHEMA),
     codex: Type.Optional(CODEX_SETTINGS_SCHEMA),
@@ -226,9 +226,6 @@ export interface WebSettings {
 export interface PiSettings {
   model: ModelReference | undefined;
   thinkingLevel: ThinkingLevel | undefined;
-  tools: {
-    disabled: string[];
-  };
   debug: {
     persistRuns: boolean;
   };
@@ -244,6 +241,10 @@ export interface LibrarianSettings {
   sources: LibrarianSource[];
   search: SearchSettings;
   web: WebSettings;
+  // Tool names every harness leaves out of a librarian run: pi's run tools, the CLI's commands.
+  tools: {
+    disabled: string[];
+  };
   cacheDir: string;
   pi: PiSettings;
   codex: CodexSettings;
@@ -528,13 +529,13 @@ export function resolveLibrarianSettings(
       defaultLimit: fileSettings.search?.defaultLimit ?? DEFAULT_SEARCH_LIMIT,
     },
     web: resolveWebSettings(fileSettings.web, env),
+    tools: {
+      disabled: normalizeToolNames(fileSettings.tools?.disabled),
+    },
     cacheDir: normalizeAbsolutePath(fileSettings.cacheDir, "cacheDir") ?? cacheDir(env),
     pi: {
       model: parseModelReference(pi?.model),
       thinkingLevel: pi?.thinkingLevel,
-      tools: {
-        disabled: normalizeToolNames(pi?.tools?.disabled),
-      },
       debug: {
         persistRuns: pi?.debug?.persistRuns ?? false,
       },

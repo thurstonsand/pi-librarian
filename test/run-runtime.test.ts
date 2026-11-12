@@ -86,11 +86,11 @@ describe("runLibrarian", () => {
           challenge: { escalation: "never", headlessWaitSecs: 1, headedWaitSecs: 1 },
         },
       },
+      tools: { disabled: ["bash", "search_code_grepapp"] },
       cacheDir,
       pi: {
         model: undefined,
         thinkingLevel: undefined,
-        tools: { disabled: ["bash", "search_code_grepapp"] },
         debug: { persistRuns: false },
       },
       codex: { model: undefined, reasoningEffort: undefined },

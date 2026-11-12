@@ -4,7 +4,7 @@ import path from "node:path";
 import { browserProfileDir, settingsPath } from "./paths.ts";
 
 // Settings that only the pi binding reads; everything else in the old key is shared by every harness.
-const PI_KEYS = new Set(["model", "thinkingLevel", "tools", "debug"]);
+const PI_KEYS = new Set(["model", "thinkingLevel", "debug"]);
 
 export interface PiLegacyPaths {
   piSettings: string;
