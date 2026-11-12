@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-12
+
 Disabled tools leave every harness, and `codex setup` prepares the directories a sandboxed Codex needs.
 
 ### Breaking
