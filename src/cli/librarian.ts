@@ -20,7 +20,7 @@ try {
     clients,
     repoTools: createRepoTools(settings, clients).tools,
     web: createWebTools(settings, clients.github, () => loadSettings(process.env).web.fetch),
-    setupCodex: async () => setupCodex(process.env, settings.codex),
+    setupCodex: async () => setupCodex(process.env, settings),
     uninstallCodex: () =>
       uninstallCodex(process.env, async (question) => {
         const prompt = createInterface({ input: process.stdin, output: process.stderr });

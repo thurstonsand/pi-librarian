@@ -4,9 +4,15 @@
 
 ## [Unreleased]
 
+Disabled tools leave every harness, and `codex setup` prepares the directories a sandboxed Codex needs.
+
 ### Breaking
 
 - `pi.tools.disabled` moves to the top-level `tools.disabled`, and applies to every harness: the `librarian` command leaves out the commands of disabled tools, so Claude Code and Codex lose them too.
+
+### Added
+
+- `librarian codex setup` creates the cache and state directories, so a Codex whose managed policy keeps the librarian sandboxed can open them with `--add-dir`, which ignores a directory that does not exist yet.
 
 ### Changed
 

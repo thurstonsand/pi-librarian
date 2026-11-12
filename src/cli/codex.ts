@@ -2,7 +2,8 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { CodexSettings } from "../core/settings.ts";
+import { stateDir } from "../core/paths.ts";
+import type { CodexSettings, LibrarianSettings } from "../core/settings.ts";
 
 // Two directories up from both src/cli and the dist/cli bundle.
 const AGENT_PROMPT = fileURLToPath(new URL("../../plugin/agents/librarian.md", import.meta.url));
@@ -56,6 +57,19 @@ function write(file: string, content: string): "created" | "updated" | "unchange
   return existing === undefined ? "created" : "updated";
 }
 
+// A managed Codex may force the sandbox on and refuse the rule; `codex --add-dir` still opens these
+// directories, but only ones that exist when Codex starts. The state directory holds the fetch
+// worker's socket, hence the same mode the worker creates it with.
+function ensureDir(dir: string, mode: number): "created" | "unchanged" {
+  if (existsSync(dir)) return "unchanged";
+  mkdirSync(dir, { recursive: true, mode });
+  return "created";
+}
+
+function capitalize(word: string): string {
+  return `${word[0]?.toUpperCase()}${word.slice(1)}`;
+}
+
 function onPath(command: string, env: NodeJS.ProcessEnv): boolean {
   return (env.PATH ?? "")
     .split(path.delimiter)
@@ -70,14 +84,19 @@ function codexFiles(env: NodeJS.ProcessEnv): { role: string; rule: string } {
   };
 }
 
-export function setupCodex(env: NodeJS.ProcessEnv, codex: CodexSettings): string {
+export function setupCodex(env: NodeJS.ProcessEnv, settings: LibrarianSettings): string {
   const { role, rule } = codexFiles(env);
-  const roleState = write(role, renderCodexRole(readAgentPrompt(), codex));
+  const roleState = write(role, renderCodexRole(readAgentPrompt(), settings.codex));
   const ruleState = write(rule, RULE);
+  const state = stateDir(env);
+  const cacheState = ensureDir(settings.cacheDir, 0o777);
+  const stateState = ensureDir(state, 0o700);
 
   const lines = [
-    `${roleState[0]?.toUpperCase()}${roleState.slice(1)} ${role}: the librarian role.`,
-    `${ruleState[0]?.toUpperCase()}${ruleState.slice(1)} ${rule}: lets the librarian command run without approval, outside Codex's sandbox.`,
+    `${capitalize(roleState)} ${role}: the librarian role.`,
+    `${capitalize(ruleState)} ${rule}: lets the librarian command run without approval, outside Codex's sandbox.`,
+    `${capitalize(cacheState)} ${settings.cacheDir}: the librarian's cache.`,
+    `${capitalize(stateState)} ${state}: the librarian's state.`,
   ];
   if (roleState !== "unchanged" || ruleState !== "unchanged") {
     lines.push("Restart Codex to load them.");

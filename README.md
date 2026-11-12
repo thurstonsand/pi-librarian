@@ -53,7 +53,15 @@ npm install --global @thurstonsand/pi-librarian
 librarian codex setup
 ```
 
-`codex setup` writes `~/.codex/agents/librarian.toml`, with the model and reasoning effort from the `codex` settings, and `~/.codex/rules/librarian.rules`, which runs the `librarian` command outside Codex's sandbox without asking, since the default `workspace-write` sandbox blocks both its network and its cache. It reports each file as created, updated, or unchanged; restart Codex after it changes either. Rerun it after upgrading or after changing the `codex` settings. `librarian codex uninstall` asks once, then removes both files.
+`codex setup` writes `~/.codex/agents/librarian.toml`, with the model and reasoning effort from the `codex` settings, and `~/.codex/rules/librarian.rules`, which runs the `librarian` command outside Codex's sandbox without asking, since the default `workspace-write` sandbox blocks both its network and its cache. It also creates the librarian's cache and state directories. It reports each file as created, updated, or unchanged; restart Codex after it changes either. Rerun it after upgrading or after changing the `codex` settings. `librarian codex uninstall` asks once, then removes both files.
+
+When an administrator's Codex policy denies any reads (`[permissions.filesystem] deny_read`), Codex keeps allowed commands in its sandbox, so the rule no longer lets `librarian` write its cache. Open both directories to the sandbox when starting Codex instead. They must exist by then, which `codex setup` ensures:
+
+```sh
+alias codex='codex --add-dir ~/.cache/agents/librarian --add-dir ~/.local/state/agents/librarian'
+```
+
+The local browser fallback of `web fetch` still cannot launch Chrome inside Codex's macOS sandbox, but it can reach a fetch worker that pi or Claude Code already started.
 
 ## Web tools
 
