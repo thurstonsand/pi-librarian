@@ -39,16 +39,22 @@
       "groupName": "npm packages"
     },
     {
+      "matchManagers": ["mise"],
+      "matchPackageNames": ["node"],
+      "matchUpdateTypes": ["patch"],
+      "minimumReleaseAge": null
+    },
+    {
       "matchDatasources": ["github-releases"],
       "matchPackageNames": ["jdx/hk"],
       "groupName": "hk",
       "groupSlug": "hk"
     },
     {
-      "description": "Pi is the host this package extends, and users run whatever pi released last. Build against that release the day it ships instead of waiting out the release-age gate, and raise the devDependency floor to it rather than only moving the lockfile.",
+      "description": "Test against the latest Pi without waiting out the release-age gate. Keep the supported Pi floor when newer releases fit the devDependency range.",
       "matchPackageNames": ["@earendil-works/**"],
       "minimumReleaseAge": null,
-      "rangeStrategy": "bump"
+      "rangeStrategy": "update-lockfile"
     },
     {
       "description": "Pi's docs/packages.md has a package declare the packages Pi provides as peerDependencies at \"*\", so it loads in whichever Pi hosts it. Renovate leaves those peers alone; the devDependencies carry the Pi the package is built against.",
