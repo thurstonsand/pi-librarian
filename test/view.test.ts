@@ -1,7 +1,7 @@
 import { stripVTControlCharacters } from "node:util";
 import type { AgentToolResult } from "@earendil-works/pi-agent-core";
 import { initTheme, type KeybindingHints, type Theme } from "@earendil-works/pi-coding-agent";
-import { Container, Text } from "@earendil-works/pi-tui";
+import { type Component, Container, Text } from "@earendil-works/pi-tui";
 import { beforeAll, describe, expect, it } from "vitest";
 import { resolveLibrarianSettings } from "../src/core/settings.ts";
 import type { LibrarianRunDetails, TraceCall } from "../src/pi/run.ts";
@@ -432,7 +432,7 @@ describe("renderRepoToolResult", () => {
     ...hints,
     ...overrides,
   });
-  const lines = (component: { render(width: number): string[] }) =>
+  const lines = (component: Component) =>
     component.render(200).map((line) => stripVTControlCharacters(line).trimEnd());
 
   it("shows the summary and the first five entries when collapsed", () => {
