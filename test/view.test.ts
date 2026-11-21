@@ -13,6 +13,7 @@ import {
   renderLibrarianResult,
   renderRepoToolResult,
   shorten,
+  shortenUrl,
   type TraceContext,
 } from "../src/pi/view.ts";
 
@@ -397,6 +398,32 @@ describe("shorten", () => {
   });
 });
 
+describe("shortenUrl", () => {
+  it("drops the scheme and www. and keeps a URL that fits whole", () => {
+    expect(shortenUrl("https://www.example.com/")).toBe("example.com");
+    expect(shortenUrl("https://example.com/a?b=1#c")).toBe("example.com/a?b=1#c");
+  });
+
+  it("drops the query before cutting the path", () => {
+    expect(shortenUrl(`https://example.com/docs/page?token=${"x".repeat(80)}`)).toBe(
+      "example.com/docs/page…",
+    );
+  });
+
+  it("cuts the middle of the path, keeping the host and the end", () => {
+    expect(
+      shortenUrl(
+        "https://next.jqueryscript.net/wp-content/uploads/2024/12/advanced-shadcn-table-768x454.webp",
+      ),
+    ).toBe("next.jqueryscript.net/wp-content/…-shadcn-table-768x454.webp");
+  });
+
+  it("never cuts the host, even past the limit", () => {
+    const host = `${"a".repeat(70)}.com`;
+    expect(shortenUrl(`https://${host}/x/y`)).toBe(`${host}/…`);
+  });
+});
+
 describe("renderRepoToolResult", () => {
   const entries = Array.from({ length: 7 }, (_, index) => ({
     group: { label: "example-bb", cloneSource: "example-bb" },
@@ -544,7 +571,7 @@ describe("web tools in the run trace", () => {
       line("web_fetch", { urls: ["https://github.com/a/b/issues/1", "https://x.dev"] }),
     ).toEqual({
       verb: "fetch",
-      subject: "https://github.com/a/b/issues/1 +1 more",
+      subject: "github.com/a/b/issues/1 +1 more",
     });
     expect(line("web_search", { objective: "drizzle 1.0 release" })).toEqual({
       verb: "search",

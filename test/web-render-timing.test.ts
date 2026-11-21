@@ -48,7 +48,7 @@ describe("tool render timing", () => {
   it("shows the recorded duration of a final result, not the render clock", () => {
     vi.useFakeTimers();
     vi.setSystemTime(1_000);
-    const tool = withWebFetchRendering(createWebFetchTool([], "/tmp/cache"));
+    const tool = withWebFetchRendering(createWebFetchTool([], [], "/tmp/cache"));
     const theme = { fg: (_color: string, text: string) => text } as unknown as Theme;
     const state: ToolTimingState = {};
     startToolTiming(state, true);

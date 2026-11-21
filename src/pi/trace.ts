@@ -127,8 +127,10 @@ function summarizeWebDetails(details: unknown): string | undefined {
         ? `${documents}, ${fetched.failed.length} failed`
         : documents;
     }
-    case "web_search":
-      return plural((details as WebSearchDetails).count, "result");
+    case "web_search": {
+      const searched = details as WebSearchDetails;
+      return plural(searched.count, searched.target === "images" ? "image" : "result");
+    }
     default:
       return undefined;
   }

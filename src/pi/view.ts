@@ -57,6 +57,35 @@ export function shorten(text: string, max: number): string {
   return normalized.length <= max ? normalized : `${normalized.slice(0, max)}…`;
 }
 
+const URL_DISPLAY_MAX = 60;
+
+// Elided the way browsers elide URLs (Chromium's ElideUrl, WHATWG URL rendering): no scheme or
+// "www.", never any of the host, then the query dropped and the middle of the path cut, because a
+// URL's end is what tells it apart from its neighbors. Callers link the text to the full URL.
+export function shortenUrl(url: string, max = URL_DISPLAY_MAX): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return shorten(url, max);
+  }
+  const host = parsed.host.replace(/^www\./, "");
+  let path = parsed.pathname === "/" ? "" : parsed.pathname;
+  try {
+    path = decodeURI(path);
+  } catch {
+    // keep the encoded form when it does not decode
+  }
+  const full = `${host}${path}${parsed.search}${parsed.hash}`;
+  if (full.length <= max) return full;
+  if (`${host}${path}…`.length <= max) return `${host}${path}…`;
+
+  const room = max - host.length - 1;
+  if (room < 10) return path ? `${host}/…` : host;
+  const tail = Math.ceil((room * 2) / 3);
+  return `${host}${path.slice(0, room - tail)}…${path.slice(-tail)}`;
+}
+
 export function relativizeCachePath(rawPath: string, cacheDir: string): string {
   const searchesRoot = path.join(cacheDir, "searches") + path.sep;
   if (rawPath.startsWith(searchesRoot)) {
@@ -245,12 +274,15 @@ export function formatTraceLine(call: TraceCall, context: TraceContext): TraceLi
     case LIBRARIAN_TOOL_NAMES.provideResults:
       return { verb: "results", subject: "" };
     case WEB_TOOL_NAMES.webSearch:
-      return { verb: "search", subject: `web ${shorten(stringArg(args, "objective") ?? "", 80)}` };
+      return {
+        verb: "search",
+        subject: `${args.images === true ? "images" : "web"} ${shorten(stringArg(args, "objective") ?? "", 80)}`,
+      };
     case WEB_TOOL_NAMES.webFetch: {
       const [first = "", ...rest] = stringArrayArg(args, "urls");
       return {
         verb: "fetch",
-        subject: `${shorten(first, 100)}${rest.length > 0 ? ` +${rest.length} more` : ""}`,
+        subject: `${shortenUrl(first)}${rest.length > 0 ? ` +${rest.length} more` : ""}`,
       };
     }
     default: {

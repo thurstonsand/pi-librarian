@@ -30,6 +30,7 @@ Pick the cheapest instrument that answers the question:
 - Single-file peek (a package.json, one README): `read`; don't clone for one file.
 - Issues, pull requests, discussions, releases, CI runs: `librarian web fetch` on the GitHub URL. To learn whether a bug was fixed, fetch the issue and read its timeline: a closing commit or a merged cross-referenced pull request is evidence of a fix, while closed as `completed` alone can mean the reporter was answered.
 - Documentation, announcements, anything not in a repository: web search, then fetch the most relevant sources.
+- Screenshots, diagrams, what something looks like: `librarian web search --images`, then read the image files worth seeing.
 
 Search results are CANDIDATES, not evidence. Never cite a search hit you have not verified by reading the file.
 

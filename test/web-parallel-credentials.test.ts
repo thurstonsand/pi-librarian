@@ -1,10 +1,15 @@
 import { inspect } from "node:util";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resolveLibrarianSettings } from "../src/core/settings.ts";
+import type { ImageDownloader } from "../src/core/web/images.ts";
 import { createWebTools } from "../src/core/web/index.ts";
 import { createParallelFetcher, ParallelClient } from "../src/core/web/parallel.ts";
 import { createWebSearchTool } from "../src/core/web/search.ts";
 import { stubFetch } from "./support/fetch-stub.ts";
+
+const noDownloads: ImageDownloader = async () => {
+  throw new Error("this test downloads no images");
+};
 
 const command = 'printf "%s\\n" "$WEB_TOOLS_TEST_KEY"';
 
@@ -58,7 +63,7 @@ describe("web tool registration", () => {
 describe("Parallel API key command", () => {
   it("runs the command per call, so a rotated key takes effect", async () => {
     const requests = parallelStub();
-    const tool = createWebSearchTool(client(command));
+    const tool = createWebSearchTool(client(command), noDownloads, "/tmp/librarian-cache");
 
     await tool.execute("first", { objective: "test" }, undefined);
     vi.stubEnv("WEB_TOOLS_TEST_KEY", "rotated-fake-key");
@@ -93,12 +98,11 @@ describe("Parallel API key command", () => {
 
   it("prefers the environment key without executing the configured command", async () => {
     const requests = parallelStub();
-    await createWebSearchTool(client("exit 99", "fake-env-key")).execute(
-      "call",
-      { objective: "test" },
-      undefined,
-      undefined,
-    );
+    await createWebSearchTool(
+      client("exit 99", "fake-env-key"),
+      noDownloads,
+      "/tmp/librarian-cache",
+    ).execute("call", { objective: "test" }, undefined, undefined);
     expect(requests[0]?.headers.get("x-api-key")).toBe("fake-env-key");
   });
 
@@ -155,7 +159,7 @@ describe("Parallel API key command", () => {
 
   it("does not resolve a key for invalid search arguments", async () => {
     const requests = parallelStub();
-    const tool = createWebSearchTool(client(command));
+    const tool = createWebSearchTool(client(command), noDownloads, "/tmp/librarian-cache");
     await expect(
       tool.execute("invalid", { objective: "test", after_date: "invalid" }, undefined, undefined),
     ).rejects.toThrow("Invalid after_date");

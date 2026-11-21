@@ -73,20 +73,25 @@ Backed by [Parallel](https://parallel.ai/), and registered only when a Parallel 
 
 ![web_search results in pi](images/web-search.png)
 
+Set `images` and you get pictures instead, downloaded under `<cacheDir>/images/<call>/` for the agent to look at. Expand the result in a terminal that draws images (Ghostty, Kitty, WezTerm) for thumbnails.
+
+![web_search images in pi, expanded](images/web-search-images.png)
+
 Parameters:
 
 - `objective` (required) — what you want to learn.
-- `search_queries` — up to 8 specific queries.
+- `search_queries` — up to 8 specific queries; an image search uses the first 3.
 - `max_results` — 1–8, defaults to 5.
-- `after_date` — `YYYY-MM-DD` freshness filter.
+- `after_date` — `YYYY-MM-DD` freshness filter, for pages only.
+- `images` — search for images instead of pages.
 
 ### `web_fetch`
 
 ![Expanded web_fetch results in pi](images/web-fetch.png)
 
-Fetch up to 10 URLs at once. Each document's body is written under `<cacheDir>/fetches/<call>/` as a native artifact (markdown, patch, source file), and the tool result is a digest: title, facts, the artifact paths with sizes, and a capped excerpt. Pass an optional `objective` to steer extraction where supported.
+Fetch up to 10 URLs at once. Each document's body is written under `<cacheDir>/fetches/<call>/` as a native artifact (markdown, patch, source file), and the tool result is a digest: title, facts, the artifact paths with sizes, and a capped excerpt. Pass an optional `objective` to steer extraction where supported. Pass `raw` to skip the extractors and get each URL as served: HTML stays HTML, and an image stays an image instead of Parallel's description of one.
 
-Each URL goes through a chain of fetchers, `github → parallel → local`; the first to produce a document wins.
+Each URL goes through a chain of fetchers, `github → image → parallel → local`; the first to produce a document wins. **Image** peeks at the first bytes of each URL, the way browsers sniff images, and keeps the file if it is one. Everything else moves along.
 
 **GitHub** resolves URLs on github.com and on any `github` source you declare, through the same client and token as the repo tools:
 

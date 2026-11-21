@@ -31,6 +31,12 @@ export const fetchParameters = Type.Object({
       description: "Optional extraction goal. Source-native fetchers ignore it.",
     }),
   ),
+  raw: Type.Optional(
+    Type.Boolean({
+      description:
+        "Fetch each URL directly, bypassing any extractors. Use it when you want the raw source of a url.",
+    }),
+  ),
 });
 
 const webFetchOutput = Type.Object({
@@ -92,7 +98,12 @@ function toStructuredContent(result: RoutedFetchResult): Static<typeof webFetchO
   };
 }
 
-export function createWebFetchTool(fetchers: WebFetcher[], cacheDir: string) {
+// rawFetchers is the chain a `raw` call runs instead: the fetchers that keep a URL's bytes as served.
+export function createWebFetchTool(
+  fetchers: WebFetcher[],
+  rawFetchers: WebFetcher[],
+  cacheDir: string,
+) {
   return defineTool<typeof fetchParameters, WebFetchDetails | undefined>({
     name: "web_fetch",
     label: "Fetch Web",
@@ -120,7 +131,7 @@ export function createWebFetchTool(fetchers: WebFetcher[], cacheDir: string) {
       try {
         const artifactRoot = path.join(cacheDir, "fetches", toolCallId.replace(/[^\w.-]/g, "_"));
         const result = await fetchDocuments(
-          fetchers,
+          params.raw ? rawFetchers : fetchers,
           params.urls,
           artifactRoot,
           params.objective,

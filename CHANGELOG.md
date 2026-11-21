@@ -4,6 +4,16 @@
 
 ## [Unreleased]
 
+### Added
+
+- `web_search` takes `images` to search for images through Parallel's Image Search. Each result is downloaded under `<cacheDir>/images/<call>/`, retrying in the fetch browser when a host refuses a plain request, and the digest lists its title, size, source page, and path, so the agent reads the images worth seeing.
+- `web_fetch` saves an image URL as the image file, instead of Parallel's description of it. It recognizes images by their response, headers and first bytes per the WHATWG MIME Sniffing standard, so URLs without an extension count, and the local browser fallback names image downloads for their real type.
+- `web_fetch` takes `raw`, which bypasses every extractor and keeps each URL as served, by plain HTTP and then the local browser: pages as HTML, and an image Parallel described in words as the file.
+
+### Changed
+
+- Pi shows URLs in web tool results shortened the way browsers elide them: no scheme or `www.`, the whole host, and the middle of a long path cut. Each still links to the full URL.
+
 ## [0.11.0] - 2026-11-12
 
 Disabled tools leave every harness, and `codex setup` prepares the directories a sandboxed Codex needs.

@@ -2,6 +2,7 @@ import type { GitHubClientProvider } from "../github.ts";
 import type { FetchSettings, LibrarianSettings } from "../settings.ts";
 import type { LibrarianTool } from "../tool.ts";
 import { createWebFetchTool, type fetchParameters, type WebFetchDetails } from "./fetch.ts";
+import { createDirectFetcher } from "./fetchers/direct.ts";
 import { createGitHubFetcher, type GitHubFetchHost } from "./fetchers/github/index.ts";
 import { createLocalFetcher } from "./fetchers/local/local.ts";
 import { createRehypeExtractor } from "./fetchers/local/local-extractor.ts";
@@ -9,6 +10,7 @@ import {
   createFetchWorkerClient,
   type FetchWorkerClient,
 } from "./fetchers/local/worker-connection.ts";
+import { createImageDownloader, createImageFetcher } from "./images.ts";
 import { createParallelFetcher, hasParallelCredentials, ParallelClient } from "./parallel.ts";
 import { createWebSearchTool, type searchParameters, type WebSearchDetails } from "./search.ts";
 
@@ -34,14 +36,21 @@ export function createWebTools(
     ? new ParallelClient(settings.web.parallel)
     : undefined;
   const worker = createFetchWorkerClient(loadFetchSettings);
+  const downloadImage = createImageDownloader(worker);
 
   const fetch = createWebFetchTool(
     [
       createGitHubFetcher(hosts),
+      createImageFetcher(),
       ...(parallel ? [createParallelFetcher(parallel)] : []),
       createLocalFetcher(worker, createRehypeExtractor()),
     ],
+    [createDirectFetcher(), createLocalFetcher(worker, null)],
     settings.cacheDir,
   );
-  return { search: parallel ? createWebSearchTool(parallel) : undefined, fetch, worker };
+  return {
+    search: parallel ? createWebSearchTool(parallel, downloadImage, settings.cacheDir) : undefined,
+    fetch,
+    worker,
+  };
 }

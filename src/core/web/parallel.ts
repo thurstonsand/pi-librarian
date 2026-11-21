@@ -18,6 +18,13 @@ export interface ParallelSearchRequest {
   advanced_settings: { max_results: number; source_policy?: { after_date: string } };
 }
 
+export interface ParallelImageSearchRequest {
+  objective: string;
+  search_queries: string[];
+  mode: typeof DEFAULT_SEARCH_MODE;
+  advanced_settings: { max_results: number };
+}
+
 export interface ParallelExtractRequest {
   urls: string[];
   objective?: string;
@@ -42,13 +49,20 @@ export class ParallelClient {
     return this.post("search", request, signal);
   }
 
+  imageSearch(
+    request: ParallelImageSearchRequest,
+    signal: AbortSignal | undefined,
+  ): Promise<unknown> {
+    return this.post("images/search", request, signal);
+  }
+
   extract(request: ParallelExtractRequest, signal: AbortSignal | undefined): Promise<unknown> {
     return this.post("extract", request, signal);
   }
 
   private async post(
-    endpoint: "search" | "extract",
-    body: ParallelSearchRequest | ParallelExtractRequest,
+    endpoint: "search" | "images/search" | "extract",
+    body: ParallelSearchRequest | ParallelImageSearchRequest | ParallelExtractRequest,
     signal: AbortSignal | undefined,
   ): Promise<unknown> {
     const response = await fetch(`${API_URL}/${endpoint}`, {
@@ -139,6 +153,21 @@ const parallelSearchResponse = Type.Object({
   warnings: parallelWarnings,
 });
 
+const nullableInteger = Type.Union([Type.Integer(), Type.Null()]);
+
+const parallelImageSearchResponse = Type.Object({
+  results: Type.Array(
+    Type.Object({
+      title: Type.String(),
+      image_url: Type.String(),
+      source_page_url: Type.String(),
+      width: Type.Optional(nullableInteger),
+      height: Type.Optional(nullableInteger),
+    }),
+  ),
+  warnings: parallelWarnings,
+});
+
 const parallelExtractResponse = Type.Object({
   results: Type.Array(
     Type.Object({
@@ -188,6 +217,35 @@ export function parseParallelSearchResponse(response: unknown): ParallelSearchRe
       ...(title != null ? { title } : {}),
       ...(publish_date != null ? { publish_date } : {}),
       excerpts,
+    })),
+    warnings: (parsed.warnings ?? []).map(({ message, type }) => ({ message, type })),
+  };
+}
+
+export type ParallelImageHit = {
+  title: string;
+  image_url: string;
+  source_page_url: string;
+  width?: number;
+  height?: number;
+};
+
+export function parseParallelImageSearchResponse(response: unknown): {
+  results: ParallelImageHit[];
+  warnings: FetchWarning[];
+} {
+  const parsed = parseTypeBoxValue(
+    parallelImageSearchResponse,
+    response,
+    "Parallel image search response",
+  );
+  return {
+    results: parsed.results.map(({ title, image_url, source_page_url, width, height }) => ({
+      title,
+      image_url,
+      source_page_url,
+      ...(width != null ? { width } : {}),
+      ...(height != null ? { height } : {}),
     })),
     warnings: (parsed.warnings ?? []).map(({ message, type }) => ({ message, type })),
   };
