@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-22
+
 Librarian can search for images and fetch raw files, and Pi runs report the thinking level they used and quote only their own output on failure.
 
 ### Added
