@@ -47,7 +47,7 @@ export interface LibrarianRunDetails {
   status: LibrarianRunStatus;
   query: string;
   modelLabel: string;
-  thinkingLevel: ThinkingLevel;
+  thinkingLevel?: ThinkingLevel;
   trace: TraceCall[];
   findings?: Findings;
   checkouts: Record<string, string>;
@@ -92,7 +92,6 @@ export async function runLibrarian(
     status: "running",
     query: options.query,
     modelLabel: `${options.model.provider}/${options.model.id}`,
-    thinkingLevel: options.thinkingLevel,
     trace: [],
     checkouts: {},
     startedAt: Date.now(),
@@ -190,6 +189,8 @@ export async function runLibrarian(
         (toolName) => !disabledTools.has(toolName),
       ),
     );
+    details.thinkingLevel = session.thinkingLevel;
+    emit(true);
 
     unsubscribe = session.subscribe((event: AgentSessionEvent) => {
       switch (event.type) {

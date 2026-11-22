@@ -298,10 +298,28 @@ describe("renderLibrarianResult", () => {
 
     expect(rendered).toContain("The librarian researches repositories.");
     expect(rendered).toContain("run run-123");
-    expect(rendered).toContain("1 tool call · 0.0s · test/model (high)");
+    expect(rendered).toContain("1 tool call · 0.0s · test/model high");
     expect(rendered).toContain("details hidden, f9 to expand)");
     expect(rendered).not.toContain("\n  1 tool call");
     expect(rendered).not.toContain("It checks evidence before answering.");
+  });
+
+  it("shows only the model while Pi is still resolving thinking", () => {
+    const result = completedResult();
+    result.details.status = "running";
+    result.details.trace = [];
+    delete result.details.thinkingLevel;
+    const rendered = renderLibrarianResult(
+      result,
+      { expanded: false, isPartial: true },
+      theme,
+      CTX,
+      LAST,
+    )
+      .render(120)
+      .join("\n");
+
+    expect(rendered.trimEnd()).toMatch(/ · test\/model$/);
   });
 
   it("times running calls as elapsed and finished calls by their recorded duration", () => {

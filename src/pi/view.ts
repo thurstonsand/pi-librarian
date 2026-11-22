@@ -320,11 +320,13 @@ function renderQuestion(details: LibrarianRunDetails, expanded: boolean, theme: 
 function renderFooter(details: LibrarianRunDetails, theme: Theme): string {
   const callCount = details.trace.length;
   const elapsed = formatToolDuration((details.endedAt ?? Date.now()) - details.startedAt);
-  const model = theme.fg("dim", `${details.modelLabel} (${details.thinkingLevel})`);
-  return theme.fg(
+  const footer = theme.fg(
     "muted",
-    `${callCount} tool call${callCount === 1 ? "" : "s"} · ${elapsed} · ${model}`,
+    `${callCount} tool call${callCount === 1 ? "" : "s"} · ${elapsed} · ${details.modelLabel}`,
   );
+  return details.thinkingLevel === undefined
+    ? footer
+    : `${footer} ${theme.fg("dim", details.thinkingLevel)}`;
 }
 
 function collapsedFindingsHiddenText(details: LibrarianRunDetails): string | undefined {

@@ -51,6 +51,7 @@ describe("runLibrarian", () => {
       }
       return {
         session: {
+          thinkingLevel: "low",
           setActiveToolsByName,
           subscribe: vi.fn(() => vi.fn()),
           prompt: vi.fn(async () => {
@@ -95,6 +96,7 @@ describe("runLibrarian", () => {
       },
       codex: { model: undefined, reasoningEffort: undefined },
     };
+    const onUpdate = vi.fn();
     const result = await runLibrarian({
       query: "Verify runtime propagation",
       continueFrom: undefined,
@@ -107,7 +109,7 @@ describe("runLibrarian", () => {
         createRepoClients(settings, async () => undefined),
       ).tools,
       signal: undefined,
-      onUpdate: undefined,
+      onUpdate,
     });
 
     expect(createAgentSession).toHaveBeenCalledOnce();
@@ -122,5 +124,10 @@ describe("runLibrarian", () => {
       text: expect.stringContaining("Runtime propagated."),
     });
     expect(result.details.status).toBe("done");
+    expect(onUpdate.mock.calls[0]?.[0]).not.toHaveProperty("thinkingLevel");
+    expect(onUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "running", thinkingLevel: "low" }),
+    );
+    expect(result.details.thinkingLevel).toBe("low");
   });
 });

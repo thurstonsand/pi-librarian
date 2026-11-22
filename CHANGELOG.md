@@ -14,6 +14,10 @@
 
 - Pi shows URLs in web tool results shortened the way browsers elide them: no scheme or `www.`, the whole host, and the middle of a long path cut. Each still links to the full URL.
 
+### Fixed
+
+- The Librarian footer shows the thinking level Pi resolved for the nested run, even when the model does not support the requested level.
+
 ## [0.11.0] - 2026-11-12
 
 Disabled tools leave every harness, and `codex setup` prepares the directories a sandboxed Codex needs.
