@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+Librarian can search for images and fetch raw files, and Pi runs report the thinking level they used and quote only their own output on failure.
+
 ### Added
 
 - `web_search` takes `images` to search for images through Parallel's Image Search. Each result is downloaded under `<cacheDir>/images/<call>/`, retrying in the fetch browser when a host refuses a plain request, and the digest lists its title, size, source page, and path, so the agent reads the images worth seeing.
