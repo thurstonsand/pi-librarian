@@ -17,6 +17,7 @@
 ### Fixed
 
 - The Librarian footer shows the thinking level Pi resolved for the nested run, even when the model does not support the requested level.
+- A failed Librarian continuation only quotes assistant text from that invocation. It omits the raw-message section if the invocation produced no text.
 
 ## [0.11.0] - 2026-11-12
 

@@ -192,8 +192,20 @@ export async function runLibrarian(
     details.thinkingLevel = session.thinkingLevel;
     emit(true);
 
+    let lastText = "";
     unsubscribe = session.subscribe((event: AgentSessionEvent) => {
       switch (event.type) {
+        case "message_end": {
+          if (event.message.role === "assistant") {
+            const text = event.message.content
+              .map((part) => (part.type === "text" ? part.text : ""))
+              .join("")
+              .trim();
+            if (text) lastText = text;
+          }
+          emit();
+          break;
+        }
         case "tool_execution_start": {
           details.trace.push({
             id: event.toolCallId,
@@ -266,7 +278,6 @@ export async function runLibrarian(
       );
     }
 
-    const lastText = session.getLastAssistantText() ?? "";
     fail(
       "error",
       `Librarian was not able to report findings.${lastText ? `\n\nRaw final message:\n${lastText}` : ""}`,

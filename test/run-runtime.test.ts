@@ -60,7 +60,6 @@ describe("runLibrarian", () => {
               locations: [],
             });
           }),
-          getLastAssistantText: vi.fn(() => ""),
           abort: vi.fn(),
           dispose: vi.fn(),
         },
