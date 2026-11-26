@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- `/librarian on` and `/librarian off` confirm with a notification when Pi runs without its terminal UI, such as `pi --mode rpc` under T3 Code, which does not draw the attach entry.
+
 ## [0.12.0] - 2026-11-22
 
 Librarian can search for images and fetch raw files, and Pi runs report the thinking level they used and quote only their own output on failure.

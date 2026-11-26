@@ -198,6 +198,13 @@ export default function librarianExtension(pi: ExtensionAPI): void {
       }
 
       setAttachState(pi, nextAttached, repoToolNames);
+      // Only the TUI draws the attach entry, so other clients need the confirmation as a notification.
+      if (ctx.mode !== "tui") {
+        ctx.ui.notify(
+          nextAttached ? "Librarian tools attached." : "Librarian tools detached.",
+          "info",
+        );
+      }
     },
   });
 
